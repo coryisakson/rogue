@@ -1,0 +1,10 @@
+# Local development / smoke test only. Production runs as an Olares app (deploy/olares/rogue).
+services:
+  web:
+    build: .
+    image: cisakson/rogue:dev
+    ports:
+      - "4321:4321"
+    environment:
+      - NODE_ENV=production
+      - ROGUE_REGION=eu

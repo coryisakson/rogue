@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: web
+  name: rogue
+  namespace: '{{ .Release.Namespace }}'
+spec:
+  replicas: {{ (index .Values.workloads "rogue").replicaCount }}
+  selector:
+    matchLabels:
+      io.kompose.service: web
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        io.kompose.service: web
+    spec:
+      containers:
+      - env:
+        - name: NODE_ENV
+          value: production
+        - name: ROGUE_REGION
+          value: eu
+        image: docker.io/cisakson/rogue:{{ .Chart.AppVersion }}
+        imagePullPolicy: IfNotPresent
+        name: web
+        ports:
+        - containerPort: 4321
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 768Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 4321
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 4321
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        - name: app-data
+          mountPath: /app/data
+      volumes:
+      - name: app-data
+        hostPath:
+          path: '{{ .Values.userspace.appData }}'
+          type: DirectoryOrCreate
+      restartPolicy: Always

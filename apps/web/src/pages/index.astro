@@ -1,0 +1,25 @@
+---
+import { loadProfile } from '@rogue/core';
+import { VERSION } from '../lib/version';
+const profile = loadProfile(process.env);
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{profile.name}</title>
+    <style>
+      body { font-family: system-ui, sans-serif; background: #1d2a1f; color: #f4ecd8; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+      main { max-width: 36rem; padding: 2rem; text-align: center; }
+      h1 { font-size: 3rem; margin: 0 0 .5rem; }
+      small { opacity: .7; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>{profile.name}</h1>
+      <p>A cited, rights-aware tabletop knowledge base. Coming soon.</p>
+      <small>v{VERSION} &middot; region {profile.region}</small>
+    </main>
+  </body>
+</html>

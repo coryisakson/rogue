@@ -1,0 +1,3 @@
+# Progress log (newest first). One dated line per meaningful change.
+
+- 2026-10-14 (Hermes): Initialized repo. Astro 7 SSR app with `/healthz`, `@rogue/core` (health + instance profile, tests), Dockerfile, Olares chart `rogue` (lint OK), scripts (bump/check-versions/deploy/verify/monitor-actions), CI + image-build workflows, AGENTS.md, ROADMAP, APPROVALS, DEPLOY runbook, design plan v13 copied to `docs/design/`. `npm run check` passes locally; production server smoke-tested (`/healthz` 200, home page renders). Local docker daemon unavailable, so the image is first built in CI. Blocked items: see APPROVALS.md.

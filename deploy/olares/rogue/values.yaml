@@ -1,0 +1,3 @@
+workloads:
+  rogue:
+    replicaCount: 1

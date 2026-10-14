@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tabletop App — Plan v13 (final design)</title>
+<style>
+:root{--felt:#1f5c46;--felt2:#174536;--cream:#fbf4e4;--ink:#2a2118;--red:#c8442f;--gold:#e3a72f;--blue:#2f6fb5;--card:#fffaf0}
+*{box-sizing:border-box}body{margin:0;font:16px/1.55 system-ui,Segoe UI,sans-serif;background:var(--cream);color:var(--ink)}
+header{background:var(--felt);color:#fff;padding:48px 20px;text-align:center;border-bottom:8px solid var(--gold)}
+header h1{margin:0;font-size:2.4rem;letter-spacing:.5px}header p{margin:8px 0 0;opacity:.85}
+main{max-width:980px;margin:auto;padding:24px 18px 80px}
+h2{margin-top:44px;border-bottom:3px dashed var(--gold);padding-bottom:6px;color:var(--felt2)}
+h3{margin-bottom:4px;color:var(--red)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.card{background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:14px 16px;box-shadow:4px 4px 0 var(--ink)}
+.card h3{margin-top:0}
+table{border-collapse:collapse;width:100%;background:var(--card)}th,td{border:1px solid #cdbf9f;padding:8px;text-align:left;vertical-align:top;font-size:.93rem}th{background:var(--felt);color:#fff}
+.tag{display:inline-block;background:var(--gold);border-radius:99px;padding:1px 10px;font-size:.78rem;font-weight:700}
+.warn{border-left:6px solid var(--red);background:#fde9e4;padding:10px 14px;border-radius:6px}
+.ok{border-left:6px solid var(--blue);background:#e4eef9;padding:10px 14px;border-radius:6px}.rec{border-left:6px solid var(--felt);background:#e3f1e9;padding:10px 14px;border-radius:6px}
+pre{background:#2a2118;color:#f6e9c8;padding:14px;border-radius:8px;overflow:auto;font-size:.85rem}
+code{background:#efe3c3;padding:1px 5px;border-radius:4px}pre code{background:none}
+li{margin:3px 0}
+</style></head><body>
+<header><h1>🎲 Tabletop App — Plan v13 (final design)</h1><p>Working name: <b>Rogue</b> (open to better ones) · Design complete, ready for review, nothing built yet</p></header>
+<main>
+
+<h2>The pitch</h2>
+<div class="rec"><p style="margin:0"><b>Rogue</b> is an open-source tabletop-game knowledge platform that turns publishers' and authors' own rules into things players actually use. At its heart is a continuously learning, edition-aware, multilingual knowledge base in which every fact traces back to its source, original language first and publisher and author weighted highest. Two products are built on it first: a one-page setup sheet for every game (printed on the smallest paper it fits, player-count exceptions highlighted, original themed design, never more than one page) and a rules-clarification chat that answers only by quoting and citing sources, or says it does not know. Around them sit community-rated links to 3D-printable organizers, BoardGameGeek data and links (we add value; we do not re-rank games), collection matching, affiliate buy links and a scrubbed public Q&amp;A feed. A small team of specialized AI agents (finding sources, managing the knowledge base, building sheets, answering questions, moderating) does the curation under least-privilege permissions, rights gating and human review, and every AI model and storage provider is pluggable, cloud or local. We do not host rulebooks or 3D files: we link, cite and quote within the copyright allowances of the hosting country, honor opt-outs, and invite publishers to authorize more. It is built EU- and GDPR-first so that anyone, whether a library, a game club or a country community, can run their own instance, and it exposes everything through MCP so agents can use it as easily as people do.</p></div>
+
+<h2>1. Vision in one paragraph</h2>
+<div class="rec"><b>The core artifact is the knowledge base:</b> a continuously evolving, self-improving, edition-aware graph of authoritative game knowledge (original language first, publisher/author weighted highest). Everything else is a <i>product built on top of it</i>.</div>
+<p>Open source, built for performance and continuous improvement, with all value flowing to the user community. The first two value propositions are:</p>
+<ol><li><b>Setup one-pagers</b> — a generated, always-one-page view of the knowledge base, with player-count exceptions highlighted.</li>
+<li><b>Game chat</b> — a rules-clarification agent that answers by quoting the knowledge base.</li></ol>
+<p>Later products (FAQs, collection matching, buy links, the public feed, MCP, Discord) are further views of the same knowledge, so new value propositions are cheap to add. If the KB is right, the products are right; if a product is wrong, the fix goes into the KB.</p>
+
+<h3>Architecture principle: KB at the center</h3>
+<pre><code>Sources (rulebooks, publisher/author posts, forums, images, BGG)
+        │  ingest · OCR · translate-for-display · dedupe · diff
+        ▼
+ ┌──────────────────────────────────────────────┐
+ │  KNOWLEDGE BASE (graph + vectors + versions)  │ ◄─ feedback, corrections,
+ │  games · editions · sources · chunks · rules  │    eval suite, re-crawls
+ │  facts (setup items, counts, variants)        │
+ └──────────────────────────────────────────────┘
+        │  one core API (REST + MCP share it)
+   ┌────┴─────┬───────────┬────────────┬─────────┐
+   ▼          ▼           ▼            ▼         ▼
+ Setup      Game chat   FAQs / feed  Collections  Future products
+ sheets     (cited)                  + buy links  (Discord, MCP, ...)
+ (VP #1)    (VP #2)</code></pre>
+<p>Every product output carries <b>provenance</b>: each line on a setup sheet and each chat answer links back to the KB passage and source it came from. Corrections to a sheet or answer are edits to KB facts, not to the product.</p>
+
+<h2>2. Recommended stack</h2>
+<div class="rec"><b>Yes, Astro works well here</b> — with a caveat: this is a content-heavy, SEO-critical, mostly-read site (perfect for Astro) with an interactive authenticated layer (chat, add-game). Use Astro in SSR mode with islands, and put the knowledge base, ingestion, MCP and bot in a separate backend service so Astro stays a thin front end. The KB service is the heart of the project; the website is one client of it.</div>
+<table><tr><th>Layer</th><th>Pick</th><th>Why / alternative</th></tr>
+<tr><td>Web</td><td>Astro (SSR, Node adapter) + Preact/Svelte islands + Tailwind</td><td>Fast, SEO, built-in i18n routing. Alt: Next.js if you want one-framework full-stack; I don't think it's needed.</td></tr>
+<tr><td>API / backend</td><td>Hono (TypeScript) service: REST + MCP + Discord bot webhooks</td><td>One typed core library shared by web, MCP and bot so features never drift.</td></tr>
+<tr><td>Language</td><td>TypeScript (strict mode) everywhere: web, API, MCP, Discord bot, jobs, agent tooling. Python only as an isolated worker if a task truly needs it.</td><td>See §2a for the reasoning (and why not Rust).</td></tr>
+<tr><td>Database</td><td>PostgreSQL (single engine) + pgvector, built-in full-text/BM25, relational edge tables for the graph (see §6b)</td><td>Same foundation Hindsight itself uses (Postgres + pgvector). One datastore, one backup. Details and alternatives in §6b.</td></tr>
+<tr><td>Auth</td><td>Better Auth (or Auth.js) — Google, Apple, Discord, GitHub, Microsoft</td><td>One-tap social login, no passwords, no forms. Also acts as OAuth server for MCP clients.</td></tr>
+<tr><td>Jobs</td><td>pg-boss (queue inside the same Postgres)</td><td>No Redis, nothing extra to back up.</td></tr>
+<tr><td>AI models</td><td>Pluggable provider layer (see §6)</td><td>Cloud and local, configured per role, swappable without code changes.</td></tr>
+<tr><td>PDF / print</td><td>HTML+CSS <code>@page</code> rendered; Playwright for server PDF</td><td>See §4.</td></tr>
+<tr><td>Storage</td><td>Pluggable Storage Provider interface (local disk now; S3-compatible, GCS, Azure, SFTP/rclone later)</td><td>We host no rules files or 3D models, so volumes stay small. Providers are swappable per purpose (§6b).</td></tr>
+<tr><td>Hosting</td><td>Docker/OCI containers; default region EU; Docker on your Olares for the first instance (final domain tbd); any other host later; every instance has its own profile (§7f)</td><td>Needs a public domain for OAuth/MCP.</td></tr></table>
+
+<h2>2a. Language choice: what AI coding agents do best, and what you can read</h2>
+<div class="rec"><b>Recommendation: TypeScript (strict mode) for almost everything.</b> You said you will not write the code but must be able to read it when something breaks. TypeScript reads close to C#, and AI coding agents are among their strongest in TypeScript and Python.</div>
+<ul>
+<li><b>Why TypeScript:</b> one language across Astro, the Hono API, the official MCP SDK, the Discord bot, Better Auth, the pg-boss job queue and Playwright (which the fit solver uses to measure overflow). One language means one set of types shared by the web app, MCP tools and bot, which is exactly the anti-drift rule in §2. Strict types also catch many mistakes AI-written code tends to make, before they reach production.</li>
+<li><b>Performance:</b> this system is bounded by the database, the network and model latency, not by CPU. Node handles that load comfortably when we pre-generate sheets (§4), cache answers, serve pages statically or from a CDN where possible, and keep Postgres indexed. We enforce this with performance budgets in CI (§7e).</li>
+<li><b>Python, only where it wins:</b> PDF layout, OCR and some evaluation tooling have the richest libraries in Python. If the bake-off or ingestion work shows a TypeScript option isn't good enough, run Python as a separate worker that talks to the rest through the job queue. It is not part of the first build.</li>
+<li><b>Why not Rust as the main language:</b> it is excellent for speed and memory safety, but it has a steeper learning curve, slower iteration with AI agents (long compile-fix cycles), and it is the hardest of your options for you to read in an emergency. Our bottlenecks aren't where Rust helps. If profiling later finds a real hot spot (say, the fit solver or bulk hashing), a small Rust or WASM module behind a clear interface is the right place for it. Note that you can still <i>use</i> Rust-based agent runtimes such as ZeroClaw or IronClaw as black-box programs without reading their code (§6a).</li>
+<li><b>Why not C#:</b> a fine language you already know, but the libraries we depend on (Astro, MCP and Discord SDKs, agent harnesses) are mostly TypeScript-first, so we would be translating instead of reusing.</li>
+<li><b>Readability guardrails:</b> strict mode, no <code>any</code>, small modules, a short <code>ARCHITECTURE.md</code> and a <code>RUNBOOK.md</code> written in plain language, and agents instructed (in AGENTS.md) to comment <i>why</i>, not <i>what</i>.</li>
+</ul>
+
+<h2>3. Feature breakdown</h2>
+<div class="grid">
+<div class="card"><h3>🧠 Knowledge base (core)</h3><p>Evolving, edition-aware, authority-ranked graph. Every product reads from it; every correction writes to it. See §5–6.</p></div>
+<div class="card"><h3>📄 Setup one-pagers · VP #1</h3><p>Facts extracted into the KB → rendered sheet, each line traceable to its source. Sections: components per player, shared board setup, starting resources, first-player rule, <span class="tag">player-count variants highlighted</span>.</p></div>
+<div class="card"><h3>❓ FAQs</h3><p>Per game, curated + promoted from real Q&amp;A (with source citations). Votes/flags by signed-in users.</p></div>
+<div class="card"><h3>🖨️ 3D-print organizers</h3><p>Index and link (never host) printable inserts, organizers and accessories per game and edition, from shared links and popular 3D printing sites. See §7b.</p></div>
+<div class="card"><h3>⭐ 5-star ratings</h3><p>On accessories, links, FAQs, AI answers and more. Never on games themselves; BGG owns rankings. See §7c.</p></div>
+<div class="card"><h3>🔗 BGG data &amp; link</h3><p>Every game shows BGG data where available plus a link back. We add what BGG doesn't. See §7d.</p></div>
+<div class="card"><h3>🛒 Affiliate links</h3><p>Amazon Associates per-region, plus others (Miniature Market, Target, local stores). Locale-aware routing, clear disclosure on every page.</p></div>
+<div class="card"><h3>🌍 Any language</h3><p>UI i18n + content stored per language with an explicit <code>original_language</code> flag. UTF-8/RTL/CJK safe, fonts subset per script.</p></div>
+<div class="card"><h3>💬 Game chat · VP #2</h3><p>Auth only. RAG over the graph, answers in the user's language, cites the original-language passage, and says "not covered" rather than guessing.</p></div>
+<div class="card"><h3>🔐 Auth tiers</h3><p>Anonymous: search, read sheets/FAQs, view scrubbed feed. Signed-in: chat, add games, edit, save library.</p></div>
+<div class="card"><h3>🤖 MCP</h3><p>Full parity. Anonymous tools = read-only. Authenticated tools via OAuth 2.1. See §6.</p></div>
+<div class="card"><h3>💜 Discord</h3><p>Login with Discord, slash commands (<code>/setup</code>, <code>/ask</code>, <code>/game</code>), link unfurls, optional server-installed bot with per-server default language.</p></div>
+</div>
+
+<h2>4. Value prop #1 — the one-pager (a view of the KB)</h2>
+<p><b>Rule: never more than one page.</b> Approach:</p>
+<ol>
+<li><b>Structured facts in the KB</b> (extracted from sources with citations, human-reviewable) — not free text. Sections: <code>per_player[]</code>, <code>shared[]</code>, <code>variants[{players, changes, severity}]</code>, <code>notes</code>. Each item has qty, icon, optional image.</li>
+<li><b>Paper ladder</b>, tried smallest to largest: <i>Half-Letter (5.5×8.5in) → A5 (148×210mm) → Letter → A4</i>. Pick by region default (US/CA → Letter family, else A4 family); user can override.</li>
+<li><b>Fit solver</b>: render at each size in a headless browser, measure overflow, try density steps (font 10→8pt, 1→2 column, icon-only mode) before moving up a size. Result cached per game+version+language.</li>
+<li><b>Hard cap</b>: if it won't fit on full page at minimum legible size (≈7.5pt), the editor flags the content as too long — it is trimmed, not spilled to page 2. CI test asserts page count = 1 for every sheet.</li>
+<li><b>Player-count callouts</b>: variant rows get a colored badge ("3 players: remove 2 cards"), and the sheet has a player-count strip at the top. A "pick N players" toggle on-screen shows only relevant lines; print version shows all, highlighted.</li>
+<li>Outputs: on-screen, print CSS, PDF, PNG (for Discord embeds). Half-sheets: two-up imposition option on Letter/A4 for cutting.</li>
+</ol>
+
+
+<h3>Who makes the sheets: the Designer agent (human-reviewed)</h3>
+<p>Sheets are authored by the agent, not hand-built. The deterministic parts stay in code; the judgment parts go to the agent:</p>
+<table><tr><th>Step</th><th>Owner</th></tr>
+<tr><td>1. Gather: pull the game's authorized/open-license chunks and facts from the KB (per edition, per language)</td><td>Agent (KB read tools)</td></tr>
+<tr><td>2. Extract: components per player, shared setup, starting resources, first-player rule, <b>player-count variants</b> and their severity, as structured facts with citations</td><td>Agent</td></tr>
+<tr><td>3. Self-check: re-read the cited passages, verify each number, flag ambiguity or source conflicts (e.g. errata vs. base rules), cross-check variant tables for every supported player count</td><td>Agent (second pass, ideally a different model)</td></tr>
+<tr><td>4. Prioritize and trim: decide what is essential setup versus nice-to-know, choose icons, order, which variants to highlight</td><td>Agent</td></tr>
+<tr><td>5. Layout and fit: render to paper sizes, measure overflow, adjust density, enforce the one-page rule</td><td><b>Deterministic fit solver tool</b> (agent only chooses content; it cannot override the page cap)</td></tr>
+<tr><td>6. Validate: schema check, one-page CI, every line has a citation, counts consistent across variants, accessibility (contrast, shape+color)</td><td>Automated checks</td></tr>
+<tr><td>7. Review: diff + rendered preview + source quotes side by side in the review queue; approve, edit or reject</td><td>Human (moderator or verified publisher)</td></tr>
+<tr><td>8. Publish and maintain: version the sheet; when a source changes (errata, new edition) the agent re-derives and opens an updated draft with a diff</td><td>Agent, then review</td></tr></table>
+<ul>
+<li><b>Never from memory:</b> the agent may use only facts retrieved from the KB for that game and edition. If a number can't be sourced, it is left out and flagged "needs source" instead of guessed. Sheets for games without authorized sources show the rights banner and use only labelled community-contributed facts.</li>
+<li><b>Per-edition and per-language sheets</b> are generated from the same facts; the original-language source is canonical, and translations are derived labels, not new facts.</li>
+<li><b>Images/icons</b> from generic game-icon sets (meeples, cards, dice) or openly licensed or authorized assets only. No rulebook art.</li>
+<li><b>Quality loop:</b> a gold set of hand-verified sheets scores the agent on field accuracy (counts, variants) and one-page success. Reviewer edits are logged as training signal for the Designer's playbooks (what to include, how to phrase), under the same eval gate as other changes.</li>
+<li><b>Autonomy:</b> because sheet counts are the main trust risk, sheets stay human-approved at launch. Later, a sheet whose every fact comes from a publisher-authorized source and passes the self-check and validation can auto-publish, with a publisher or user "report an error" button always visible.</li>
+<li><b>On-demand:</b> an MCP tool <code>request_sheet(game, edition, lang)</code> queues generation for a missing sheet; anonymous users see "being prepared" and can follow its status.</li>
+</ul>
+
+
+<h3>Themed styling (original design, not copied)</h3>
+<ul>
+<li>The Designer agent reads the game's permitted imagery and description and derives <b>style tokens</b>: a color palette, mood, era/genre, a typeface category from a bundled open-font set, and motif ideas (e.g. "nautical, brass, parchment").</li>
+<li>It then composes the sheet from <b>original ornaments, icons and patterns</b> (generated or from open icon sets) using those tokens. It does not trace, crop, recolor or embed the publisher's artwork, logos, fonts or card art.</li>
+<li><b>Originality check:</b> perceptual-hash and embedding similarity of each sheet asset against the game's known source images; anything too close is rejected and regenerated.</li>
+<li>Trademarked names and logos appear only as plain-text nominative references ("Setup for &lt;Game&gt;"), with a "not affiliated" footer unless the publisher authorizes more.</li>
+<li><b>No publisher approval step:</b> because nothing is copied, themes are not sent to publishers for sign-off. If a publisher asks for a change or a neutral theme, we honor the request and update the site then.</li>
+<li>Theme must still meet contrast, color-blind-safe, and print-friendly rules (low-ink mode available) and the fit solver's one-page cap.</li>
+</ul>
+<h3>Pre-generation, not on demand</h3>
+<ul>
+<li>The Designer agent and the fit solver tool work as a batch pipeline: for every game, edition and language with sufficient sourced facts, sheets are <b>pre-generated, validated and cached</b> (PDF, PNG, HTML) before users ask, and regenerated when KB facts or the theme change.</li>
+<li>Agent loop per sheet: choose content and theme tokens → call <code>fit_solver.render()</code> → read overflow/legibility report → adjust content priority or density → repeat (bounded iterations) → validation → review queue. Anonymous visitors only ever fetch finished files from cache.</li>
+<li>On-demand <code>request_sheet</code> remains for games without one.</li>
+</ul>
+
+<h2>5. The knowledge base: ingestion &amp; graph (the core)</h2>
+<h3>Source authority ranking (highest first) — applied only to sources we are <u>allowed</u> to use</h3>
+<ol><li>Publisher/author official rulebook, errata, official FAQ (original language)</li>
+<li>Publisher/author forum &amp; social posts (BGG designer/publisher-verified accounts, publisher sites)</li>
+<li>Official translations (flagged as derived from #1)</li>
+<li>Community FAQs / threads (upvoted, rules-lawyer reputation)</li>
+<li>User submissions</li></ol>
+<h3>Graph model</h3>
+<pre><code>Game ─has_edition→ Edition(lang, publisher, year)
+Edition ─has_source→ Source(type, url, lang, authority_rank, fetched_at, hash)
+Source ─has_chunk→ Chunk(text, lang, embedding, page/anchor)
+Chunk ─states→ Rule(concept, text) ─clarified_by→ Chunk
+Rule ─exception_for→ PlayerCount / Variant / Expansion
+Chunk ─translation_of→ Chunk   (original always canonical)
+Game ─has_image→ Asset(license, source)
+Game ─has_faq→ FAQ ─cites→ Chunk</code></pre>
+<p>Retrieval: original-language chunks are always fetched first; translations are used only for display. Conflicts resolve by authority rank, then recency (errata beats base rules), and the answer states the conflict.</p>
+<div class="ok"><b>Rights rule (updated in v10):</b> we fetch, cache and quote <u>only within the copyright allowances of the country where the solution is hosted</u>, and we honor every opt-out (robots.txt, machine-readable text-and-data-mining reservations, site terms, publisher requests). We still <b>never republish a full rulebook, serve cached copies to the public, or host rules files</b>. Caches are private working copies for indexing and quoting; the public sees short, attributed excerpts, facts we extracted, and links. Where policy or publisher wishes forbid even that, the source drops to link-only and the "Contact the publisher" flow applies.</div>
+<p><b>Not legal advice:</b> allowances differ a lot by country (US fair use is judged case by case, the EU has a quotation exception plus a text-and-data-mining exception that rightsholders can opt out of, the UK, Japan and others differ again). So the rules live in a configurable <b>Jurisdiction Policy</b> (below), set by the site owner for the hosting country, and open legal questions are tracked in the Review Log (§14) instead of blocking the build.</p>
+
+
+<h2>5a. Rights &amp; the publisher program</h2>
+<h3>Each source carries a rights status; the system enforces it</h3>
+<table><tr><th>Status</th><th>Examples</th><th>What we may do</th></tr>
+<tr><td><span class="tag">Authorized</span></td><td>Publisher/author grants us a license (upload, feed URL, or signed grant via the portal)</td><td>Ingest, index, quote, translate for display, extract setup facts. Scope set by the grant.</td></tr>
+<tr><td><span class="tag">Open license</span></td><td>CC-licensed, public-domain, open-source or "print and play" games that state reuse terms</td><td>Ingest and quote per license terms, with attribution.</td></tr>
+<tr><td><span class="tag">Allowance-based</span></td><td>Publicly accessible official page/rulebook with no opt-out and no restrictive terms</td><td>Fetch and cache <i>privately</i>, index, extract facts, quote short excerpts as allowed by the active Jurisdiction Policy. No republishing, no public cache.</td></tr>
+<tr><td><span class="tag">Link only</span></td><td>Publicly viewable but opted-out, restricted by terms, or outside the policy allowance</td><td>Link out and cite by page/section reference. No fetching, caching or quoting by the system.</td></tr>
+<tr><td><span class="tag">None found</span></td><td>No public rules available</td><td>Show the "Contact the publisher" banner and request flow.</td></tr></table>
+<p>Rights status is a hard gate in the ingestion pipeline: a source cannot enter the KB without a recorded grant or license, and the grant's scope (index / quote / host / translate / extract facts) is checked again at answer time. Revocation removes the content and its derived chunks and embeddings.</p>
+
+
+<h3>Jurisdiction Policy engine</h3>
+<ul>
+<li><b>Default profile: EU.</b> Assume hosting in the EU. GDPR is the privacy baseline for every instance, and the copyright profile is the EU one: the text-and-data-mining exception in Article 4 of Directive (EU) 2019/790 (which rightholders can opt out of by machine-readable means), the quotation exception as each member state implements it, and the database right. Where another region is stricter on a specific point, a stricter overlay applies to instances operating there (see §7f); the stricter rule wins.</li>
+<li><b>Config, not code:</b> a versioned policy file for the hosting country/region sets, per source type: may fetch? may cache privately (and for how long)? max excerpt length and count? translation for display? must honor robots/TDM opt-out? image handling? Changing hosting country means changing the policy and re-evaluating existing content.</li>
+<li><b>Enforced in the KB service</b> (not in prompts): ingestion, quoting, and image display all call the policy check; a decision and the policy version are recorded with every fetch and every quote.</li>
+<li><b>Opt-out discovery:</b> robots.txt, meta tags, HTTP headers, TDM-reservation protocols, ToS pages, and publisher portal flags are checked on every fetch and re-checked on re-crawl; an opt-out later removes derived content on the next cycle.</li>
+<li><b>Polite fetching:</b> honest user-agent with contact URL, rate limits, caching with conditional requests, no paywall or login circumvention, no scraping where an official API exists.</li>
+<li><b>Visitors from other countries:</b> content is served per the hosting policy; a geo-aware takedown contact path is always visible. Users' own countries are logged for later review (§14).</li>
+<li><b>Where this overrides a publisher:</b> it doesn't. A publisher grant can widen what we do (e.g. allow longer quotes, hosting a PDF) or narrow it (opt-out), and the narrower of policy and grant wins unless the grant explicitly expands.</li>
+</ul>
+
+<h3>"Contact the publisher" flow</h3>
+<ul>
+<li>Game pages without authorized rules show a clear banner: <i>"We don't have publisher-authorized rules for this game. Help us get them."</i></li>
+<li>One-click <b>Request authorization</b> (signed-in users): sends a templated, polite email/form to the publisher contact we have on file, explaining what we are and what we ask for (permission to index and quote their rules, optionally a link or file feed). Users can edit the message and add their own note.</li>
+<li>Public demand counter per game ("37 players asked for this") shown to publishers, plus rate limits so we never spam: one outreach per publisher per period, aggregated across users.</li>
+<li>Status shown on the page: <i>Not requested → Requested → Publisher responded → Authorized / Declined</i>. A declined publisher is respected and not re-contacted.</li>
+<li>Also lists the publisher's official site, rules page and support contact so users can reach out directly.</li>
+</ul>
+<h3>Publisher portal (free)</h3>
+<ul>
+<li>Publisher verifies domain ownership, then claims their games.</li>
+<li>Chooses a grant scope per game and per file; can supply a URL or push updates, errata and new editions via a feed or webhook, with versions tracked automatically.</li>
+<li>Can review and correct setup sheets, FAQs and answers about their games, see top unanswered questions, and revoke anytime.</li>
+<li>Verified publisher or author content gets the top authority rank automatically.</li>
+</ul>
+<h3>What still fills the gap without rights</h3>
+<ul>
+<li><b>Community-authored setup facts:</b> counts and layouts are facts. Contributors write them in their own words from their own copy, with page references (no copying of rulebook text, no uploaded rulebook files). Marked <i>community-contributed, not publisher-verified</i>.</li>
+<li><b>Metadata and links</b> from sources whose API terms permit it (BGG is subject to approval, §7a), with buy links and publisher contact info.</li>
+<li><b>Takedown and correction:</b> a prominent contact path; fast removal on request.</li>
+</ul>
+<p><b>Open points:</b> user-uploaded rulebooks are <i>not</i> allowed in the shared KB. Whether a user may attach their own copy for private, per-account question answering that is never shared is a separate decision (see §13). The same rights-first rule applies to forum posts and third-party sites: use only through terms-compliant APIs or with permission, short attributed excerpts at most, always linked. Logged in the Review Log (§14). I am not a lawyer.</p>
+
+<h2>5b. Value prop #2 — how game chat answers (KB-first, quote everything)</h2>
+<ol>
+<li><b>Resolve context:</b> game, edition/version (from the question, the user's collection, or ask), player count, expansions, language.</li>
+<li><b>Tier 1 — Authoritative:</b> retrieve from rulebook, errata, official FAQ, and author/publisher sites and posts. Quote the original-language passage verbatim (only from sources whose rights status allows quoting, §5a) with source, publisher/author, edition, page/anchor and date; add a translation beneath if the user's language differs.</li>
+<li><b>Tier 2 — Community:</b> only if Tier 1 does not settle it. Forum posts and other websites, clearly labelled "unofficial", ranked lower, never overriding Tier 1.</li>
+<li><b>No authorized source:</b> if a game has no usable official source, chat says so up front ("No publisher-authorized rules are in our knowledge base for this game"), shows the <i>Contact the publisher</i> call to action, and answers only from attributed community-contributed facts, clearly labelled, or declines. It never reproduces rulebook text it is not licensed to hold.</li>
+<li><b>No source, no claim:</b> if no source supports an answer, chat says "No source in the knowledge base answers this", shows the closest passages with attribution, and offers to queue the question for the Librarian/Scout or publisher outreach. It does not present unsourced rulings. (Changed in v10 to meet the always-attribute rule; see §5e.)</li>
+<li>Forum posts and other sites are Tier 2 only when use is terms-compliant, and appear as short attributed excerpts with a link.</li>
+<li>Weights are explicit and configurable: official rulebook/errata &gt; publisher/author posts &gt; official translations &gt; verified community rulings &gt; forum posts &gt; other sites. Conflicts are shown, not hidden.</li>
+</ol>
+
+<h2>5c. Editions, updates &amp; continuous learning</h2>
+<ul>
+<li><b>Edition-aware model:</b> every Source and Rule belongs to an Edition (or "all editions") with <code>effective_from</code>, <code>supersedes</code>, and <code>errata_for</code> links. Answers state which edition they apply to and flag differences ("2nd ed. changed this; your copy is 1st ed.").</li>
+<li><b>Both versions stay queryable:</b> old rules are never deleted, just marked superseded; the agent answers per edition when it matters.</li>
+<li><b>Freshness pipeline:</b> scheduled re-crawl of official sources, content-hash change detection, diff of rules, auto-flag affected FAQs and setup sheets for re-review, notify subscribers.</li>
+<li><b>Feedback loop:</b> thumbs up/down, "this contradicts the rulebook" reports, and moderator corrections feed an evaluation set. Corrected answers are re-tested after every change.</li>
+<li><b>What "learning" means here:</b> the knowledge base and retrieval improve continuously (new sources, better chunking, re-ranking weights tuned on feedback). We do not train models on user questions by default, which keeps privacy simple and model swaps painless.</li>
+<li><b>Regression suite:</b> a growing, public set of question → expected-citation tests runs in CI and on every model/config change, so upgrades cannot silently make answers worse.</li>
+</ul>
+
+
+<h2>5d. Images &amp; artwork</h2>
+<ol>
+<li><b>Publisher photos first:</b> official press kits, media pages, and images explicitly offered by the publisher or author (via the publisher portal grant or a feed). Stored with the grant scope and credit text.</li>
+<li><b>Openly licensed images</b> (e.g. CC licenses, public domain) with the license and author recorded and shown.</li>
+<li><b>Curated from other sites where allowed:</b> only if the Jurisdiction Policy and the site's terms/API permit it; otherwise link out or embed through the site's sanctioned embed/oEmbed. Prefer hot-linking or embed over copying when terms allow, and cache only what the policy permits.</li>
+<li><b>User-contributed photos</b> of their own copies, with a license/consent grant from the uploader.</li>
+<li>Every image has an <b>image record</b>: source URL, author/publisher, license or grant, date fetched, policy decision, alt text, credit line. No record means it is not shown. Takedown removes the file and all derived thumbnails.</li>
+<li>Fallback is a generic themed placeholder, never an unlicensed image.</li>
+<li>AI image generation is not used to imitate or reconstruct publisher artwork.</li>
+</ol>
+
+<h2>5e. Attribution everywhere (no unsourced knowledge)</h2>
+<div class="rec"><b>Rule:</b> every piece of knowledge the site shows, including AI chat answers, FAQs, setup sheet lines, images, accessory listings, and feed items, carries visible attribution to its source (publisher/author, document, edition, page or anchor, URL, date, rights status). If it can't be attributed, it isn't shown.</div>
+<ul>
+<li><b>Data model:</b> a fact, FAQ, answer sentence, or image cannot be stored in a "published" state without at least one provenance link. Enforced by database constraint and API validation, not by convention.</li>
+<li><b>Chat answers:</b> structured output of claims with citation IDs per claim. A verifier step checks each quote exists in the cited chunk and each claim is supported by it; failures are dropped or rewritten. The UI shows inline source chips (publisher / community / unofficial) that expand to the original-language quote.</li>
+<li><b>Also attributed:</b> which answer is machine-generated (model role and config version recorded), and when the underlying source was last verified.</li>
+<li><b>Sheets:</b> each line links to its source; the printed one-pager carries a small footer "Source: &lt;publisher&gt;, &lt;edition&gt;, &lt;date&gt; · setupsheet.example/&lt;id&gt;" and a QR code to the full citations (fits within the one-page rule).</li>
+<li><b>Community content:</b> contributor credit (display name or anonymous), plus "community-contributed, not publisher-verified".</li>
+<li><b>Exports and MCP:</b> every API/MCP result includes the citations array; responses without sources are an error.</li>
+<li><b>Style-only reuse:</b> sheet theming derived from a game's look is credited as "inspired by" with no implied endorsement.</li>
+</ul>
+
+<h2>5f. Copyright &amp; trademark for a board-game site: research summary</h2>
+<div class="warn"><b>Research summary, not legal advice.</b> I read search results and the text of the EU Directive, not every article in full. Points marked <i>(verify)</i> come from my general knowledge and are logged in §14.</div>
+<h3>Copyright: what is and isn't protected</h3>
+<ul>
+<li><b>Game rules and mechanics as ideas or systems are generally not protected; the way they are expressed is.</b> The exact wording of a rulebook, its layout, artwork, card and flavor text, component designs and logos can be protected. The Copyright Alliance and a 2026 Loughborough University explainer both say copyright covers original expression, not the method of play. The US roots are <i>Baker v. Selden</i> (1879), which held that a system described in a book is not protected by the book's copyright. EU courts similarly ask for an original, sufficiently identifiable expression (e.g. <i>Levola Hengelo</i>, 2018) <i>(verify)</i>.</li>
+<li><b>Facts and procedures are the safest material:</b> component counts, starting resources, turn order, player-count tables. Extracting them into structured data in our own words and our own layout is the lowest-risk thing the plan does. Close paraphrase or machine translation of whole passages is where it gets risky, because that can be a derivative of the text. <i>(my reasoning; logged R3)</i></li>
+<li><b>Text and data mining in the EU:</b> Article 4 of Directive (EU) 2019/790 lets anyone make reproductions and extractions of lawfully accessible works for text and data mining, unless the rightholder reserved those rights "in an appropriate manner". For content published online, the Directive's recital says that means machine-readable means, including metadata and the website's terms and conditions, and that copies may be kept only as long as necessary for the mining purpose. Article 3 (research) applies to research organizations only, which we are not.</li>
+<li><b>Quoting:</b> the EU also has a quotation exception, implemented differently by each member state, that generally needs a legitimate purpose, attribution and a limited amount <i>(verify)</i>. This is why the chat quotes short passages with source, edition and page and links out for the rest.</li>
+<li><b>Database right:</b> separate from copyright, it can protect against substantial extraction from a database. It matters for catalog and retailer data and for BGG-style sources, not for rulebooks. The Directive's recitals note it alongside text and data mining.</li>
+<li><b>Patents</b> on game mechanics are rare but exist <i>(verify)</i>; low priority.</li>
+</ul>
+<h3>Trademark</h3>
+<ul>
+<li>Game titles, publisher names, logos and slogans are protectable as trademarks (the EPGD legal guide gives this as the standard split: names and logos are trademark, wording and art are copyright).</li>
+<li><b>Using a name to identify the product is generally allowed</b> as nominative or referential use, if it is needed to identify the goods, done in line with honest practices, and does not suggest affiliation or endorsement. INTA's fact sheet gives EU examples: independent repair shops using the BMW name, and blades marked as compatible with Gillette handles.</li>
+<li><b>Where it breaks:</b> using a mark as our own brand, name or domain; logos or styling that look official; implying a partnership; or placing the name in a way that confuses sources. Commercial context (affiliate links next to a mark) is not disqualifying but is a point to review. <i>(logged R5)</i></li>
+<li><b>Accessories:</b> saying an organizer is "for Game X" is the same referential use, which is what INTA's compatibility example covers.</li>
+</ul>
+<h3>What this means for the design (most of it is already in the plan)</h3>
+<table><tr><th>Design rule</th><th>Reason</th></tr>
+<tr><td>Store structured facts, page/section locators, hashes and short excerpts; no rulebook files in our storage or caches shown to the public</td><td>Facts are free; wording is protected; EU TDM allows copies only as long as needed</td></tr>
+<tr><td>Raw fetched copies are transient (kept only while extraction and verification need them), policy-limited</td><td>Matches the Directive's retention limit and reduces exposure</td></tr>
+<tr><td>Check the opt-out on every fetch: robots, meta tags, headers, TDM-reservation protocols and site terms</td><td>An appropriate reservation turns the exception off</td></tr>
+<tr><td>Sheets use our words, our layout and original theming; names appear as plain text with a "not affiliated" footer; no publisher logos or art</td><td>Avoids derivative-work and trademark-confusion arguments</td></tr>
+<tr><td>Chat quotes briefly, with source, edition, page and date, and links to the original</td><td>Quotation purpose, attribution and limited extent</td></tr>
+<tr><td>Images only from publishers, open licenses or sources whose terms allow it (§5d)</td><td>Art and photos are the most clearly protected material</td></tr>
+<tr><td>The project's own name and domain avoid third-party marks, and a clearance search is logged</td><td>Using a mark as our brand is outside referential use</td></tr></table>
+<h3>Sources consulted</h3>
+<ul>
+<li><a href="https://copyrightalliance.org/copyrightability-of-board-games/">Copyright Alliance: Copyrightability of Board Games</a></li>
+<li><a href="https://blog.lboro.ac.uk/rdm/2026/05/pass-go-collect-copyright-the-legal-side-of-board-games/">Loughborough University: Pass Go, Collect Copyright</a></li>
+<li><a href="https://supreme.justia.com/cases/federal/us/101/99/">Baker v. Selden, 101 U.S. 99 (1879)</a></li>
+<li><a href="https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32019L0790">Directive (EU) 2019/790 on copyright in the Digital Single Market (EUR-Lex)</a></li>
+<li><a href="https://www.reedsmith.com/articles/entertainment-and-media-guide-to-ai/text-and-data-mining-in-eu/">Reed Smith: Text and data mining in the EU</a></li>
+<li><a href="https://www.inta.org/fact-sheets/fair-use-of-trademarks-intended-for-a-non-legal-audience/">INTA: Fair Use of Trademarks</a></li>
+<li><a href="https://www.epgdlaw.com/a-legal-guide-to-protecting-your-board-game/">EPGD Law: A Legal Guide to Protecting Your Board Game</a></li>
+</ul>
+
+<h2>6. Pluggable AI layer (cloud + local)</h2>
+<div class="rec"><b>Your setup:</b> a local RTX 5090 mobile (24 GB VRAM) and a Claude subscription. <b>Policy: local first, cloud as fallback, chosen per agent role.</b> Nothing is hard-wired to a vendor; each role (Concierge, Scout, Librarian, Designer, Moderator, embeddings, reranker, OCR/vision, translation) names a primary provider and a fallback chain in the instance profile, and the eval suite scores each pairing so we point each role at the best model for its job.
+<ul>
+<li><b>Local (24 GB):</b> served through an OpenAI-compatible endpoint (Ollama, vLLM or llama.cpp, e.g. via the Olares router). Good fits: embeddings, reranking, moderation, OCR/vision and mid-size chat models. Which specific models clear the quality bar is decided by the bake-off and evals, not assumed now. One GPU is shared, so the job queue schedules heavy local jobs and the Operator watches contention.</li>
+<li><b>Cloud (Claude):</b> best used for the hardest tasks: fact verification, conflict detection, tricky rulings. <b>Caveat:</b> a Claude <i>subscription</i> is not the same as API access. Automated agents normally need an API key billed per use, and the subscription's terms may not allow unattended use. This is logged as R21 and must be checked before agents depend on it.</li>
+<li><b>Budgets:</b> per-role token and cost caps still apply to any cloud provider (cap amount tbd). Local runs have no per-token cost but are rate-limited by GPU time.</li>
+</ul></div>
+<p>All AI work goes through a thin provider interface. Each <b>role</b> is configured independently:</p>
+<table><tr><th>Role</th><th>Examples (cloud / local)</th></tr>
+<tr><td>Chat / answer</td><td>Anthropic, OpenAI, Gemini / Ollama, llama.cpp, vLLM, any OpenAI-compatible endpoint (incl. Olares Router)</td></tr>
+<tr><td>Embeddings (multilingual)</td><td>OpenAI, Voyage, Cohere / bge-m3, multilingual-e5 via local server</td></tr>
+<tr><td>Reranker</td><td>Cohere Rerank / bge-reranker local</td></tr>
+<tr><td>Translation</td><td>LLM or dedicated MT (DeepL / NLLB local)</td></tr>
+<tr><td>Vision &amp; OCR</td><td>Cloud vision model / local VLM or Tesseract/Docling for rulebook PDFs</td></tr>
+<tr><td>Moderation / PII scrub</td><td>Cloud moderation API / small local classifier</td></tr></table>
+<ul>
+<li>One YAML/env config: per-role primary, fallback chain, timeout, cost cap, and data-sensitivity flag (e.g. "local only").</li>
+<li>Capability probing (context length, tool use, languages) so the system degrades gracefully with small local models.</li>
+<li>Embedding model changes trigger background re-indexing with versioned vector columns; no downtime.</li>
+<li>The eval suite (§5c) produces a score per model/config, so the community can publish which setups work best.</li>
+</ul>
+
+<h2>6a. The agent team that runs the site</h2>
+<div class="rec"><b>Recommendation:</b> a multi-agent team of specialists, each with its own narrow tools, permissions, model role and budget. They do not chat freely with each other. They coordinate through the <b>job queue and the KB</b> (tasks in, proposals out, everything logged), plus a small orchestrator (the Steward) that assigns work and watches results. Every agent is defined as a harness-agnostic spec file in the repo (see §6c), so the runtime underneath can change.</div>
+
+<table><tr><th>Agent</th><th>Job</th><th>Key permissions</th></tr>
+<tr><td><b>Concierge</b></td><td>Public chat: answers only from the KB with per-claim citations; asks for edition; serves sheets.</td><td>Read-only KB. No web, no shell, no writes except logging Q&amp;A and feedback.</td></tr>
+<tr><td><b>Scout</b> (fetching)</td><td>Finds and fetches sources for games: publisher sites, rulebook pages, news/errata, forums, 3D-print listings, images. Respects the Jurisdiction Policy, robots/TDM opt-outs and rate limits.</td><td>Web fetch through a policy-enforcing proxy (egress allowlist). Writes raw fetch records to a quarantine area only.</td></tr>
+<tr><td><b>Rights Officer</b></td><td>Decides each source's rights status under the policy and grants; tracks opt-outs, takedowns, publisher grants, expiry; blocks ingestion.</td><td>Read policy/grants; write rights decisions. Its decisions are enforced by the KB service. Edge cases escalate to a human.</td></tr>
+<tr><td><b>Librarian</b> (KB management)</td><td>Parses/OCRs, chunks, translates for display, extracts facts, links editions, detects conflicts and supersession, dedupes, re-indexes, keeps the graph consistent.</td><td>KB propose/write tools within eval gates; no web access.</td></tr>
+<tr><td><b>Designer</b></td><td>Authors one-pagers: picks content, derives style tokens, calls the fit solver, iterates, pre-generates files.</td><td>Read facts/images metadata; fit solver + render tools; writes sheet drafts to the review queue.</td></tr>
+<tr><td><b>Moderator</b></td><td>Screens the public feed (PII scrub, NSFW), community submissions, ratings abuse, accessory listings, link health.</td><td>Read submissions; hold/approve/flag; no KB rule edits.</td></tr>
+<tr><td><b>Publisher Liaison</b></td><td>Drafts and tracks publisher outreach, handles replies, onboarding to the portal, grants, errata feeds.</td><td>Outreach drafts via rate-limited flow; first contact needs human approval.</td></tr>
+<tr><td><b>Steward</b> (orchestrator + learning)</td><td>Assigns and prioritizes work from demand signals, watches evals/cost/latency, tunes retrieval weights, proposes playbook changes as PRs, weekly report.</td><td>Read metrics; propose config/PRs. Cannot merge or deploy.</td></tr>
+<tr><td><b>Operator</b></td><td>Backups, restore tests, health, maintenance, incidents (§6b).</td><td>Ops CLI commands via a scoped wrapper, with approval gates and separate credentials.</td></tr></table>
+
+<h3>Why this split</h3>
+<ul>
+<li><b>Least privilege:</b> the agent that reads untrusted web pages (Scout) can't write to the KB; the agent that writes to the KB (Librarian) can't browse; the agent facing users (Concierge) can't change anything. A prompt injection in one stage has nowhere to go.</li>
+<li><b>Different skills, different models:</b> cheap fast models for fetching/triage, strong models for extraction and verification, a second model to cross-check sheet numbers and chat citations, small local models for moderation.</li>
+<li><b>Pipeline:</b> Scout → (quarantine) → Rights Officer → Librarian → eval gate → KB → Designer → review queue → publish. Each handoff is a queue message with provenance attached.</li>
+<li>Start with fewer processes: several roles can run as modes of one worker at first (e.g. Scout+Rights, Librarian+Designer) as long as their <i>tool permissions</i> stay separate. Split into separate containers as load or risk grows.</li>
+</ul>
+
+<h3>Autonomy ladder (what needs a human)</h3>
+<ul>
+<li><b>Auto-apply:</b> adding links, metadata, translations for display, re-indexing, dedupe, formatting; changes to community-tier content that pass checks.</li>
+<li><b>Auto-apply with eval gate:</b> new facts/FAQs from <i>Authorized</i> or <i>Open license</i> sources, only if the regression suite doesn't drop and citations verify.</li>
+<li><b>Human review (moderator or verified publisher):</b> every new or changed setup sheet (at launch), anything that changes a sheet's counts, resolves a rules conflict between sources, rights-status changes, takedowns, outreach to a new publisher, code/config merges.</li>
+<li>Confidence and diff are shown in the review queue; approvals train the thresholds over time.</li>
+</ul>
+
+<h3>How it "continuously learns" (safely)</h3>
+<ul>
+<li><b>Playbooks as versioned files:</b> what the agents learn (e.g. "this publisher posts errata on page X", "rulebook PDFs for this publisher use two-column layout") is saved as skills/playbooks in a git repo, reviewed via PR like code. Nothing opaque, everything diffable and revertable (same idea as OpenClaw's file-based <code>SKILL.md</code> and Hermes skills).</li>
+<li><b>KB is the memory</b> for domain knowledge; agent memory holds only operating notes (per-publisher quirks, failure patterns). No user-identifying data in agent memory.</li>
+<li><b>Eval-gated improvement:</b> any prompt, playbook, model or weight change must pass the regression suite before it's promoted; automatic rollback on regression.</li>
+<li><b>Outcome signals</b> (thumbs, corrections, moderator edits, unanswered questions) become the Steward's work queue, ordered by demand.</li>
+</ul>
+
+<h3>Why not run one general agent as "the site"?</h3>
+<ul>
+<li><b>Prompt injection:</b> the Scout reads untrusted web pages and forum posts; the Concierge reads untrusted user text. A single agent with shell, secrets and write access that does both is the classic exploitable setup. Splitting roles and removing write/shell from anything internet-facing contains the damage.</li>
+<li><b>Cost and latency:</b> a general agent loop is overkill for a cited RAG answer; the Concierge should be a small, cacheable pipeline.</li>
+<li><b>Operations:</b> the back-office agents <i>do</i> benefit from a full agent: long-running tasks, scheduling, skills, MCP, multiple chat channels (Discord for moderators), self-improvement.</li>
+</ul>
+
+<h3>Agent runtime options (research summary)</h3>
+<p>Sources: project pages and 2026 comparison articles. Figures such as lines of code, memory and star counts vary between articles and move quickly, so treat them as rough and re-verify before committing. This is a shortlist, not a final choice.</p>
+<table><tr><th>Option</th><th>What it is</th><th>Strengths for us</th><th>Concerns</th></tr>
+<tr><td><b>DeepSeek Harness</b> (<code>dsh</code>)</td><td>MIT-licensed, Node.js agent harness from DeepSeek AI, built on the Cordis "everything is a plugin" architecture. Model adapter, tool registry, session log and the agent loop itself are replaceable plugins. Developer preview (v0.1).</td><td>Matches our "everything pluggable" rule. MCP client, Agent Client Protocol, reads AGENTS.md; OpenAI-compatible gateways so any cloud or local model works. Everything the model sees goes to a single event stream, which gives resume, fork, replay, transcripts and telemetry: very good for audit and for replaying agent runs. Scheduled tasks. TypeScript fits an Astro/Hono stack.</td><td>Brand new and in preview; not taking pull requests yet (plugins instead); smaller community; security hardening and sandboxing are ours to add. Needs a hands-on trial.</td></tr>
+<tr><td><b>Hermes Agent</b> (Nous)</td><td>Self-improving agent with built-in learning loop, skills, cron, MCP, many channels.</td><td>Already operated by you; skills-from-experience matches the playbook idea; Hindsight integration.</td><td>General-purpose and Python; needs sandboxing and scoped tools.</td></tr>
+<tr><td><b>Nanobot</b> (HKUDS)</td><td>About 4k lines of Python, MCP-first thin orchestrator, ~100 MB RAM, many chat channels and providers, sub-agent system.</td><td>Tiny, readable, all capability comes from MCP servers, which is exactly our model. Good for the Scout/Moderator workers.</td><td>Sub-agents are delegation, not full multi-agent orchestration; app-level security only.</td></tr>
+<tr><td><b>ZeroClaw</b></td><td>Rust, trait-driven (providers, channels, memory, tools all swappable), SQLite hybrid memory, tiny footprint.</td><td>Strongest pluggability story; extremely light.</td><td>Rust skill needed to extend; SQLite memory vs. our Postgres.</td></tr>
+<tr><td><b>IronClaw</b></td><td>Rust, WASM-sandboxed tools, Postgres+pgvector, security-first.</td><td>Best isolation model; Postgres matches.</td><td>Newer and heavier on security assumptions; smaller ecosystem.</td></tr>
+<tr><td><b>NanoClaw</b></td><td>A few hundred lines of TypeScript; every agent in its own container; built on the Claude Agent SDK.</td><td>OS-level isolation per agent is a pattern worth copying for Scout.</td><td>Opinionated: one model vendor, one chat channel, one machine.</td></tr>
+<tr><td><b>OpenClaw</b></td><td>The big platform (hundreds of thousands of lines, ~1.5 GB RAM reported), huge skill registry.</td><td>Most complete; many channels.</td><td>Heavy, large attack surface, community skills need vetting. Not "lightweight".</td></tr>
+<tr><td><b>PicoClaw</b> / NullClaw / MicroClaw</td><td>Go / Zig / Rust ultra-light agents for tiny hardware.</td><td>Good for edge or a very small host.</td><td>Aimed at personal assistants more than back-office pipelines.</td></tr>
+<tr><td><b>Pydantic AI</b></td><td>Python, MIT, type-safe agents, structured/validated outputs, durable execution, OpenTelemetry, most model providers.</td><td>Ideal for Concierge and Librarian where structured, cited output must validate; pairs with a Python ingestion stack (PDF/OCR).</td><td>A library, not a runtime: scheduling/skills/memory are ours.</td></tr>
+<tr><td><b>Mastra</b> / <b>Vercel AI SDK</b></td><td>TypeScript frameworks: agents, workflows, RAG, evals (Mastra, Apache-2.0 core) / agent loops for Node and Next.js.</td><td>Natural if the backend is TypeScript; Mastra bundles workflows and evals.</td><td>Frameworks, not sandboxed runtimes.</td></tr>
+<tr><td><b>OpenAI Agents SDK</b></td><td>Small MIT SDK: handoffs, guardrails, sessions, tracing; works with 100+ non-OpenAI models.</td><td>Clean multi-agent handoff primitives.</td><td>Nice but still a library.</td></tr>
+<tr><td><b>LangGraph</b>, Google ADK, CrewAI, Strands, smolagents</td><td>Graph-based durable workflows (LangGraph); Google's multi-language kit with A2A (ADK); role-based crews (CrewAI); AWS-oriented (Strands); ~1k-line code-writing agents (smolagents).</td><td>LangGraph for checkpointed, resumable pipelines; smolagents for tiny experiments.</td><td>Heavier abstractions or ecosystem lock-in; smolagents' release cadence has slowed.</td></tr></table>
+
+<h3>Recommendation: harness-agnostic specs, bake-off, then standardize</h3>
+<ul>
+<li><b>Define every agent once</b> as files in the repo (like AGENTS.md): role, system prompt, allowed MCP tools, model role (from the pluggable model layer), budget, escalation rules, eval hooks. A thin <b>runner adapter</b> executes a spec on whichever harness is configured. Tools are always MCP servers, so nothing is harness-specific.</li>
+<li><b>Short list for back-office agents (Scout, Librarian, Designer, Liaison, Steward, Operator):</b> Hermes, DeepSeek Harness, and Nanobot. Run the <i>same</i> tasks on each in Phase 1b (find sources for a game, extract setup facts, draft a sheet, run a restore test) and score them with our eval suite on accuracy, citations, cost, startup/RAM, sandboxing effort, and replayability.</li>
+<li><b>Concierge:</b> not an autonomous agent platform; a small typed pipeline using Mastra or the Vercel AI SDK (TypeScript; Pydantic AI only if a Python worker is added later) with cited structured outputs and a verifier step.</li>
+<li><b>Isolation regardless of harness:</b> containers per agent with egress rules (NanoClaw-style), WASM or sandboxed tool execution where available (IronClaw-style), no shared secrets.</li>
+<li><b>My leaning:</b> Hermes for now (you know it, learning loop, Hindsight), and a serious trial of DeepSeek Harness because its plugin model and event-stream audit trail fit our rules and its TypeScript base matches the stack. Both are cheap to try because of the spec/adapter design.</li>
+</ul>
+
+<h3>Guardrails (non-negotiable)</h3>
+<ul>
+<li>Treat all fetched/ingested/user text as data, never instructions; strip tool-call-like content; separate system prompt from retrieved text.</li>
+<li>Sandboxed containers, egress allowlist (only sources with rights status), no production secrets in the agent environment, short-lived scoped tokens.</li>
+<li>Rights gate is enforced in the KB service, not in the agent's prompt, so a compromised agent still can't ingest or quote an unauthorized source.</li>
+<li>Every agent action is audit-logged with the source and reasoning link; kill switch and per-role budgets (tokens, jobs, outreach emails).</li>
+<li>Outreach emails are drafted by the Publisher Liaison but sent through the rate-limited publisher flow (§5a), with human approval for first contact with each publisher.</li>
+</ul>
+
+<h2>6b. Data layer, backup &amp; recovery</h2>
+<div class="rec"><b>Recommendation:</b> stay on <b>PostgreSQL + pgvector</b> as the one and only datastore. It covers relational data, vectors (HNSW), keyword search, the graph, the job queue, ratings and audit logs in a single engine, so there is <b>one thing to back up and one thing to restore</b>. Hindsight uses the same foundation (Postgres + pgvector, with an embedded pg0 for local use), so your mental model carries over.</div>
+
+<h3>What the single database holds</h3>
+<table><tr><th>Need</th><th>How, in Postgres</th></tr>
+<tr><td>Vectors</td><td>pgvector (HNSW) with versioned embedding columns for model swaps</td></tr>
+<tr><td>Keyword / exact terms (game names, rule terms)</td><td>Built-in full-text search, optionally a BM25 extension; fused with vectors by rank (the same hybrid idea Hindsight uses)</td></tr>
+<tr><td>Knowledge graph</td><td>Plain node/edge tables with recursive queries. Enough at this scale; avoids a graph extension or second engine. Revisit only if traversal depth becomes a bottleneck.</td></tr>
+<tr><td>Jobs, ratings, audit log, review queue</td><td>Ordinary tables (pg-boss for queues)</td></tr>
+<tr><td>Agent operating memory</td><td>Hindsight, as the memory provider for the back-office agents (Scout, Librarian, Designer, Steward, Operator), in its <b>own database in the same Postgres server</b>. Not for rules truth: the KB stays our own schema because rules need exact provenance, rights status and edition links that a general memory layer shouldn't own.</td></tr></table>
+
+<h3>Alternatives considered</h3>
+<table><tr><th>Option</th><th>Pros</th><th>Cons</th></tr>
+<tr><td><b>PostgreSQL + pgvector</b> (recommended)</td><td>Everything in one engine; concurrent agents and web writers; mature backup tooling; Hindsight-compatible; scales well past launch size.</td><td>A server process to run; extensions must match versions.</td></tr>
+<tr><td>SQLite + sqlite-vec + FTS5</td><td>Absolute simplest backup (one file, safe copy via <code>VACUUM INTO</code> or Litestream).</td><td>Single-writer limits with several agents plus web writes; vector extension is younger; pushes you off the Hindsight-style stack. Reasonable for a tiny self-host "lite" build.</td></tr>
+<tr><td>Dedicated vector DB (Qdrant, LanceDB, etc.) + SQL</td><td>Fast vector features.</td><td>Two systems to back up, keep consistent and restore together. Rejected on simplicity.</td></tr>
+<tr><td>Graph DB (Neo4j, Surreal, etc.)</td><td>Native graph queries.</td><td>Another engine and backup story for limited gain at this scale.</td></tr></table>
+<p>Hindsight also announced "Memlake" (object-storage-based memory at very large scale); I only saw the headline, so I haven't evaluated it. It doesn't change this recommendation for launch.</p>
+
+<h3>Backup design: simple by default, strong when you want it</h3>
+<ul>
+<li><b>Level 1 (default, zero setup):</b> a scheduled job writes a compressed logical dump (<code>pg_dump</code> custom format) of the KB database (no secrets, no personal data, so no encryption needed) to a configured <b>external mount point</b> (<code>/backups</code>) nightly, with rotation (e.g. 7 daily, 4 weekly, 12 monthly). One file per run plus a small manifest (schema version, row counts, checksums, app version). Logical dumps restore across Postgres versions and can be inspected with standard tools.</li>
+<li><b>Level 2 (optional, finer recovery):</b> continuous WAL archiving to the same mount (or any configured storage provider) via <b>pgBackRest</b> for point-in-time recovery, for example "restore to 10 minutes before the bad import". Off by default; one config flag turns it on. pgBackRest is the mature standard here (PITR, delta restore, encryption, multiple repositories, current release 2.59.3 per its site).</li>
+<li><b>Admin console:</b> a Backups page showing the schedule, last success, size, verification status, a <b>Back up now</b> button, and <b>Download</b> (streamed file), plus upload-to-restore into a scratch environment.</li>
+<li><b>Config and secrets:</b> app config lives in git/env; secrets are backed up separately in your password manager or secret store, never inside the data dumps. Anything sensitive follows the separate private-data path below.</li>
+<li><b>3-2-1 guidance:</b> mount point on a different disk, a second copy off-box (cloud bucket, another machine, Olares backup), and one copy not writable by the running system (append-only or pull-based) to survive ransomware or a rogue agent.</li>
+<li><b>Public data dumps</b> (KB facts, sheets, listings, ratings aggregates, no personal data) are a separate community export, not the backup.</li>
+</ul>
+
+<h3>Two data classes, two backup paths</h3>
+<table><tr><th>Class</th><th>What's in it</th><th>Backup approach</th></tr>
+<tr><td><b>Public knowledge data</b> (KB database, agent playbooks, sheets, listings, rating aggregates)</td><td>Contains no secrets and no personal data, by design and by schema. Agent memory (Hindsight) is kept in this class only because it stores operating notes without user identity; if that ever stops being true it moves to the private class.</td><td>Plain nightly dumps (and optional WAL archive) to the configured storage, which starts as a <b>container mount point</b>. Simple to inspect, download and restore. No keys to lose.</td></tr>
+<tr><td><b>Private data</b> (accounts, sessions, chat history, collections, GDPR request records, secrets, API keys)</td><td>Lives in its own database (or Postgres instance), never mixed with the KB.</td><td>Handled on its own: <b>encrypted</b> backups with a key held separately from the storage provider, a separate schedule, destination and retention, and erasure-aware (the tombstone log is replayed after a restore). Secrets stay in the secret store or password manager, never in dumps.</td></tr></table>
+<p>This keeps the common case (the KB, the thing worth protecting and sharing) as simple as copying files, and concentrates the security work on the small private database.</p>
+
+<h3>Pluggable storage (every storage need goes through one interface)</h3>
+<div class="rec"><b>Rule:</b> no component talks to a disk, bucket or file path directly. All blob/file storage goes through a small <b>Storage Provider</b> interface, configured per <i>purpose</i>, just like the AI model layer (§6). Start with local disks; move any purpose to a cloud provider later by changing config and running a migration, with no code changes.</div>
+<table><tr><th>Purpose</th><th>What it holds</th><th>Default now</th><th>Later upgrades</th></tr>
+<tr><td><b>backups</b></td><td>KB dumps (plain), private-data dumps (encrypted, separate path), WAL archive (pgBackRest repo), manifests</td><td>Container mount point (<code>/backups</code>)</td><td>Cloud bucket, second destination, immutable/object-lock tier</td></tr>
+<tr><td><b>database</b> (Postgres data directory)</td><td>Live DB files</td><td>Local disk / volume</td><td>Managed Postgres or replicated volume (the DB itself is not behind the blob interface; it is a connection string)</td></tr>
+<tr><td><b>derived-cache</b></td><td>Rendered sheet PDFs/PNGs, thumbnails, search exports. Rebuildable.</td><td>Local disk</td><td>CDN-backed bucket</td></tr>
+<tr><td><b>user-media</b></td><td>Avatars and optional user-owned setup photos (small; no rules files, no 3D model files)</td><td>Local disk</td><td>Object storage</td></tr>
+<tr><td><b>exports</b></td><td>Public data dumps, per-user data exports</td><td>Local disk</td><td>Object storage / CDN</td></tr>
+<tr><td><b>source-snapshots</b></td><td>Hash and minimal excerpts for authorized/open-license sources only (rights-gated, §5a)</td><td>Local disk</td><td>Object storage with retention rules</td></tr>
+<tr><td><b>agent-workspace</b></td><td>Playbooks repo, agent scratch, logs</td><td>Local disk</td><td>Git remote + bucket for logs</td></tr></table>
+<h3>Provider types</h3>
+<ul>
+<li><b>Built in:</b> <code>local</code> (any path or mount, including NAS/NFS/SMB mounts), <code>s3</code> (any S3-compatible service: AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO, Ceph, Garage), <code>gcs</code>, <code>azure-blob</code>, <code>sftp</code> / <code>rclone</code> (rclone alone unlocks 70+ backends, so we do not write each one).</li>
+<li><b>Plugin contract:</b> a provider implements put / get / list / delete / stat / signed-URL (where relevant) / optional object-lock. Community can add providers like model providers. The conformance test suite must pass before a provider is "supported."</li>
+<li><b>pgBackRest:</b> supports local, S3, GCS and Azure repositories natively and can have several at once, so the WAL/PITR repository follows the same config. (Check its current docs for supported options when we configure it.)</li>
+<li><b>Cloud readiness:</b> the first release ships only the container-mount provider, but the interface, config schema and conformance tests are written against AWS S3, Azure Blob Storage and Google Cloud Storage from day one, so adding each is a provider plugin and not a redesign.</li>
+<li><b>Per-purpose config</b> with fallbacks and multiple destinations, e.g. <code>backups: [local:/backups, s3:r2://bucket]</code> meaning write both, restore from either.</li>
+</ul>
+<h3>Making a provider switch painless</h3>
+<ul>
+<li>All stored objects are referenced by <b>logical keys</b> plus a provider alias in the DB, never absolute paths or provider URLs, so moving data does not rewrite records.</li>
+<li><b>Built-in migrate command:</b> <code>storage migrate --purpose backups --from local --to s3</code> copies, verifies checksums, flips the alias, and keeps the old copy until you confirm. Resumable and idempotent.</li>
+<li><b>Dual-write mode</b> during migration so nothing is lost mid-switch.</li>
+<li>Only the private-data class is encrypted (client-side, with keys you hold, separate from provider credentials), so changing or distrusting a provider never exposes it. Public KB data is stored as-is.</li>
+<li>Credentials come from env/secret store per provider, scoped least-privilege (backup writer cannot delete older backups on the protected copy, Concierge has no storage credentials at all).</li>
+<li>Health and cost checks: the Operator monitors capacity, errors, egress and latency per provider and flags cloud spend drift.</li>
+<li>Durability ladder to document for users: single local disk &lt; mirrored disks/NAS &lt; local + off-site cloud copy &lt; multi-region object storage. The admin console shows the current level for each purpose and a plain-language recommendation.</li>
+</ul>
+<p>The database engine itself stays Postgres; "pluggable" there means a connection string (self-hosted, managed Postgres, or a cloud provider with pgvector), not a different engine.</p>
+
+<h3>Recovery you can trust</h3>
+<ul>
+<li><b>Automatic restore tests:</b> weekly, the system restores the latest backup into a scratch database, runs migration checks and a smoke subset of the eval suite (counts match the manifest, sample questions still cite the right sources), and reports pass/fail. A backup that hasn't been restored is only a hope.</li>
+<li><b>Runbooks as code:</b> <code>restore --to scratch|prod --at &lt;time|backup&gt;</code> in one CLI, documented in the repo, usable by a human or an agent. RTO/RPO targets are written down (suggested starting point: RPO 24h at Level 1, minutes at Level 2; RTO under an hour for a small deployment).</li>
+<li><b>Schema migrations</b> are versioned and forward-tested against restored backups; every backup stores its schema version so old backups remain restorable.</li>
+<li><b>Rights revocations survive a restore:</b> a small append-only <b>tombstone log</b> (revoked grants, takedowns, deleted accounts) is kept outside the restorable data and replayed after every restore, so restoring an old backup can never resurrect content a publisher withdrew or personal data a user erased.</li>
+<li><b>Rebuildable data is rebuilt, not trusted:</b> embeddings, search indexes, rendered sheets and caches are derived; after a restore they can be regenerated from the facts and sources. Backups can skip them to stay small (option to include for fast recovery).</li>
+<li><b>Disaster paths covered:</b> bad deploy or migration (restore + roll back), bad agent action (revert from the audit log, then restore to scratch to compare), corrupted disk (restore to new host), lost host (restore from off-box copy), compromised credentials (rotate, restore from the immutable copy).</li>
+</ul>
+
+<h3>Operator: an AI agent that administers the platform</h3>
+<table><tr><th>Can do autonomously</th><th>Needs human approval</th><th>Cannot do</th></tr>
+<tr><td>Check health, disk, queue depth, slow queries; run backup now; verify backups; run restore tests into scratch; vacuum/reindex; rotate logs; rebuild indexes; restart workers; summarize incidents; open PRs for fixes</td><td>Restore into <b>production</b>; schema migrations in prod; changing retention; rotating encryption keys; deleting data; upgrading Postgres; granting new agent permissions</td><td>Delete or alter backups on the protected copy; read or print secrets; disable audit logging; approve its own requests</td></tr></table>
+<ul>
+<li>Exposed through the local <b>ops CLI</b> (<code>backup now</code>, <code>backup list</code>, <code>backup verify</code>, <code>restore --to scratch</code>, <code>restore --propose</code>, <code>health</code>) with its own credentials, never reachable from the public Concierge. A remote Admin MCP is deliberately out of scope for now.</li>
+<li>Production restore uses a <b>two-step handshake</b>: the Operator prepares and proves the plan on scratch (diff of row counts, eval results), then a human approves via Discord button or the admin console.</li>
+<li>Break-glass: a plain documented CLI path that works with no agent and no web app running, so recovery never depends on the thing that's broken.</li>
+<li>Everything the Operator does is written to the audit log and mirrored to a Discord admin channel.</li>
+</ul>
+
+<h2>7a. Collections &amp; BGG</h2>
+<ul>
+<li><b>BGG import:</b> enter a BGG username, pull the collection (owned, wishlist, preordered, plays) via the BGG XML API, and match each item to our games <b>and editions</b> (by BGG id, then title/year/publisher fuzzy match). Optional periodic re-sync.</li>
+<li><b>Other ways in:</b> CSV upload (BGG export, spreadsheets), manual add/search, barcode scan on mobile, and MCP (<code>import_collection</code>).</li>
+<li>Images: only from sources with a compatible license or publisher grant, otherwise link out. Prefer user-owned photos of their own setups with consent.</li>
+<li><b>Match view:</b> "You own 84 games — 61 have setup sheets, 12 are partial, 11 not yet in the system." One click to <b>request the missing ones</b> (feeds the add-game and ingest queue), so the catalog grows by community demand.</li>
+<li>Collection powers: "My games" filter, edition-aware answers, a print-all-my-sheets bundle, and "what can I play at N players with what I own". Wishlist games show buy links.</li>
+<li>Privacy: collection private by default; optional public profile / shareable list.</li>
+<li><b>Caveat:</b> BGG now requires registering an application/token and has terms around commercial use and caching. Open source plus affiliate links may count as commercial, so we need to confirm terms (or ask BGG for permission) before relying on it. The design keeps BGG behind an adapter so other sources (CSV, publisher catalogs, Discord shared lists) work without it.</li>
+</ul>
+
+<h2>7b. 3D-printable organizers &amp; accessories (index and link, never host)</h2>
+<div class="ok"><b>Rule:</b> we store no model files (STL/3MF/STEP/images of files). We store a <b>listing record</b>: title, creator, source site, URL, game/edition it fits, what it holds, license shown on the source, and a small amount of metadata. Preview images are hot-linked or shown only where the source's terms allow; otherwise a placeholder and link-out.</div>
+<h3>Where listings come from</h3>
+<ul>
+<li><b>User submissions:</b> paste a URL; the Scout resolves it, extracts title/creator/license, and proposes the game match.</li>
+<li><b>Popular sites, via terms-compliant methods only:</b> official APIs, public feeds, sitemaps or oEmbed where available, otherwise search-link or user-submit only. Candidates include Printables, MakerWorld, Thingiverse, Thangs, Cults3D and Etsy-type shops for commercial inserts. Each site gets an adapter with its own rights/terms status (same pattern as §5a); sites that forbid automated indexing are <i>submit-only</i>. API availability and terms for each must be verified before building (they change).</li>
+<li><b>Commercial products</b> (printed inserts, laser-cut organizers, sleeves) can sit in the same catalog with a "Buy" tag and affiliate links, clearly separated from free printables.</li>
+</ul>
+<h3>What the user sees</h3>
+<ul>
+<li>"Organizers &amp; accessories" tab on each game page, filterable by edition, expansion, print type (FDM/resin/laser/commercial), printer bed size, filament-free options, "holds sleeved cards", "fits box".</li>
+<li>Star rating, review notes ("printed in 6 hours, snug fit"), "I printed this" and photo (user-owned, consented) <i>links</i>, and report-broken-link.</li>
+<li><b>Link health:</b> the Moderator re-checks URLs on a schedule, flags dead or changed listings, and finds replacements.</li>
+<li><b>Collection tie-in:</b> "organizers for games you own", expansion-aware (base game + Exp A fits which insert), and a printable shopping list per collection.</li>
+<li>Safety/quality notes: license shown (CC-BY, non-commercial, etc.), creator always credited and linked, creator-claim flow to edit or remove a listing.</li>
+<li>Any 3D-print site link is sent through a click-out page that discloses affiliate relationships if any exist, and never changes ranking.</li>
+</ul>
+<p>KB tie-in: listings are KB entities (<code>Accessory ─fits→ Edition</code>, <code>─holds→ Component</code>), so setup sheets can show "organizer available" next to the component list, and chat can answer "is there an insert for the 2nd edition with the expansion?".</p>
+
+<h2>7c. Community ratings (5-star) on everything except games</h2>
+<ul>
+<li><b>Rateable objects:</b> accessory/organizer listings, buy links/retailers, FAQs, AI chat answers, setup sheets, community-contributed facts, source links, and publisher outreach responses where relevant. <b>Games are not rateable</b>: BGG owns game rankings and we do not duplicate them.</li>
+<li><b>One generic rating system</b> in the core API: <code>rating(target_type, target_id, user_id, stars 1–5, optional note, created_at)</code>. Signed-in users only; one rating per user per object, editable. Anonymous users see aggregates but cannot rate.</li>
+<li><b>Display:</b> average, count, distribution, and a "Wilson-style" confidence-adjusted sort so one 5-star vote doesn't beat 200 4.6s. Show "N ratings" always; hide the average below a minimum count.</li>
+<li><b>Anti-abuse:</b> rate limits, account-age and activity weighting, duplicate and brigade detection, creators/publishers cannot rate their own items, moderator tools to void ratings; ratings are not purchasable.</li>
+<li><b>Feedback loop into the KB:</b> low-rated AI answers go to the Librarian for review; consistently high-rated answers become FAQ candidates; poorly rated sheets get re-verified; low-rated links are re-checked or dropped. Ratings are a training signal for the evals, never a source of rules truth (a popular wrong answer is still wrong; rules come from sources, §5b).</li>
+<li><b>Contextual ratings:</b> rating an AI answer also asks (optionally) <i>why</i> in one tap: "wrong rule", "wrong edition", "unclear", "missing citation", "helpful".</li>
+<li><b>Privacy:</b> public shows aggregates and (optionally) display name on reviews; the anonymous feed shows aggregate stars only, no identity. MCP: <code>rate_item</code> (auth), <code>get_ratings</code> (anon).</li>
+</ul>
+
+<h2>7d. BGG as the ranking authority; our added value</h2>
+<ul>
+<li><b>Show on every game page</b> (when permitted and available): BGG title, year, designer, publisher, player count/best-at, play time, weight, short descriptor, and a prominent <b>"View on BoardGameGeek"</b> link. Rankings and BGG ratings are shown as <i>BGG's</i>, attributed and linked, never recomputed or competed with.</li>
+<li><b>Our line:</b> we are not a database, ranking, review or forum site. We add what BGG doesn't offer: one-page setup sheets, KB-cited rules chat, edition-aware clarifications, organizers, and agent-friendly access (MCP).</li>
+<li>BGG attribution/branding requirements and caching rules must be followed; fetching goes through the BGG adapter with rate limits and the approved API token. If BGG access is denied or removed, game pages still work from publisher/user metadata, just without the BGG panel.</li>
+<li>Game identity key = BGG id when available, so collections, editions and external links line up.</li>
+</ul>
+
+<h2>7e. Open source &amp; performance principles</h2>
+<ul>
+<li><b>License (decision needed):</b> AGPL-3.0 keeps hosted forks open and protects the community; MIT/Apache maximizes adoption. I lean AGPL for code and CC BY-SA (or CC0 for pure facts like counts) for community-authored sheet/FAQ data. Publisher-owned content keeps its own rights and is only linked/quoted.</li>
+<li>Public data dumps and a public API so nobody is locked in; fully self-hostable with one <code>docker compose up</code> and local models only.</li>
+<li>Contribution paths: add games, fix sheets, translate UI, add ingestion adapters, add model providers. CONTRIBUTING, good-first-issues, public roadmap.</li>
+<li>Performance budgets enforced in CI: sheets and game pages statically cached and CDN-served (target LCP &lt; 1.5s on mid-range mobile, JS &lt; 100KB on read-only pages); Postgres index and query-plan tests; LLM answers cached by (question, edition, source-version).</li>
+<li>Telemetry opt-in only, self-hosted analytics, no ad trackers.</li>
+<li>Affiliate links are the funding model but never alter ranking or answers; disclosed on every page and removable in self-hosted copies.</li>
+</ul>
+
+<h2>7f. Many instances: hosting your own (library, game club, country)</h2>
+<div class="rec"><b>Design goal:</b> anyone can run their own instance from one container deployment and one config file. Our hub is just the biggest instance.</div>
+<ul>
+<li><b>Instance profile (one file):</b> hosting region, Jurisdiction Policy pack, privacy profile, languages, AI model providers (including local-only), storage providers, branding and theme, feature flags (public feed on or off, chat open to sign-ins only), and affiliate programs per country. An <code>init</code> wizard creates it with safe defaults.</li>
+<li><b>Policy packs:</b> <code>eu</code> is the default. Others (<code>us</code>, <code>uk</code>, <code>jp</code>, and so on) are added as the community contributes and reviews them. Each pack bundles the copyright allowances (§5a) and the privacy rules for that region.</li>
+<li><b>Privacy: EU/GDPR is the baseline everywhere</b>, and it is widely regarded as the strictest overall regime. Some Asian laws are stricter on particular points: China's PIPL has no "legitimate interest" basis, requires security assessments for sending personal data abroad and localization above thresholds, and has fines up to 5% of revenue; South Korea's PIPA was amended in 2023 to restrict processing abroad. So: stricter overlays (<code>cn-pipl</code>, <code>kr-pipa</code>) ship as policy packs that an instance operating or targeting those countries must enable, and the stricter rule wins. We do not target those countries from the EU hub; PIPL also has extraterritorial reach, which is logged in §14.</li>
+<li><b>Each instance is its own data controller.</b> Instances never send user data upstream. Personal data stays in each instance's private database (§6b).</li>
+<li><b>Modes:</b> (1) public community instance; (2) library or club instance, public or private, with local-only models and a local overlay for house rules, owned-game lists and local notes that are never pushed upstream; (3) air-gapped local-only deployment.</li>
+<li><b>Sharing knowledge:</b> instances can pull the hub's public data dump (facts, citations and locators, sheets, listings, aggregated ratings; CC BY-SA or CC0 as chosen in §7e) and contribute improvements back as proposals into the review queue. Cached source text, excerpts and anything fetched under one country's allowances are <b>not</b> synced, because a quote that is lawful in one jurisdiction may not be in another. Each instance re-derives excerpts under its own policy. <i>(logged R15)</i></li>
+<li><b>Operations stay simple:</b> the same backup design (§6b) and storage plug-ins apply to every instance, with a container mount by default.</li>
+</ul>
+
+<h2>8. MCP design</h2>
+<ul>
+<li>Remote MCP server (Streamable HTTP) at <code>/mcp</code>, same core library as the web app.</li>
+<li><b>Anonymous</b> tools: <code>search_games</code>, <code>get_setup_sheet</code> (JSON + PDF/PNG URL), <code>get_faqs</code>, <code>get_buy_links</code>, <code>browse_public_feed</code>, <code>get_game_sources</code>, <code>list_editions</code>, <code>find_accessories</code>, <code>get_ratings</code>, <code>get_bgg_summary</code>, <code>get_sheet_status</code>, <code>compare_editions</code>. Rate-limited by IP/client.</li>
+<li><b>Authenticated</b> (OAuth 2.1 + dynamic client registration, same identity as the website): <code>ask_rules</code> (quotes + citations + edition), <code>import_collection</code>, <code>get_my_collection</code>, <code>match_collection</code>, <code>add_game</code>, <code>submit_source</code>, <code>propose_sheet_edit</code>, <code>flag_content</code>, <code>save_to_library</code>, <code>request_ingest</code>, <code>submit_accessory</code>, <code>rate_item</code>, <code>request_sheet</code>.</li>
+<li>MCP <b>resources</b> for sheets and games; <b>prompts</b> for "explain setup for N players".</li>
+<li>Per-token scopes, quotas and audit log; LLM-cost caps for <code>ask_rules</code>.</li>
+<li>Published OpenAPI + MCP manifest so one capability list drives docs, tests and parity checks (CI fails if a UI feature has no tool).</li>
+</ul>
+
+
+<h3>Owner access: a minimal admin console, an ops CLI, and the repo</h3>
+<ul>
+<li><b>Admin Console (small, web):</b> sign in with the same social login plus a passkey, owner role. Pages for backups (status, back up now, download, restore into scratch), the review queue, Jurisdiction Policy and instance profile, model and storage providers, feature flags and the Review Log. It does nothing the ops CLI cannot do.</li>
+<li><b>Ops CLI:</b> one local command (<code>rogue backup|verify|restore|health|storage migrate|policy ...</code>) that works even when the web app is down. The Operator agent calls the same commands through a scoped wrapper (§6b). This is also the break-glass path.</li>
+<li><b>Roles:</b> Owner, Moderator, Publisher (scoped to their games), Operator agent (scoped, approval-gated). Destructive actions (production restore, purge, policy change) need a second confirmation.</li>
+<li><b>Repo as the extension surface:</b> you add features by writing code in well-defined extension points: <code>providers/</code> (models, storage), <code>adapters/</code> (source and 3D-site adapters, BGG), <code>agents/</code> (specs and playbooks), <code>mcp/</code> (public tools), <code>themes/</code>, <code>locales/</code>, <code>policies/</code> (jurisdictions). Feature flags and migrations ship with the code; CI runs evals, one-page, parity (UI vs MCP) and restore tests.</li>
+<li>Agents can propose code changes as PRs against the repo but cannot merge them.</li>
+<li><b>Deferred:</b> a remote Admin MCP is intentionally out of the plan for now. If you want agent-driven administration later, it would be a new, separately secured endpoint.</li>
+</ul>
+
+<h2>9. Auth, privacy, the public feed</h2>
+<ul>
+<li>Sign-in screen = provider buttons only (Google, Apple, Discord, GitHub, Microsoft). Store minimum: provider id, display name, avatar, language.</li>
+<li>Public feed shows question + answer + game + citation only — <b>no user identity</b>. Pipeline: PII scrub → NSFW/abuse classifier → hold if uncertain → publish. Users can opt out per question. Admin/moderator removal tool.</li>
+<li>New-game submissions go to a "pending" state with automated checks (duplicate detection, source verification) before going public.</li>
+<li>Abuse controls: per-user chat quotas, bot detection on anonymous search, prompt-injection hardening for ingested text (treat sources as untrusted data).</li>
+</ul>
+
+
+<h3>Privacy &amp; regulatory compliance (GDPR and similar)</h3>
+<ul>
+<li><b>Data minimization:</b> store provider ID, display name, avatar, language, chosen collection data, and activity needed for the product. No tracking cookies; privacy-friendly self-hosted analytics, opt-in only.</li>
+<li><b>Lawful basis recorded per purpose</b> (contract for the account, consent for optional features like public profile or BGG import, legitimate interest for security/abuse logs), with a plain-language privacy notice and records of processing.</li>
+<li><b>User rights built in:</b> self-service export (machine-readable), correction, deletion/erasure, restriction, objection; also runnable through the ops CLI so the Operator can prepare them for human sign-off. Deadlines tracked (e.g. one month under GDPR).</li>
+<li><b>Chat and feed data:</b> questions can contain personal data; they are PII-scrubbed before any public display, have a retention limit, and are unlinkable from identity in the public feed. Users can delete their history. No training of models on user data by default.</li>
+<li><b>LLM and other processors:</b> data-processing agreements with any cloud provider; a "local models only" and "EU region only" mode per role (§6); no personal data sent to providers that don't need it; prompts exclude identity.</li>
+<li><b>Backups and erasure:</b> erased accounts are recorded in the tombstone log (§6b) and re-applied after restores; backup retention is bounded and documented so deleted data ages out.</li>
+<li><b>Children:</b> minimum age policy and no features aimed at under-13/16 without parental consent flows (varies by country; logged in §14).</li>
+<li><b>Breach readiness:</b> detection, audit log, incident runbook, and notification templates (72-hour GDPR window).</li>
+<li><b>Contributors of content:</b> clear licensing terms when users submit facts, photos, or links (grant to us, attribution, removal rights).</li>
+<li><b>Also consider:</b> cookie/ePrivacy rules, accessibility law (e.g. European Accessibility Act, WCAG AA), consumer rules for affiliate disclosure (FTC and EU equivalents), DSA notice-and-action for hosted user content, and the data-protection rules of the host country. These are tracked in the Review Log (§14); no formal legal review is planned yet.</li>
+</ul>
+
+<h2>10. Design direction</h2>
+<ul>
+<li>Felt-green table backdrop, cream "card stock" panels, chunky outlines + offset shadows (like this doc), meeples, dice, tokens as icons. Light + dark ("game night") modes.</li>
+<li>Mobile first: sticky player-count picker, big tap targets, "at-the-table mode" (large type, screen-awake, one thumb).</li>
+<li>Homepage: search bar, "recently clarified" feed, popular setups. Game page tabs: Setup · FAQ · Rules chat · Buy · Sources.</li>
+<li>Accessibility: color-blind-safe variant highlights (shape + color), WCAG AA.</li>
+</ul>
+
+<h2>11. Phased roadmap (KB first)</h2>
+<table><tr><th>Phase</th><th>Scope</th><th>Exit test</th></tr>
+<tr><td>0 · Foundations</td><td>Repo, license, single-Postgres schema skeleton (incl. rights grants, tombstone log), <b>Storage Provider interface (local provider + conformance tests), backup job to external mount, admin console Backups page, restore CLI, automated restore test</b>, CI, design system, hosting, i18n skeleton</td><td>Deployed hello-world with login; a backup is taken, downloaded, and restored into scratch automatically</td></tr>
+<tr><td>1 · KB core</td><td>Pluggable model layer, source adapters (PDF rulebooks, publisher sites), OCR, chunking, multilingual embeddings, authority ranking, edition/supersession model, provenance, review tooling</td><td>Seed games (open-license, publisher-authorized, and policy-allowed sources) ingested; every fact/chunk traceable to a source, edition and rights grant; ingestion blocks anything without a grant</td></tr>
+<tr><td>1a · Operator v0</td><td>Ops CLI, health checks, backup verification, approval handshake via Discord, break-glass runbook</td><td>Operator runs a restore test and reports; a staged prod restore needs human approval</td></tr>
+<tr><td>1b · Agent team v0 + harness bake-off</td><td>Agent spec format + runner adapter; Scout, Rights Officer, Librarian, Designer as first specialists; Jurisdiction Policy engine and opt-out checks; attribution constraints in the schema; same tasks run on Hermes / DeepSeek Harness / Nanobot and scored, with a plain-English bake-off report for the owner; Hermes worker in sandbox with scoped KB propose tools, review queue, playbooks repo, audit log, kill switch</td><td>Given a game name, Scout and Librarian find permitted sources, proposes facts with citations; a human approves in the queue</td></tr>
+<tr><td>2 · KB learning loop</td><td>Freshness re-crawl + diffing, feedback capture, eval/regression suite, model scoreboard, Steward weekly report and PR-based tuning</td><td>Changing a source or model re-runs evals and flags regressions automatically</td></tr>
+<tr><td>3 · VP #1 Setup sheets</td><td>Designer agent + deterministic fit solver loop with pre-generation and cache, themed original styling with originality check, extract/self-check/trim, review UI with source quotes, print/PDF, search, anonymous browsing, gold set of verified sheets</td><td>Agent-drafted sheets reach target field accuracy on the gold set; all pass 1-page CI; each line cites KB; prints on Letter + A4</td></tr>
+<tr><td>4 · VP #2 Game chat</td><td>Concierge (read-only, cached RAG), per-claim citations with verifier step, tiered KB-first cited answers, auth, edition handling, quotas, answer cache</td><td>Eval set passes accuracy and citation bar</td></tr>
+<tr><td>4b · Rights &amp; publisher program</td><td>Rights-status model, "Contact the publisher" banners and request flow, publisher portal with domain verification, grant scopes, takedown handling</td><td>A real publisher can claim a game, grant scope, and see content appear; revocation removes it</td></tr>
+<tr><td>5 · Public surfaces</td><td>Scrubbed public feed, FAQs promoted from Q&amp;A, affiliate links, Discord login + commands</td><td>Moderated feed live</td></tr>
+<tr><td>5b · Ratings &amp; organizers</td><td>Generic 5-star rating service with anti-abuse, accessory listing model + submit-by-URL, site adapters (per-site terms), link-health checks, organizer tab and filters, BGG panel and link</td><td>User submits an organizer link, it is matched to a game/edition, rated, and shown; dead links get flagged automatically</td></tr>
+<tr><td>5c · Admin &amp; compliance</td><td>Minimal admin console + ops CLI, roles with second confirmation for destructive actions, GDPR request tooling (export/erase), privacy notice, image records and publisher-photo ingestion</td><td>Owner runs a full GDPR erase and an approval entirely through the console or ops CLI; image without a record cannot display</td></tr>
+<tr><td>6 · MCP</td><td>Anonymous + OAuth MCP at full parity with the UI, add-game via KB ingest queue</td><td>Agent adds a game and gets a sheet using MCP only</td></tr>
+<tr><td>7 · Collections</td><td>BGG/CSV import, match view, edition-aware answers, request-missing flow</td><td>Import a real BGG collection and see matches</td></tr>
+<tr><td>7b · Cloud storage providers</td><td>S3-compatible, GCS/Azure and rclone/SFTP providers, <code>storage migrate</code>, dual-write, durability ladder in admin console</td><td>Move backups from local disk to a cloud bucket with verified checksums and a tested restore from it</td></tr>
+<tr><td>7c · Self-host packaging</td><td>Instance profile and <code>init</code> wizard, one-file container deployment, policy packs (EU default, overlays), KB sync from the public dump, library/club mode (§7f)</td><td>A second, independent instance is stood up from scratch in under an hour and syncs the public KB</td></tr>
+<tr><td>8 · Launch</td><td>Review Log triage (no formal legal review yet), perf, SEO, outreach to first publishers</td><td>Public beta</td></tr></table>
+<p>Note: the MCP read API is a thin layer over the KB API, so anonymous read tools can ship earlier alongside Phase 3 if wanted.</p>
+
+<h2>12. Key risks</h2>
+<ul>
+<li><b>Allowance-based fetching/caching is legally nuanced</b> and varies by hosting country; fair-use-style judgments are not automatable. Mitigate with the Jurisdiction Policy, conservative defaults, opt-out honoring, short excerpts only, no public caches, a Review Log of open legal questions (§14), and fast takedown. No formal legal review is planned yet, which is an accepted risk. This is a deliberate step up from v4's "no fetching without a grant".</li>
+<li><b>Sheet styling resembling publisher art</b> — mitigate with style tokens instead of assets, similarity checks, and honoring any publisher request when one arrives.</li>
+<li><b>Immature harnesses</b> — DeepSeek Harness is a v0.1 preview and the "claw" family is months old; mitigate with the harness-agnostic spec/adapter design and a scored bake-off.</li>
+<li><b>Multi-agent complexity</b> — coordination bugs and cost; mitigate with queue-based handoffs, role budgets, replayable event logs, and starting with merged workers.</li>
+<li><b>GDPR/DSA/accessibility obligations</b> — require early design (erasure vs. backups, processors, retention); mitigate with the compliance tooling in Phase 5c and the Review Log (§14).</li>
+<li><b>Attribution gaps</b> — a claim without a source slipping through; mitigate with schema constraints, claim-level verifier, and API errors on unsourced results.</li>
+<li><b>Provider lock-in / migration pain</b> — logical keys, a single interface, dual-write migration, and conformance tests keep storage swappable. Single local disk is the weakest durability tier; the admin console says so plainly until a second copy exists.</li>
+<li><b>Data loss / unrestorable backups</b> — mitigated by automatic restore tests, off-box and immutable copies, versioned schemas, runbooks, and a break-glass CLI (§6b).</li>
+<li><b>Restore resurrects withdrawn content</b> — tombstone log replayed after every restore.</li>
+<li><b>Admin agent blast radius</b> — scoped admin tools, human approval for destructive actions, protected backup copy it cannot touch.</li>
+<li><b>Single-database coupling</b> — one engine simplifies ops but means a Postgres problem hits everything; mitigated by Level 2 PITR and documented rebuild path.</li>
+<li><b>3D-print site terms / link rot</b> — each site's API and indexing terms vary; use per-site adapters with a rights status, submit-only where needed, and scheduled link-health checks. Linking is generally low-risk, hot-linking images and copying descriptions is not, so keep stored data minimal. Licenses are shown but not enforced by us.</li>
+<li><b>Rating manipulation</b> — fake or retaliatory ratings from creators, publishers or brigades; mitigated by §7c controls. Ratings never override sourced rules.</li>
+<li><b>BGG dependency</b> — API token, terms, rate limits, and attribution rules; adapter isolation plus graceful degradation.</li>
+<li><b>Wrong numbers on a sheet</b> — the most visible failure. Mitigate with cited facts only, second-pass verification, gold-set evals, human approval at launch, and an always-visible error report that routes straight to the Librarian.</li>
+<li><b>Agent security</b> — prompt injection via ingested pages or user chat; mitigated by role separation, no shell/writes on the public agent, KB-enforced rights gate, sandbox + egress allowlist, review queue (§6a).</li>
+<li><b>Runaway cost/behavior</b> — per-role budgets, rate limits, kill switch, audit log.</li>
+<li><b>Over-trusting self-improvement</b> — learned playbooks only promote through evals and PR review.</li>
+<li><b>KB quality is the product</b> — bad extraction poisons sheets and chat. Mitigate with provenance everywhere, review tooling, and the eval suite from Phase 2 (before any product ships).</li>
+<li><b>Content rights</b> — reduced by the rights-first rule (§5a), but still the top risk. Residual risks: coverage (many games will start with no authorized source), publisher non-response, and community-contributed facts drifting too close to copied text. Mitigate with scope checks, similarity detection on submissions, and fast takedown.</li>
+<li><b>Cold start</b> — with no scraping, early catalog depth depends on open-license games and friendly publishers. Plan: start with open-license/indie/crowdfunded publishers, show demand data to larger ones.</li>
+<li><b>Rules-answer accuracy</b> — wrong rulings hurt trust; mitigate with citations, confidence, "not covered", and an eval suite.</li>
+<li><b>Fit solver complexity</b> — decouple from content early; prototype in Phase 1.</li>
+<li><b>Amazon Associates</b> — accounts are per country, require qualifying sales, and Amazon's product API requirements change; budget time to verify current terms.</li>
+<li><b>BGG terms / API access</b> — see §7a; keep behind an adapter.</li>
+<li><b>Edition ambiguity</b> — users often do not know their edition; the agent must ask or show both rather than guess.</li>
+<li><b>Local model quality</b> — small models cite worse; the eval suite sets a minimum bar per role.</li>
+<li><b>LLM cost</b> — quotas and caching of repeated questions.</li>
+</ul>
+
+<h2>13. Decisions so far &amp; open questions</h2>
+<h3>Decided (from your replies)</h3>
+<ul>
+<li><b>Hosting and privacy:</b> assume EU hosting; GDPR baseline; stricter overlays only where another region is stricter; many independent instances (library, club, country) supported (§7f).</li>
+<li><b>Legal:</b> no formal review for now; keep a Review Log of everything that needs one (§14); copyright and trademark research in §5f.</li>
+<li><b>Content:</b> fetch, cache and quote only within the host country's allowances; honor opt-outs; host no rulebooks or 3D files; all knowledge attributed; publisher photos preferred.</li>
+<li><b>Language:</b> TypeScript as the main language, Python only as an isolated worker if needed, Rust not for app code (§2a).</li>
+<li><b>Agents:</b> multi-agent team; agents produce the sheets with the fit solver; Phase 1b bake-off of Hermes, DeepSeek Harness and Nanobot with a plain-English report.</li>
+<li><b>Sheet themes:</b> original styling, no publisher approval step; we adjust if a publisher asks.</li>
+<li><b>Admin MCP:</b> removed from the plan; minimal admin console plus ops CLI instead.</li>
+<li><b>Backups and storage:</b> container mount point first; AWS, Azure and Google designed in; KB backups are plain; private data gets its own encrypted path.</li>
+</ul>
+<h3>Decided in the latest round</h3>
+<ul>
+<li><b>Project name: Rogue.</b> Built and proofed on your Olares system with Docker. Final public domain is undecided and must stay configurable, because you may be only one of many hosts (domain, branding and region live in the instance profile, §7f).</li>
+<li><b>Reviewer and approvals:</b> you are the only human reviewer at launch. New games and content are auto-approved by the Curator-side agents unless the approval rules decline them. <b>Rules: to be defined.</b> I propose a first draft below.</li>
+<li><b>Models:</b> provider-based per role, local first (24 GB local GPU), Claude as a fallback or for hard roles (§6).</li>
+<li><b>Seed content:</b> a set of common games first, then your BGG collection of about 250 games.</li>
+<li><b>Publisher outreach:</b> placeholder only. The data model and the "Contact the publisher" banner exist, but nothing is sent automatically yet.</li>
+<li><b>User-attached rulebooks and community-written setup facts:</b> deferred. Not in v1 and removed from the early phases.</li>
+</ul>
+<h3>Draft auto-approval rules (for you to edit)</h3>
+<ul>
+<li><b>Auto-approve:</b> links and metadata; re-indexing; a game whose sources are all <i>Open license</i>, <i>Authorized</i> or <i>Allowance-based</i> with no opt-out; sheets that pass every check (schema, one page, every line cited, second-pass verifier agrees, originality check).</li>
+<li><b>Hold for you:</b> any rule conflict between sources, any edition ambiguity, sheet counts that differ between extraction passes, any source that changes after approval, anything the Moderator flags, and the first sheet for each new publisher.</li>
+<li><b>Decline automatically:</b> sources with an opt-out or restrictive terms (these become link-only), images without a record, anything without a citation.</li>
+<li><b>Safety net:</b> everything auto-approved is logged, appears in a daily digest to you on Discord, and can be rolled back in one step. A kill switch pauses auto-approval.</li>
+</ul>
+<h3>Seeding plan</h3>
+<ul>
+<li><b>Batch 1:</b> about 10 to 20 common games chosen to stress the engine (some simple, some player-count-sensitive, some multi-edition), plus hand-checked gold sheets to score the agents.</li>
+<li><b>Batch 2:</b> your BGG collection (about 250). This needs a BGG API route that the BGG terms allow for this use (R6). If access is not granted, CSV export from BGG is the fallback. Games without a usable public source show "Contact the publisher" and a link-only entry.</li>
+</ul>
+<h3>Assumptions I am proceeding on (tell me if any is wrong)</h3>
+<ul>
+<li>One Postgres with pgvector, in Docker on Olares; Hindsight as the agents' operating memory; Postgres only, no SQLite build.</li>
+<li>Level 1 nightly dumps to a container mount (Olares storage); point-in-time recovery stays optional.</li>
+<li>AGPL-3.0 for code and CC BY-SA or CC0 for community data; Astro plus a separate Hono API; nine agent roles that can start as merged workers; EU policy pack by default.</li>
+</ul>
+<h3>Deferred to implementation planning</h3>
+<p>These are build-time decisions, not design questions: backup mount path and second location, cloud spend cap and API key, final auto-approval rule set, batch 1 game list, and trademark and domain checks for "Rogue" (R5). They are tracked in the Review Log (§14) and will be settled when implementation planning starts.</p>
+<h3>Can wait</h3>
+<ul>
+<li>Standalone KB project; public changelog of agent activity; commercial inserts in the accessory catalog; which 3D sites first; written notes on ratings; creator claims; unofficial answers in the public feed; house-rule sheets; monetization beyond affiliates; the production-restore approval channel.</li>
+</ul>
+
+<h2>14. Review Log: everything that needs a legal or expert review</h2>
+<div class="ok">No formal legal review is planned yet. This log is the single list of open questions for whenever one happens. It lives in the repo as <code>REVIEW_LOG.md</code>; the Rights Officer agent and any contributor can append to it, and each item gets an owner, a status and a decision date when it is resolved. Risk is my rough guess, not a legal opinion.</div>
+<table><tr><th>ID</th><th>Area</th><th>Question to resolve</th><th>Risk</th></tr>
+<tr><td>R1</td><td>EU text and data mining</td><td>Does fetching, privately caching and extracting facts from public rulebooks fit Article 4 of Directive 2019/790 and each member state's transposition? What counts as an "appropriate" reservation (site terms, robots, meta tags)? How long may raw copies be kept?</td><td>High</td></tr>
+<tr><td>R2</td><td>Quotation</td><td>Length, purpose and attribution limits for short rulebook excerpts in chat and sheets under the national quotation exceptions.</td><td>High</td></tr>
+<tr><td>R3</td><td>Rules text vs. rules</td><td>Where is the line between extracting facts in our own words and a derivative of the text (close paraphrase, LLM summaries, translations)?</td><td>High</td></tr>
+<tr><td>R4</td><td>Images</td><td>Publisher photos and press kits: license scope for thumbnails, hot-linking vs. caching, curated images from other sites.</td><td>High</td></tr>
+<tr><td>R5</td><td>Trademark</td><td>Clearance of "Rogue" as the project name and the final domain (the word is widely used, including as a genre name); Nominative/referential use of game and publisher names; "not affiliated" footer; effect of affiliate links; clearance search for the project name "Rogue" (a very common word; check existing marks in games, software and entertainment) and for the chosen domain.</td><td>Medium</td></tr>
+<tr><td>R6</td><td>BoardGameGeek terms</td><td>API registration, whether an open-source plus affiliate site counts as commercial, what data may be displayed or stored, attribution rules.</td><td>Medium</td></tr>
+<tr><td>R7</td><td>3D-printing sites</td><td>Per-site terms for indexing, thumbnails, descriptions and displaying licenses (Printables, MakerWorld, Thingiverse, Thangs, Cults3D).</td><td>Medium</td></tr>
+<tr><td>R8</td><td>GDPR</td><td>Controller/processor roles, lawful bases, LLM provider agreements and transfers, chat retention, public-feed scrubbing, children's age limit, ePrivacy, records of processing, whether a DPIA is required.</td><td>High</td></tr>
+<tr><td>R9</td><td>Asian privacy laws</td><td>When PIPL (extraterritorial reach) or Korea's PIPA would apply to an EU-hosted instance; whether to geoblock or add overlays.</td><td>Medium</td></tr>
+<tr><td>R10</td><td>Affiliate links</td><td>Disclosure rules (EU and FTC), Amazon Associates terms per country, affiliate links inside AI answers.</td><td>Medium</td></tr>
+<tr><td>R11</td><td>Open-source licensing</td><td>AGPL for code, CC BY-SA or CC0 for data when facts derive from publisher material; contributor license (DCO or CLA); user-submission terms; effect on forks.</td><td>Medium</td></tr>
+<tr><td>R12</td><td>User content and liability</td><td>EU Digital Services Act duties for hosted user content (notice-and-action); whether AI answers are our own speech; disclaimers for wrong rulings.</td><td>Medium</td></tr>
+<tr><td>R13</td><td>Takedown process</td><td>EU and US (DMCA) takedown procedures and whether a designated agent is needed; response times.</td><td>Medium</td></tr>
+<tr><td>R14</td><td>Patents</td><td>Check for patents on mechanics of seed games. <i>(verify)</i></td><td>Low</td></tr>
+<tr><td>R15</td><td>Instance sync</td><td>Whether data derived under one country's allowances may be shared with instances in another; what to include in the public dump.</td><td>Medium</td></tr>
+<tr><td>R16</td><td>Publisher outreach</td><td>Business-contact email rules in the EU (ePrivacy and national law), opt-out handling, who is the sender.</td><td>Low</td></tr>
+<tr><td>R17</td><td>Themed sheets</td><td>Is "style tokens plus original ornaments" far enough from the source art; does feeding publisher imagery into the Designer agent as input count as a reproduction?</td><td>Medium</td></tr>
+<tr><td>R18</td><td>EU AI Act</td><td>Transparency duties for chatbots and AI-generated content (telling users they're talking to AI, labeling). <i>(verify)</i></td><td>Medium</td></tr>
+<tr><td>R19</td><td>Sending rulebooks to cloud LLMs</td><td>Provider terms on retention and training when copyrighted PDFs are sent for OCR or extraction; EU-region options.</td><td>Medium</td></tr>
+<tr><td>R20</td><td>Accessibility</td><td>European Accessibility Act applicability and WCAG AA conformance for a small non-profit open-source service.</td><td>Low</td></tr><tr><td>R21</td><td>Claude subscription use</td><td>Whether a consumer subscription may power automated agents; likely needs API access under the commercial terms. Also provider data-retention terms.</td><td>Medium</td></tr>
+<tr><td>R22</td><td>Auto-approval</td><td>Legal and quality exposure of auto-approved content with a single human reviewer; adequacy of the decline rules and rollback.</td><td>Medium</td></tr>
+<tr><td>R23</td><td>Seeding from a personal BGG collection</td><td>Whether importing a user collection through the BGG API (or CSV) is allowed for building a public catalog.</td><td>Medium</td></tr></table>
+
+<p style="margin-top:40px;opacity:.6">Rogue design plan v13. Next step: implementation planning.</p>
+</main></body></html>

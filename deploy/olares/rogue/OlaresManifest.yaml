@@ -1,0 +1,63 @@
+apiVersion: v3
+# Custom route ID is set post-deployment by scripts/deploy.sh:
+# olares-cli settings apps domain set rogue rogue --third-level rogue
+entrances:
+- authLevel: private
+  host: web
+  icon: https://rogue.cisakson.olares.com/icon.svg
+  name: rogue
+  openMethod: default
+  port: 4321
+  title: Rogue
+metadata:
+  appid: rogue
+  categories:
+  - Utilities
+  description: Cited, rights-aware tabletop knowledge platform
+  icon: https://rogue.cisakson.olares.com/icon.svg
+  name: rogue
+  title: Rogue
+  version: 0.0.1
+olaresManifest.type: app
+olaresManifest.version: 0.12.0
+options:
+  appScope: {}
+  dependencies:
+  - mandatory: false
+    name: olares
+    selfRely: false
+    type: system
+    version: '>=1.12.6-0'
+  oidc: {}
+  resetCookie: {}
+  shared: false
+  upload: {}
+  websocket: {}
+overlayGateway:
+  enable: false
+permission:
+  appData: true
+spec:
+  accelerator:
+  - limitedCpu: 500m
+    limitedDisk: 5Gi
+    limitedMemory: 768Mi
+    mode: cpu
+    requiredCpu: 100m
+    requiredDisk: 50Mi
+    requiredMemory: 128Mi
+  hardware:
+    cpu: {}
+    gpu: {}
+  runAsInternal: false
+  runAsUser: false
+  supportArch:
+  - amd64
+  supportClient: {}
+  versionName: "0.0.1"
+tailscale: {}
+workloadReplicas:
+  rogue: 1
+workloads:
+  rogue:
+    replicaCount: 1

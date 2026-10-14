@@ -1,0 +1,16 @@
+{
+  "name": "rogue",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Rogue: open-source, cited, rights-aware tabletop knowledge platform",
+  "engines": { "node": ">=22.12.0" },
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "typecheck": "npm run typecheck -w packages/core && npm run typecheck -w apps/web",
+    "test": "npm run test -w packages/core",
+    "check": "npm run typecheck && npm run test && npm run build && bash scripts/check-versions.sh"
+  }
+}
