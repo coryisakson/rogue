@@ -19,13 +19,17 @@ EU/GDPR-first, self-hostable, MCP-native, every model and storage provider plugg
 
 ## Stack and layout
 - TypeScript (strict) everywhere; Astro 7 SSR (`apps/web`), shared logic in `packages/core`. Python only as an isolated worker if later needed. Rust only for a profiled hot spot.
-- Postgres + pgvector is the single data store (not yet wired; Phase 0). Node >= 22.
+- **One app container.** The Rogue container holds only the app. Postgres (pgvector), persistent files/backups and AI model services run OUTSIDE it and are reached through env-configured URLs/mounts (`DATABASE_URL`, `ROGUE_DATA_DIR`, `ROGUE_AI_*_URL`). Do not bundle a database or models into the image.
+- Postgres + pgvector is the single data store (not yet wired). Node >= 22.
+- **AI default is local** (Cory's local model server, OpenAI-compatible endpoint); cloud models are optional per-role overrides.
+- Licence: AGPL-3.0 code, CC BY-SA data (approved).
+- Brand: working name "T-AI-bletop Rogue"; keep the name in the instance profile, not hard-coded.
 - Layout: `apps/web` (site), `packages/core` (domain logic, no I/O frameworks), `deploy/olares/rogue` (chart), `scripts/` (ops), `docs/` (plans, ADRs, approvals).
 - Code must be readable by a TypeScript/C#/Python developer who does not write code daily: small functions, plain names, comments explaining *why*.
 
 ## Working loop (every task)
 1. Read `docs/PROGRESS.md` (state) and `docs/APPROVALS.md` (blockers). Pick the next unblocked roadmap item (`docs/ROADMAP.md`).
-2. Branch `feat/<slug>` (or `cc/<slug>` when delegated to Claude Code). Never commit directly to `main` once branch protection is on; until then, small direct commits to `main` are allowed only for docs/CI plumbing.
+2. **Always work on a feature branch** `feat/<slug>`, `fix/<slug>` or `cc/<slug>` (Claude Code), push it and open a PR. Never commit to `main`. Cory approves/merges PRs when he wants to test. If a task depends on an unmerged PR, branch from it or keep going on unrelated work.
 3. Write the test first or alongside. `npm run check` must pass (typecheck, tests, build, version consistency).
 4. Update `docs/PROGRESS.md` (one dated line: what changed, what is verified, what is left).
 5. If you need something you cannot do (credentials, spend, external account, a decision), add an entry to `docs/APPROVALS.md` with the next free ID `RGE-Axx`, then **continue with other unblocked work**. Do not wait.
@@ -37,6 +41,9 @@ Tests pass, `npm run check` green, docs updated, no secret in the diff, citation
 ## Delivery pipeline (GitHub, Docker Hub, Olares)
 `bump-version.sh` -> commit -> push `main` -> **CI** (`ci.yml`: typecheck/test/build) and **image build** (`build-image.yml`, pushes `cisakson/rogue:<version>` and `:latest`) -> `scripts/deploy.sh` on a host with `olares-cli` (package chart, upload, in-place upgrade, set route/auth) -> `scripts/verify.sh` (state + `/healthz` version). Full runbook: `docs/DEPLOY.md`.
 Rules: bump version for every deploy (CI fails on drift); never uninstall the app; never hand-roll `olares-cli market` commands; the domain/route step is a hard gate.
+
+## Claude Code usage
+Delegated coding runs on Cory's Claude subscription (no pay-as-you-go API). Use what the task needs until the usage limit; if you hit it, record the stopping point in `docs/PROGRESS.md` and continue non-AI work or wait. See skill `claude-code-offload`.
 
 ## Secrets
 Never print or commit secrets. Host token lives in `/opt/data/.env` (`GITHUB_TOKEN`, Hermes host only). CI secrets: `DOCKER_USERNAME`, `DOCKER_PASSWORD`. Never ask Cory to paste a credential in chat; use the vault/approval flow.

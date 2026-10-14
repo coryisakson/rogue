@@ -27,7 +27,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       - id: meta
-        run: echo "version=$(grep -m1 '"version"' package.json | sed 's/.*"version": "\([^"]*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v5
         with:
           context: .
