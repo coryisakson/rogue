@@ -4,6 +4,7 @@
 #   scripts/deploy.sh --version X.Y.Z deploy/rollback to a specific published version
 # Never uninstalls; upgrades in place when already installed. Run on a host with olares-cli logged in.
 set -euo pipefail
+export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"  # background shells lack Homebrew on PATH
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 APP=rogue; ROUTE=rogue; HUB=cisakson/rogue; C=deploy/olares/rogue
 VER=$(grep -m1 '"version"' package.json | sed 's/.*"version": "\([^"]*\)".*/\1/')
