@@ -17,7 +17,7 @@ metadata:
   icon: https://rogue.cisakson.olares.com/icon.svg
   name: rogue
   title: Rogue
-  version: 0.0.1
+  version: 0.0.2
 olaresManifest.type: app
 olaresManifest.version: 0.12.0
 options:
@@ -39,13 +39,13 @@ permission:
   appData: true
 spec:
   accelerator:
-  - limitedCpu: 500m
-    limitedDisk: 5Gi
-    limitedMemory: 768Mi
+  - limitedCpu: 1500m
+    limitedDisk: 20Gi
+    limitedMemory: 2Gi
     mode: cpu
-    requiredCpu: 100m
+    requiredCpu: 250m
     requiredDisk: 50Mi
-    requiredMemory: 128Mi
+    requiredMemory: 512Mi
   hardware:
     cpu: {}
     gpu: {}
@@ -54,7 +54,7 @@ spec:
   supportArch:
   - amd64
   supportClient: {}
-  versionName: "0.0.1"
+  versionName: "0.0.2"
 tailscale: {}
 workloadReplicas:
   rogue: 1

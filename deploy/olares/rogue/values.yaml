@@ -1,3 +1,6 @@
 workloads:
   rogue:
     replicaCount: 1
+
+# Olares Router endpoint for local AI (OpenAI-compatible). Empty until confirmed (APPROVALS RGE-A12).
+rogueAiBaseUrl: ""

@@ -1,10 +1,35 @@
-# Local development / smoke test only. Production runs as an Olares app (deploy/olares/rogue).
+# Desktop testing: the app plus Postgres (pgvector). Production on Olares runs the same two containers in one pod
+# (deploy/olares/rogue). Local AI: point ROGUE_AI_BASE_URL at any OpenAI-compatible server (Ollama, llama.cpp, LM Studio).
+#   docker compose up --build        -> http://localhost:4321  (readiness: /readyz)
 services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: rogue
+      POSTGRES_PASSWORD: rogue-dev-only
+      POSTGRES_DB: rogue
+    volumes:
+      - rogue-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rogue -d rogue"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
   web:
     build: .
     image: cisakson/rogue:dev
+    depends_on:
+      db: { condition: service_healthy }
     ports:
       - "4321:4321"
     environment:
-      - NODE_ENV=production
-      - ROGUE_REGION=eu
+      NODE_ENV: production
+      ROGUE_REGION: eu
+      DATABASE_URL: postgres://rogue:rogue-dev-only@db:5432/rogue
+      ROGUE_DATA_DIR: /app/data
+      ROGUE_AI_BASE_URL: ${ROGUE_AI_BASE_URL:-}
+    volumes:
+      - rogue-data:/app/data
+volumes:
+  rogue-db:
+  rogue-data:

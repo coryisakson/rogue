@@ -23,6 +23,12 @@ spec:
           value: production
         - name: ROGUE_REGION
           value: eu
+        - name: DATABASE_URL
+          value: postgres://rogue:rogue-local@127.0.0.1:5432/rogue
+        - name: ROGUE_DATA_DIR
+          value: /app/data
+        - name: ROGUE_AI_BASE_URL
+          value: '{{ .Values.rogueAiBaseUrl | default "" }}'
         image: docker.io/cisakson/rogue:{{ .Chart.AppVersion }}
         imagePullPolicy: IfNotPresent
         name: web
@@ -55,6 +61,45 @@ spec:
         volumeMounts:
         - name: app-data
           mountPath: /app/data
+          subPath: files
+      - name: db
+        image: docker.io/pgvector/pgvector:pg17
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: POSTGRES_USER
+          value: rogue
+        - name: POSTGRES_PASSWORD
+          value: rogue-local   # DB listens on pod-local 127.0.0.1 only; no Service exposes 5432
+        - name: POSTGRES_DB
+          value: rogue
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "rogue", "-d", "rogue"]
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+        - name: app-data
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+      initContainers:
+      - name: fix-perms
+        image: docker.io/library/busybox:1.37
+        command: ["sh", "-c", "mkdir -p /d/postgres /d/files && chown -R 999:999 /d/postgres && chown -R 1000:1000 /d/files"]
+        volumeMounts:
+        - name: app-data
+          mountPath: /d
       volumes:
       - name: app-data
         hostPath:
