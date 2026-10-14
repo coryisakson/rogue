@@ -27,6 +27,10 @@ spec:
           value: postgres://rogue:rogue-local@127.0.0.1:5432/rogue
         - name: ROGUE_DATA_DIR
           value: /app/data
+        - name: ROGUE_AI_CHAT_MODEL
+          value: Olares/gemma4:e4b
+        - name: ROGUE_AI_EMBED_MODEL
+          value: Olares/embeddinggemma-300m
         - name: ROGUE_AI_BASE_URL
           value: '{{ .Values.rogueAiBaseUrl | default "" }}'
         image: docker.io/cisakson/rogue:{{ .Chart.AppVersion }}
