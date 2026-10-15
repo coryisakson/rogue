@@ -10,7 +10,12 @@ export async function scanPdfForQr(bytes: Uint8Array, budgetMs = 90_000): Promis
   const started = Date.now();
   const found: QrFinding[] = [];
   let scanned = 0;
+  let savedWorker: unknown;
   try {
+    // unpdf registers its own (older) pdf.js worker globally; pdf.js then refuses to run with a different API version.
+    // Hide it while we run our own copy, then put it back for unpdf.
+    savedWorker = (globalThis as any).pdfjsWorker;
+    delete (globalThis as any).pdfjsWorker;
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
     const jsQR = (await import('jsqr')).default;
     // JPEG2000 images (common in print-ready rulebooks) need the OpenJPEG wasm shipped next to the package.
@@ -43,6 +48,8 @@ export async function scanPdfForQr(bytes: Uint8Array, budgetMs = 90_000): Promis
     return { findings: dedupeFindings(found), scanned };
   } catch (e) {
     return { findings: dedupeFindings(found), scanned, error: (e as Error).message };
+  } finally {
+    if (savedWorker) (globalThis as any).pdfjsWorker = savedWorker;
   }
 }
 
