@@ -13,3 +13,4 @@ export * from './chat/index.js';
 export * from './auth/index.js';
 export * from './digest';
 export * from './sheet/index.js';
+export * from './ratings.js';

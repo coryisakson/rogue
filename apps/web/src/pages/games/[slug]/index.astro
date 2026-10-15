@@ -1,10 +1,13 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
+import { ratingLabel } from '@rogue/core';
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
-const claims = await getClaims(slug!);
+const user = Astro.locals.user;
+const claims = await getClaims(slug!, user ? { userId: user.id } : {});
+const here = Astro.url.pathname + Astro.url.search;
 const sources = [...new Map(claims.map((c) => [c.source_url, c])).values()];
 const q = Astro.url.searchParams.get('q');
 const shown = q ? claims.filter((c) => c.body.toLowerCase().includes(q.toLowerCase())) : claims;
@@ -18,13 +21,19 @@ const shown = q ? claims.filter((c) => c.body.toLowerCase().includes(q.toLowerCa
     {claims.length === 0 && <div class="card"><b>No cited facts yet.</b> We have not ingested an official source for this game. If you are the publisher, you can <a href="/about#publishers">contact us</a> to authorise one.</div>}
     <div style="display:grid;gap:.8rem">
       {shown.map((c) => (
-        <div class="card">
+        <div class="card" id={`c${c.id}`}>
           <span class="pill">{c.topic.replace('_', ' ')}</span>{c.player_count && <span class="pill warn">{c.player_count} players</span>}
           <p style="margin:.4rem 0">{c.body}</p>
           <small>Source: <a href={c.source_url}>{c.source_title}</a> ({c.publisher}) · {c.locator}
           {c.availability !== 'available' && <span class="pill bad">source no longer available</span>}
           · <span class="pill warn">AI-drafted, unreviewed</span></small>
           {c.quote && <blockquote style="margin:.4rem 0 0;opacity:.8;font-size:.9rem">“{c.quote}”</blockquote>}
+          <form method="post" action="/rate" style="margin:.5rem 0 0;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap">
+            <input type="hidden" name="claim" value={c.id} /><input type="hidden" name="next" value={here} />
+            <small>{user ? 'Rate this fact:' : <a href={`/login?next=${encodeURIComponent(here)}`}>Sign in to rate</a>}</small>
+            {user && [1, 2, 3, 4, 5].map((n) => <button type="submit" name="stars" value={n} title={`${n} star${n > 1 ? 's' : ''}`} style={`background:none;border:0;cursor:pointer;font-size:1.2rem;padding:0 .1rem;color:${(c.my_stars ?? 0) >= n ? '#d9a441' : '#0004'}`}>★</button>)}
+            {ratingLabel(c.avg_stars, c.rating_count) && <small>· {ratingLabel(c.avg_stars, c.rating_count)}</small>}
+          </form>
         </div>
       ))}
     </div>

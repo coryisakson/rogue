@@ -22,6 +22,7 @@ describe('security', () => {
     expect(isCostlyPath('/')).toBe(false);
     expect(isPublicPath('/games/pandemic/ask')).toBe(true);
     expect(isPublicPath('/login')).toBe(true);
+    expect(isPublicPath('/rate')).toBe(true);
     expect(isPublicPath('/auth/github')).toBe(true);
     expect(isPublicPath('/auth/github/callback')).toBe(true);
     expect(isPublicPath('/auth/github/callback/../../api')).toBe(false);

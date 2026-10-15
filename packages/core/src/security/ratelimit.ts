@@ -29,7 +29,7 @@ export function isPublicPath(pathname: string): boolean {
   if (pathname === '/' || pathname === '/about' || pathname === '/games' || pathname === '/healthz' || pathname === '/favicon.ico' || pathname === '/favicon.svg' || pathname === '/robots.txt') return true;
   if (pathname.startsWith('/_astro/')) return true;
   if (/^\/games\/[a-z0-9-]+(\/setup|\/ask)?\/?$/.test(pathname)) return true;
-  if (pathname === '/login' || pathname === '/logout' || /^\/auth\/[a-z]+(\/callback)?\/?$/.test(pathname)) return true;
+  if (pathname === '/login' || pathname === '/logout' || pathname === '/rate' || /^\/auth\/[a-z]+(\/callback)?\/?$/.test(pathname)) return true;
   return false;
 }
 
