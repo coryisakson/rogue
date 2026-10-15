@@ -27,6 +27,11 @@ describe('terms agent (pure parts)', () => {
     const j = judgeTerms(`${filler} You may not use any robot, spider or scraper to access the site.`);
     expect(j.verdict).toBe('restricted');
   });
+  it('lets generic copyright wording through (R28) but not bot rules', () => {
+    const j = judgeTerms(`${filler} You may not copy, reproduce or republish any content from this website without prior written permission.`);
+    expect(j.verdict).toBe('clear');
+    expect(j.flags.length).toBeGreaterThan(0);
+  });
   it('treats AI mentions without a clear rule as unclear, and short pages as unclear', () => {
     expect(judgeTerms(`${filler} We use artificial intelligence to recommend products to our customers.`).verdict).toBe('unclear');
     expect(judgeTerms('Terms. Use at your own risk.').verdict).toBe('unclear');

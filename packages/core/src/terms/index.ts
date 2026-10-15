@@ -67,7 +67,9 @@ export function judgeTerms(text: string): TermsJudgement {
   const serious = flags.filter((f) => (f.kind === 'bot' || f.kind === 'ai') && PROHIBITION.test(f.excerpt));
   if (serious.length) return { verdict: 'restricted', flags, reasons: [`${serious.length} sentence(s) about bots, scraping or AI also contain a prohibition.`] };
   if (flags.some((f) => f.kind === 'bot' || f.kind === 'ai')) return { verdict: 'unclear', flags, reasons: ['The terms mention bots, scraping or AI without a clear rule; a human should read the highlighted lines.'] };
-  const copyBans = flags.filter((f) => f.kind === 'copy' || f.kind === 'permission');
-  if (copyBans.length) return { verdict: 'unclear', flags, reasons: ['The terms limit copying or require permission; a human should check that quoting short cited passages is fine.'] };
+  // Generic copyright wording ("do not copy or republish without permission") is on nearly every site. Cory accepted it
+  // as clear for now (2026-10-15, Review Log R28): we only keep short cited quotes and never host the file.
+  const generic = flags.filter((f) => f.kind === 'copy' || f.kind === 'permission');
+  if (generic.length) return { verdict: 'clear', flags, reasons: [`Read ${clean.length} characters of terms; no bot, scraping or AI restriction. Passed ${generic.length} generic copyright sentence(s) (accepted risk R28).`] };
   return { verdict: 'clear', flags, reasons: [`Read ${clean.length} characters of terms; no bot, scraping, AI, mining or copying restriction was found.`] };
 }
