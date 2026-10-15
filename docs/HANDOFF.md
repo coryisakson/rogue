@@ -12,14 +12,17 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 
 ## Next (in order)
 1. (DONE 0.0.43, /admin/claims) Review queue UI. Now exceptions-only (needs_review or low-rated), per Cory: agents run the system, humans see only what really needs them. Still to do: reuse for the approvals handshake; (DONE 0.0.46: Curator auto-resolves needs_review; frontier judge via ROGUE_JUDGE_* env still unconfigured, so it restores but never rejects).
-2. (next) Phase 1: second source adapter (publisher HTML pages), OCR for scanned PDFs, authority ranking across sources.
+2. HTML adapter + OCR code merged (0.0.47, untested on real inputs). Left: first real HTML seed, authority ranking across sources.
 3. Rate chat answers (needs stored answer id).
-4. Discord integration: bot sharing the core lib so people use Rogue (setup sheets, rules chat, ratings) inside the Discord app; then an admins channel for alerts, weekly digest and the approval handshake (plan 1a); closes RGE-A14.
+4. Discord integration (skeleton merged, inert; RGE-A15 to enable): bot sharing the core lib so people use Rogue (setup sheets, rules chat, ratings) inside the Discord app; then an admins channel for alerts, weekly digest and the approval handshake (plan 1a); closes RGE-A14.
 5. Add-game flow behind login (Scout + Rights Officer as code paths first).
 6. Then Phase 1b agent team, Phase 2 learning loop. Cory: no more games for the MVP; acceptable beats gold-plated.
 
 ## Not now (Cory)
 BGG collection / what-shall-we-play is backlog only (docs/BACKLOG.md, docs/BGG_NOTES.md; test user CoryIsakson). Off-box backups and cloud storage = Phase 7b (R24).
+
+## Parallel workers
+Use delegate_task (max 3) with a git worktree + branch cc/<slug> each (git worktree add -b cc/x ../rogue-wt-x main); workers never touch docs/PROGRESS.md or main. Merge with scripts/merge-branch.sh cc/x (rebases, re-checks, ff-merges, pushes; exit 2 = conflict, resolve in the worktree and re-run). Then bump + push + deploy serially.
 
 ## Gotchas
 - Deploy chain: scripts/bump-version.sh patch -> commit -> push with GITHUB_TOKEN header (see DEPLOY.md) -> wait for CI + image (monitor-actions.py) -> scripts/deploy.sh (retry once after 90 s: Docker Hub lags 1-3 min) -> scripts/verify.sh. PATH needs /home/linuxbrew/.linuxbrew/bin. Pod takes ~1-2 min after deploy (502 meanwhile).
