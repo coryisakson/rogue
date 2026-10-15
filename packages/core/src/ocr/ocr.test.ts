@@ -73,26 +73,26 @@ describe('applyOcr', () => {
 
 import { HttpOcrProvider, parsePaddleOcrResponse, ocrProviderFromEnv as fromEnv, NoopOcrProvider as Noop, CommandOcrProvider as Cmd } from './provider.js';
 
-const paddle = (pages: string[][]) => ({ result: { ocrResults: pages.map((rec_texts) => ({ prunedResult: { rec_texts } })) } });
+const paddle = (pages: string[]) => ({ result: { layoutParsingResults: pages.map((text) => ({ markdown: { text } })) } });
 describe('HttpOcrProvider (PaddleOCR serving API)', () => {
-  it('parses one string per page', () => expect(parsePaddleOcrResponse(paddle([['a', 'b'], []]))).toEqual(['a\nb', '']));
+  it('parses one string per page', () => expect(parsePaddleOcrResponse(paddle(['a\n\nb', '']))).toEqual(['a\n\nb', '']));
   it('rejects unexpected bodies', () => expect(() => parsePaddleOcrResponse({ nope: 1 })).toThrow());
   it('sends the PDF once and serves every page from the cache, with the key', async () => {
     const calls: { url: string; init: RequestInit }[] = [];
-    const f = (async (url: string, init: RequestInit) => { calls.push({ url, init }); return new Response(JSON.stringify(paddle([['one'], ['two']]))); }) as unknown as typeof fetch;
+    const f = (async (url: string, init: RequestInit) => { calls.push({ url, init }); return new Response(JSON.stringify(paddle(['one', 'two']))); }) as unknown as typeof fetch;
     const p = new HttpOcrProvider({ baseUrl: 'http://ocr:8080/', apiKey: 'k', fetchImpl: f });
     const pdf = new Uint8Array([1, 2, 3]);
     expect(await p.recognizePage({ pdf, pageNumber: 1 })).toBe('one');
     expect(await p.recognizePage({ pdf, pageNumber: 2 })).toBe('two');
     expect(await p.recognizePage({ pdf, pageNumber: 9 })).toBe('');
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.url).toBe('http://ocr:8080/ocr');
+    expect(calls[0]!.url).toBe('http://ocr:8080/layout-parsing');
     expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe('Bearer k');
     expect(JSON.parse(calls[0]!.init.body as string)).toMatchObject({ fileType: 0, file: 'AQID' });
   });
   it('does not cache a failed request', async () => {
     let n = 0;
-    const f = (async () => (++n === 1 ? new Response('x', { status: 500 }) : new Response(JSON.stringify(paddle([['ok']]))))) as unknown as typeof fetch;
+    const f = (async () => (++n === 1 ? new Response('x', { status: 500 }) : new Response(JSON.stringify(paddle(['ok']))))) as unknown as typeof fetch;
     const p = new HttpOcrProvider({ baseUrl: 'http://ocr', fetchImpl: f });
     const pdf = new Uint8Array([7]);
     await expect(p.recognizePage({ pdf, pageNumber: 1 })).rejects.toThrow(/500/);

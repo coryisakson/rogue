@@ -85,7 +85,7 @@ export class CommandOcrProvider implements OcrProvider {
 }
 
 export interface HttpOcrOptions {
-  /** Service root, e.g. http://paddleocr.<ns>.svc:8080 ; the request goes to <baseUrl>/ocr. */
+  /** Service root, e.g. http://paddleocr.<ns>.svc:8080 ; the request goes to <baseUrl>/layout-parsing. */
   baseUrl: string;
   /** Optional key, sent as "Authorization: Bearer <key>". */
   apiKey?: string | undefined;
@@ -96,9 +96,9 @@ export interface HttpOcrOptions {
 }
 
 /**
- * OCR through an HTTP service speaking the PaddleOCR / PaddleX serving API (POST /ocr, JSON {file: base64, fileType: 0 = PDF}).
+ * OCR through an HTTP service speaking the PaddleOCR / PaddleX serving API (POST /layout-parsing, JSON {file: base64, fileType: 0 = PDF}; verified live against PaddleOCR-VL on Olares).
  * The whole PDF is sent once and the per-page results are cached for that PDF, so a 100-page scan with 80 flagged pages is one request.
- * Response: result.ocrResults[i].prunedResult.rec_texts = recognised text lines of page i+1.
+ * Response: result.layoutParsingResults[i].markdown.text = recognised text of page i+1 (markdown).
  */
 export class HttpOcrProvider implements OcrProvider {
   readonly name = 'http';
@@ -131,7 +131,7 @@ export class HttpOcrProvider implements OcrProvider {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), this.timeoutMs);
     try {
-      const res = await this.doFetch(`${this.opts.baseUrl.replace(/\/+$/, '')}/ocr`, {
+      const res = await this.doFetch(`${this.opts.baseUrl.replace(/\/+$/, '')}/layout-parsing`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(this.opts.apiKey ? { authorization: `Bearer ${this.opts.apiKey}` } : {}) },
         body: JSON.stringify({ file: Buffer.from(pdf).toString('base64'), fileType: 0, visualize: false }),
@@ -145,13 +145,13 @@ export class HttpOcrProvider implements OcrProvider {
   }
 }
 
-/** One string per page, lines joined with newlines. Throws on anything that is not the expected shape. */
+/** One markdown string per page. Throws on anything that is not the expected shape. */
 export function parsePaddleOcrResponse(body: unknown): string[] {
-  const results = (body as { result?: { ocrResults?: unknown } } | null)?.result?.ocrResults;
-  if (!Array.isArray(results)) throw new Error('unexpected ocr response (no result.ocrResults)');
+  const results = (body as { result?: { layoutParsingResults?: unknown } } | null)?.result?.layoutParsingResults;
+  if (!Array.isArray(results)) throw new Error('unexpected ocr response (no result.layoutParsingResults)');
   return results.map((r) => {
-    const lines = (r as { prunedResult?: { rec_texts?: unknown } })?.prunedResult?.rec_texts;
-    return Array.isArray(lines) ? lines.filter((l): l is string => typeof l === 'string').join('\n') : '';
+    const text = (r as { markdown?: { text?: unknown } })?.markdown?.text;
+    return typeof text === 'string' ? text : '';
   });
 }
 
