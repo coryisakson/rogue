@@ -1,6 +1,6 @@
 # Handoff (updated 2026-10-15, end of session)
 
-Live: https://rogue.cisakson.olares.com, version 0.0.42 (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
+Live: https://rogue.cisakson.olares.com, version 0.0.50 (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
 Working tree: /opt/data/repos/rogue, branch main (commit straight to main until Cory accepts the first Olares build; see AGENTS.md). Follow AGENTS.md and docs/DEPLOY.md.
 
 ## Done
@@ -12,7 +12,7 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 
 ## Next (in order)
 1. (DONE 0.0.43, /admin/claims) Review queue UI. Now exceptions-only (needs_review or low-rated), per Cory: agents run the system, humans see only what really needs them. Still to do: reuse for the approvals handshake; (DONE 0.0.46: Curator auto-resolves needs_review; frontier judge via ROGUE_JUDGE_* env still unconfigured, so it restores but never rejects).
-2. HTML adapter + OCR merged; OCR http provider verified live against Cory's PaddleOCR-VL (0.0.49, host only; in-pod check pending). Left: first real HTML seed, authority ranking across sources.
+2. HTML adapter + OCR merged; OCR http provider verified live against Cory's PaddleOCR-VL (0.0.49; in-pod OCR confirmed on Slay the Spire p.1). Left: first real HTML seed, authority ranking across sources.
 3. Rate chat answers (needs stored answer id).
 4. Discord integration (skeleton merged, inert; RGE-A15 to enable): bot sharing the core lib so people use Rogue (setup sheets, rules chat, ratings) inside the Discord app; then an admins channel for alerts, weekly digest and the approval handshake (plan 1a); closes RGE-A14.
 5. Add-game flow behind login (Scout + Rights Officer as code paths first).
