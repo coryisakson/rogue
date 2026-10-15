@@ -14,3 +14,6 @@
 
 ## Later
 - Auth (OAuth providers, Better Auth), interactive chat, ratings, Discord bot, fit solver, Librarian agent, Scout agent, more games, i18n UI.
+
+
+See docs/BGG_NOTES.md for BGG API access rules (registration, bearer token, limits, logo, no BGG login). Not applied yet; Cory decides later.
