@@ -25,7 +25,18 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [x] Rules FAQ from answer ratings (public 'N of M helpful', admin sees low-rated only) 0.0.58
 - [x] Live click-through of signed-in flows (Cory confirmed 2026-10-15)
 
+## Game intake pipeline (Cory 2026-10-15, replaces the 'paste a rulebook link' idea as the main path)
+User types ONLY a game name -> Rogue shows a pick list of matches (BGG style: title, year, publisher, BGG link) -> user picks one -> admin approves the request -> it enters a job queue -> Scout agent finds publisher, rulebook, FAQ/errata by internet search -> Rights Officer checks (code) -> hand-off to Librarian -> game appears on the site. Manual link entry stays as a fallback.
+- [ ] Catalog search provider interface (pluggable): BGG XML API v2 `search` (needs a registered app token; anonymous calls answer 401, probed 2026-10-15; RGE-A16), fallback provider if no token yet; results cached; only title/year/id/link stored, bgg_id kept on the game
+- [ ] /request-game step 1: name box + pick list; step 2: user confirms the match; request stores bgg_id, no rulebook link needed
+- [ ] Admin approves the request (name/publisher level), NOT yet a host: approval puts a job in the queue
+- [ ] Job queue + stages (queued -> scouting -> rights check -> awaiting terms read -> ingest -> index -> librarian -> published), visible to requester and admin, retries, kill switch
+- [ ] Scout web search tool (search provider pluggable; Firecrawl key exists on the Hermes host, needs an approval before use in the app) finds publisher page + document links; reuses Scout v0 (0.0.64) ranking and terms flagging
+- [ ] Scout output goes to Rights Officer (code) then a second, small human gate for the terms-of-use read and host allowlisting; then Librarian
+- [ ] Nanobot wraps these stages as agents/tools (ADR 0002)
+
 ## Priority queue for the next session (Cory 2026-10-15, set at end of session)
+0. Game intake pipeline (section above): name search + pick list -> approve -> queue -> Scout search -> Rights -> Librarian.
 1. Agent orchestration on Nanobot (Phase 1b, ADR 0002) and the Scout (finds rulebook link by search + publisher page link extraction; terms-of-use clause flagging). Cory wants these first.
 2. FAQ test suite: web-search 10 real FAQs for Pandemic and 10 for Slay the Spire (BGG/publisher/forums, record the source URL and the expected answer with its rulebook page), store as an eval file (packages/core/eval/, like pandemic.json) and run each against the Ask endpoint (/api/admin/eval-rules style, answer + citation check). Include count/list questions (Pandemic roles). Do this before Phase 2.
 3. One search box: merge the fact search and rules Ask into a single UI. Users only want answers; every answer is cited, so the separate fact list/search is not needed on the game page (facts stay internal; keep them reachable for admins).
