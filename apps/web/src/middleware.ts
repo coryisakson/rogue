@@ -1,8 +1,34 @@
 import { defineMiddleware } from 'astro:middleware';
+import { isAdminPath, isCostlyPath, RateLimiter, safeEqual } from '@rogue/core';
 import { startBackupScheduler } from './lib/backup-runner';
+import { adminToken } from './lib/admin-token';
 
-// Starts background jobs once per server process (idempotent).
-export const onRequest = defineMiddleware((_ctx, next) => {
+const costly = new RateLimiter(Number(process.env['ROGUE_RATE_LIMIT'] ?? 40), 60_000);
+
+const clientIp = (req: Request) => (req.headers.get('x-forwarded-for')?.split(',')[0] ?? req.headers.get('x-real-ip') ?? 'unknown').trim();
+const deny = (status: number, msg: string, extra: Record<string, string> = {}) =>
+  new Response(JSON.stringify({ error: msg }), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...extra } });
+
+// Starts background jobs once per server process (idempotent). Also guards admin routes and rate-limits costly public ones,
+// because the entrance may be public (no Olares login in front).
+export const onRequest = defineMiddleware(async (ctx, next) => {
   startBackupScheduler();
-  return next();
+  const { pathname } = new URL(ctx.request.url);
+
+  if (isAdminPath(pathname)) {
+    const given = ctx.request.headers.get('x-rogue-admin') ?? '';
+    if (!safeEqual(given, adminToken())) return deny(404, 'not found'); // 404 on purpose: do not advertise admin routes
+  } else if (isCostlyPath(pathname) && !costly.allow(clientIp(ctx.request))) {
+    return deny(429, 'rate limit exceeded; retry in a minute', { 'retry-after': '60' });
+  }
+
+  const res = await next();
+  const h = res.headers;
+  h.set('x-content-type-options', 'nosniff');
+  h.set('referrer-policy', 'strict-origin-when-cross-origin');
+  h.set('x-frame-options', 'SAMEORIGIN');
+  h.set('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+  if (!h.has('content-security-policy') && (h.get('content-type') ?? '').includes('text/html'))
+    h.set('content-security-policy', "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'");
+  return res;
 });
