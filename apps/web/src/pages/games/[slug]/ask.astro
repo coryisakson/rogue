@@ -42,7 +42,7 @@ if (user && q.length >= 3) { try { res = await askRules(slug!, q); } catch (e) {
       <h2>Sources</h2>
       <div style="display:grid;gap:.6rem">
         {res.sources.map((s) => (
-          <div class="card"><small><a href={s.url}>{s.title}</a> ({s.publisher}) · p.{s.page}</small><blockquote style="margin:.3rem 0 0;opacity:.8;font-size:.9rem">“{s.quote}…”</blockquote></div>
+          <div class="card"><small><a href={s.url}>{s.title}</a> ({s.publisher}) · {s.section ?? `p.${s.page}`}</small><blockquote style="margin:.3rem 0 0;opacity:.8;font-size:.9rem">“{s.quote}…”</blockquote></div>
         ))}
       </div>
     )}

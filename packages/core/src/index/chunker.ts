@@ -50,3 +50,10 @@ export function orQuery(q: string): string {
   return words.join(' | ');
 }
 
+
+/** Heading of each "=== page N ===" block (HTML adapter writes the section heading on the first line after the marker). */
+export function sectionHeadings(text: string): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const m of text.matchAll(/=== page (\d+) ===\n([^\n]*)/g)) out.set(Number(m[1]), (m[2] ?? "").trim());
+  return out;
+}

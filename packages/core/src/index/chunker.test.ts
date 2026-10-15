@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chunkText, orQuery, rrf, splitPages } from './chunker.js';
+import { chunkText, orQuery, rrf, sectionHeadings, splitPages } from './chunker.js';
 
 const sample = `\n\n=== page 1 ===\n${'Alpha rule sentence. '.repeat(120)}\n\n=== page 2 ===\nShort page two text here, long enough.\n\n=== page 3 ===\n  `;
 
@@ -35,5 +35,12 @@ describe('chunker', () => {
     expect(orQuery("what's (a:b) & !c")).not.toMatch(/[():&!']/);
     expect(orQuery('ゲーム 準備')).toBe('ゲーム | 準備');
     expect(orQuery('the of a')).toBe('');
+  });
+});
+
+describe('sectionHeadings', () => {
+  it('reads the first line after each marker', () => {
+    const m = sectionHeadings("\n\n=== page 1 ===\nIntro\nbody\n\n=== page 2 ===\nWhat's in the box\n7 Role Cards");
+    expect(m.get(1)).toBe('Intro'); expect(m.get(2)).toBe("What's in the box");
   });
 });

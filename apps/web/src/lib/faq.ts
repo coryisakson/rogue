@@ -1,7 +1,7 @@
 import { isFaqVisible, needsFaqReview } from '@rogue/core';
 import { ensureMigrated, getPool } from './services';
 
-export interface FaqRow { game_slug: string; question_norm: string; question: string; answer: string; sources: { page: number; title: string; url: string }[] | null; total: number; up: number; status: string | null }
+export interface FaqRow { game_slug: string; question_norm: string; question: string; answer: string; sources: { page: number; section?: string | null; title: string; url: string }[] | null; total: number; up: number; status: string | null }
 
 /** One row per (game, question): each user counts once (their latest vote), text from the newest stored answer. */
 async function tally(game: string | null): Promise<FaqRow[]> {

@@ -30,6 +30,8 @@ Most valuable for MVP: (1) generated setup one-pagers, (2) Ask about the game / 
 - [x] Aggregate questions ("how many roles are there") answered by collecting items across excerpts and counting them (wider retrieval + neighbour chunks + list prompt) 0.0.59
 - [x] Game cards on /games no longer link to BGG (details page keeps it) 0.0.62
 - [ ] Principle: facts a rule never states outright ("how many roles in Pandemic": no number printed, 7 role cards listed) are derived by chat from the listed items and counted; the eval set must include such questions and the expected count, and the answer must cite the pages listing the items
+- [x] Web-page sources are cited by section heading, not a fake page number (chunks.locator, (s.N) in prompts, 0.0.63)
+- [ ] Printed page numbers: PDF citations use the physical page index (the PDF has no page labels, checked on Slay the Spire). Detect the number printed in header/footer when consistent across pages, show 'PDF page N (printed M)'; fall back to physical
 - [ ] Measure it: add list/count questions (Pandemic roles, Slay the Spire characters/card types) to the eval set and check the answers; tune retrieval depth
 - [ ] User Q&A become facts: a well-rated cited answer is stored as a 'qa' candidate fact (question, answer, page citations). Citations must be on retrieved pages, same provenance rules as any claim
 - [ ] FAQ Curator agent (runs occasionally, Phase 1b): merges duplicate/near-duplicate Q&A, rewrites into one concise canonical answer with citations, drops low-rated or uncited ones, publishes the common Q&A list per game (replaces raw question text on /games/<slug>/faq). Proposes; admin sees exceptions only

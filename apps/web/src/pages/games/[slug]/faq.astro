@@ -20,7 +20,7 @@ try { items = await publicFaq(slug!); } catch (e) { console.warn('[faq]', (e as 
         <div class="card">
           <h3 style="margin:0 0 .4rem">{f.question}</h3>
           <p style="margin:.2rem 0">{f.answer}</p>
-          <small><span class="pill">{helpfulLabel(f.up, f.total)}</span> {f.sources && f.sources.length > 0 && <>· Sources: {f.sources.slice(0, 3).map((s, i) => <>{i > 0 && ', '}<a href={s.url}>p.{s.page}</a></>)}</>}</small>
+          <small><span class="pill">{helpfulLabel(f.up, f.total)}</span> {f.sources && f.sources.length > 0 && <>· Sources: {f.sources.slice(0, 3).map((s, i) => <>{i > 0 && ', '}<a href={s.url}>{s.section ?? `p.${s.page}`}</a></>)}</>}</small>
         </div>
       ))}
     </div>
