@@ -41,5 +41,5 @@ done
 [[ "$S" == "running" ]] || { echo "not running after wait (state=$S)"; exit 1; }
 
 olares-cli settings apps domain set $APP $APP --third-level $ROUTE   # hard gate, per astro-olares-app skill
-olares-cli settings apps auth-level set $APP $APP --level "${ROGUE_AUTH_LEVEL:-private}" || echo "auth-level set failed (non-fatal)"
+olares-cli settings apps auth-level set $APP $APP --level "${ROGUE_AUTH_LEVEL:-public}" || echo "auth-level set failed (non-fatal)"
 echo "Deployed. Verify: scripts/verify.sh"
