@@ -31,7 +31,7 @@ export async function handleMcp(body: unknown, tools: McpTool[], info: { name: s
           protocolVersion: MCP_PROTOCOL_VERSION,
           capabilities: { tools: { listChanged: false } },
           serverInfo: info,
-          instructions: 'Rogue is a cited tabletop-game knowledge base. Prefer answers that quote the cited publisher source and name the page. Facts marked AI-drafted are unreviewed.',
+          instructions: 'Rogue is a cited tabletop-game knowledge base. Prefer answers that quote the cited publisher source and name the page. Facts are machine quote-checked; only those marked human-reviewed were checked by a person.',
         });
       case 'notifications/initialized':
       case 'notifications/cancelled':

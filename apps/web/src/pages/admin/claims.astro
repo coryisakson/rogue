@@ -10,7 +10,7 @@ const pages = Math.ceil(total / PER);
 const link = (p: number) => `/admin/claims?${new URLSearchParams({ ...(game ? { game } : {}), page: String(p) })}`;
 ---
 <Admin title="Claim review">
-  <p>{total} claim{total === 1 ? '' : 's'} waiting for a human check. <b>Approve</b> marks it human-reviewed; <b>Edit</b> fixes the wording (citation kept) and approves; <b>Reject</b> hides it with a reason. Check the quote against the cited page.</p>
+  <p>{total} exception{total === 1 ? '' : 's'} need a human (claims flagged needs_review by an agent or a source change, or rated low by users). Everything else is checked by agents and not shown here. <b>Approve</b> marks it human-reviewed; <b>Edit</b> fixes the wording (citation kept) and approves; <b>Reject</b> hides it with a reason. Check the quote against the cited page.</p>
   {items.length === 0 && <div class="card">Nothing to review.</div>}
   <div style="display:grid;gap:.8rem">
     {items.map((c) => (

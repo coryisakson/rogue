@@ -47,6 +47,6 @@ if (!claims.length) return new Response('No cited setup facts for this game yet.
       <h2>{sec.title}</h2>
       <ol>{sec.lines.map((l) => <li>{l.text}{l.page && <sup> [{l.page}]</sup>}</li>)}</ol>
     </>))}
-    <div class="foot">Sources: {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. AI-drafted from the publisher's rulebook and not yet human-reviewed; the rulebook is authoritative. Not affiliated with the publisher. Rogue v0 · open source.</div>
+    <div class="foot">Sources: {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. Written by AI from the publisher's rulebook, each line quote-checked against the cited page; the rulebook is authoritative. Not affiliated with the publisher. Rogue v0 · open source.</div>
   </div>
 </Base>

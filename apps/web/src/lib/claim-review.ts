@@ -3,11 +3,16 @@ import { ensureMigrated, getPool } from './services';
 
 export interface QueueItem { id: string; game: string; topic: string; player_count: number | null; body: string; created_by: string; locator: string | null; quote: string | null; source_title: string; source_url: string }
 
-/** Published claims nobody has checked yet (verified_at is empty), oldest first. Draft/needs_review claims are included too. */
+/**
+ * Exceptions only (docs/CURATION_POLICY.md): humans are not asked to check every claim. A claim lands here when
+ * (a) it is in needs_review (source changed, or an agent was unsure), or (b) users rated it low (avg <= 2 from >= 3 ratings).
+ * Claims a person already approved (verified_at set) stay out until their status changes again.
+ */
 export async function reviewQueue(game: string | null, limit: number, offset: number): Promise<{ total: number; items: QueueItem[] }> {
   const pool = getPool(); if (!pool) return { total: 0, items: [] };
   await ensureMigrated();
-  const where = `c.verified_at IS NULL AND c.status IN ('published','needs_review') AND ($1::text IS NULL OR g.slug=$1)`;
+  const lowRated = `(SELECT count(*) >= 3 AND avg(stars) <= 2 FROM claim_ratings cr WHERE cr.claim_id=c.id)`;
+  const where = `c.status IN ('published','needs_review') AND (c.status='needs_review' OR (c.verified_at IS NULL AND ${lowRated})) AND ($1::text IS NULL OR g.slug=$1)`;
   const from = `FROM claims c JOIN editions e ON e.id=c.edition_id JOIN games g ON g.id=e.game_id
      LEFT JOIN citations ci ON ci.claim_id=c.id LEFT JOIN documents d ON d.id=ci.document_id LEFT JOIN sources s ON s.id=d.source_id`;
   const total = (await pool.query(`SELECT count(*)::int n ${from} WHERE ${where}`, [game])).rows[0].n as number;

@@ -26,7 +26,7 @@ const tools: McpTool[] = [
       const t = str(a['topic']), q = str(a['q']);
       if (t) opts.topic = t;
       if (q) opts.q = q;
-      return { game, facts: await getClaims(slug, opts), note: 'Facts are AI-drafted from the publisher rulebook unless marked reviewed. Cite the source when answering.' };
+      return { game, facts: await getClaims(slug, opts), note: 'Facts are AI-written from the publisher rulebook and automatically quote-checked against the cited page; a person has reviewed only those marked Human-reviewed. Cite the source when answering.' };
     },
   },
   {

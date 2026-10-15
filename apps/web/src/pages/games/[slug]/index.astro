@@ -26,7 +26,7 @@ const shown = q ? claims.filter((c) => c.body.toLowerCase().includes(q.toLowerCa
           <p style="margin:.4rem 0">{c.body}</p>
           <small>Source: <a href={c.source_url}>{c.source_title}</a> ({c.publisher}) · {c.locator}
           {c.availability !== 'available' && <span class="pill bad">source no longer available</span>}
-          · {c.verified_at ? <span class="pill">Human-reviewed</span> : <span class="pill warn">AI-drafted, unreviewed</span>}</small>
+          · {c.verified_at ? <span class="pill">Human-reviewed</span> : <span class="pill">AI-verified</span>}</small>
           {c.quote && <blockquote style="margin:.4rem 0 0;opacity:.8;font-size:.9rem">“{c.quote}”</blockquote>}
           <form method="post" action="/rate" style="margin:.5rem 0 0;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap">
             <input type="hidden" name="claim" value={c.id} /><input type="hidden" name="next" value={here} />
