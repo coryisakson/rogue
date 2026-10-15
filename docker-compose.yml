@@ -27,9 +27,12 @@ services:
       ROGUE_REGION: eu
       DATABASE_URL: postgres://rogue:rogue-dev-only@db:5432/rogue
       ROGUE_DATA_DIR: /app/data
+      ROGUE_BACKUP_DIR: /app/backups
       ROGUE_AI_BASE_URL: ${ROGUE_AI_BASE_URL:-}
     volumes:
       - rogue-data:/app/data
+      - rogue-backups:/app/backups
 volumes:
   rogue-db:
   rogue-data:
+  rogue-backups:

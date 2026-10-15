@@ -25,6 +25,8 @@ spec:
           value: eu
         - name: DATABASE_URL
           value: postgres://rogue:rogue-local@127.0.0.1:5432/rogue
+        - name: ROGUE_BACKUP_DIR
+          value: /app/backups
         - name: ROGUE_DATA_DIR
           value: /app/data
         - name: ROGUE_AI_CHAT_MODEL
@@ -66,6 +68,9 @@ spec:
         - name: app-data
           mountPath: /app/data
           subPath: files
+        - name: app-data
+          mountPath: /app/backups
+          subPath: backups
       - name: db
         image: docker.io/pgvector/pgvector:pg17
         imagePullPolicy: IfNotPresent
@@ -100,7 +105,7 @@ spec:
       initContainers:
       - name: fix-perms
         image: docker.io/library/busybox:1.37
-        command: ["sh", "-c", "mkdir -p /d/postgres /d/files && chown -R 999:999 /d/postgres && chown -R 1000:1000 /d/files"]
+        command: ["sh", "-c", "mkdir -p /d/postgres /d/files /d/backups && chown -R 999:999 /d/postgres && chown -R 1000:1000 /d/files /d/backups"]
         volumeMounts:
         - name: app-data
           mountPath: /d

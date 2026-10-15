@@ -14,13 +14,14 @@ EU/GDPR-first, self-hostable, MCP-native, every model and storage provider plugg
 3. **Don't copy publisher art or text.** Themed styling is original; paraphrase facts, quote briefly with citation.
 4. **Pluggable everything.** Models, storage, and source adapters sit behind interfaces. No provider SDK calls outside `packages/providers`/adapters. Local-first model preference.
 5. **Hosting-country neutral.** EU defaults come from the instance profile (`packages/core/src/config.ts`), never hard-coded.
-6. **Humans merge.** Agents open PRs; Cory merges. Agents never change rights grants, retention, secrets or production data without an approval entry.
+6. **Humans approve.** (After the branching switch, agents open PRs and Cory merges.) Agents never change rights grants, retention, secrets or production data without an approval entry.
 7. **Keep a Review Log.** Anything needing legal/expert review goes in `docs/REVIEW_LOG.md`; no formal legal review yet.
 
 ## Stack and layout
 - TypeScript (strict) everywhere; Astro 7 SSR (`apps/web`), shared logic in `packages/core`. Python only as an isolated worker if later needed. Rust only for a profiled hot spot.
-- **One app container.** The Rogue container holds only the app. Postgres (pgvector), persistent files/backups and AI model services run OUTSIDE it and are reached through env-configured URLs/mounts (`DATABASE_URL`, `ROGUE_DATA_DIR`, `ROGUE_AI_*_URL`). Do not bundle a database or models into the image.
-- Postgres + pgvector is the single data store (not yet wired). Node >= 22.
+- **One app image; Postgres is a sidecar.** The app image holds only the app (plus pg client tools for backups). Postgres (pgvector) runs as a sidecar container in the same Olares pod (and as a `db` service in `docker-compose.yml` for desktop tests); persistent files/backups live on the app-data mount; AI models run outside via Olares Router. Everything is reached through env (`DATABASE_URL`, `ROGUE_DATA_DIR`, `ROGUE_BACKUP_DIR`, `ROGUE_AI_*`). Never bake a database or models into the image.
+- Postgres + pgvector is the single data store (wired: migrations in `packages/core/migrations`, applied on first use). Node >= 22.
+- **Olares quirks:** Router in-cluster URL is `http://3a77b15d.shared.olares.com/v1`; Node's default DNS lookup fails there, so use `ipv4Fetch` (`apps/web/src/lib/services.ts`). Use explicit model ids (`Olares/gemma4:e4b`, `Olares/embeddinggemma-300m`); embeddings allow 1 concurrent request. Background shells need `/home/linuxbrew/.linuxbrew/bin` on PATH for `olares-cli`.
 - **AI default is local** (Cory's local model server, OpenAI-compatible endpoint); cloud models are optional per-role overrides.
 - Licence: AGPL-3.0 code, CC BY-SA data (approved).
 - Brand: working name "T-AI-bletop Rogue"; keep the name in the instance profile, not hard-coded.
@@ -29,7 +30,7 @@ EU/GDPR-first, self-hostable, MCP-native, every model and storage provider plugg
 
 ## Working loop (every task)
 1. Read `docs/PROGRESS.md` (state) and `docs/APPROVALS.md` (blockers). Pick the next unblocked roadmap item (`docs/ROADMAP.md`).
-2. **Always work on a feature branch** `feat/<slug>`, `fix/<slug>` or `cc/<slug>` (Claude Code), push it and open a PR. Never commit to `main`. Cory approves/merges PRs when he wants to test. If a task depends on an unmerged PR, branch from it or keep going on unrelated work.
+2. **Branching (current rule, Cory 2026-10-14): commit directly to `main` until the first Olares build is accepted.** After that, switch to feature branches `feat/<slug>`, `fix/<slug>`, `cc/<slug>` with PRs that Cory approves/merges when he wants to test. (Update this line when the switch happens.)
 3. Write the test first or alongside. `npm run check` must pass (typecheck, tests, build, version consistency).
 4. Update `docs/PROGRESS.md` (one dated line: what changed, what is verified, what is left).
 5. If you need something you cannot do (credentials, spend, external account, a decision), add an entry to `docs/APPROVALS.md` with the next free ID `RGE-Axx`, then **continue with other unblocked work**. Do not wait.
