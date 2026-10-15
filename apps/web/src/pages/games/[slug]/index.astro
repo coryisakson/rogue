@@ -10,7 +10,9 @@ const claims = await getClaims(slug!, user ? { userId: user.id } : {});
 const here = Astro.url.pathname + Astro.url.search;
 const sources = [...new Map(claims.map((c) => [c.source_url, c])).values()];
 const q = Astro.url.searchParams.get('q');
-const shown = q ? claims.filter((c) => c.body.toLowerCase().includes(q.toLowerCase())) : claims;
+const links = claims.filter((c) => c.topic === 'companion');
+const rest = claims.filter((c) => c.topic !== 'companion');
+const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase())) : rest;
 ---
 <Base title={game.name}>
   <main>
@@ -18,6 +20,18 @@ const shown = q ? claims.filter((c) => c.body.toLowerCase().includes(q.toLowerCa
     <p>{game.publisher} · {game.year} · {game.min_players}–{game.max_players} players {game.bgg_id && <>· <a href={`https://boardgamegeek.com/boardgame/${game.bgg_id}`}>BoardGameGeek ↗</a></>}</p>
     <p><a class="btn" href={`/games/${slug}/setup`}>Setup one-pager</a> <a class="btn" href={`/games/${slug}/ask`} style="background:#cdbf9b">Ask the rules</a></p>
     <form method="get" style="margin:1rem 0"><input name="q" value={q ?? ''} placeholder="Search this game's facts…" style="padding:.5rem;width:min(24rem,80%);border-radius:8px;border:0" /> <button class="btn" style="border:0">Search</button></form>
+    {links.length > 0 && (
+      <div class="card" id="links">
+        <h2 style="margin-top:0">Companion app and links</h2>
+        <p style="opacity:.8"><small>QR codes printed in the publisher's rulebook. We only list the link; check the address before you open it.</small></p>
+        <ul>
+          {links.map((c) => {
+            const url = c.body.match(/https?:\/\/\S+(?=\s\()/)?.[0];
+            return <li id={`c${c.id}`}>{url ? <a href={url} rel="noopener nofollow">{url}</a> : c.body} · <small>{c.locator} of <a href={c.source_url}>{c.source_title}</a></small></li>;
+          })}
+        </ul>
+      </div>
+    )}
     {claims.length === 0 && <div class="card"><b>No cited facts yet.</b> We have not ingested an official source for this game. If you are the publisher, you can <a href="/about#publishers">contact us</a> to authorise one.</div>}
     <div style="display:grid;gap:.8rem">
       {shown.map((c) => (

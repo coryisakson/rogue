@@ -1,6 +1,6 @@
 # Handoff (updated 2026-10-15, end of session)
 
-Live: https://rogue.cisakson.olares.com, version 0.0.50 (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
+Live: https://rogue.cisakson.olares.com, version 0.0.51 (QR facts, see PROGRESS) (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
 Working tree: /opt/data/repos/rogue, branch main (commit straight to main until Cory accepts the first Olares build; see AGENTS.md). Follow AGENTS.md and docs/DEPLOY.md.
 
 ## Done

@@ -12,6 +12,8 @@ export interface ExtractedSource {
   locators: string[];
   /** Extra facts for the audit log (e.g. which pages were OCR'd). */
   notes?: Record<string, unknown>;
+  /** QR codes found while extracting (PDF only for now); ingest turns them into cited facts. */
+  qrFindings?: { url: string; page: number }[];
 }
 
 export interface SourceAdapter {

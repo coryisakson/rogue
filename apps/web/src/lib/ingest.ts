@@ -1,4 +1,4 @@
-import { RightsGatedFetcher, FetchDenied, htmlAdapter, selectAdapter, type SourceAdapter } from '@rogue/core';
+import { RightsGatedFetcher, FetchDenied, htmlAdapter, selectAdapter, qrClaimBody, type SourceAdapter } from '@rogue/core';
 import { pdfAdapter } from './pdf-adapter';
 import { ensureMigrated, getPool, storage } from './services';
 import { ALLOWED_HOSTS, SEEDS, type SourceSeed } from './source-seeds';
@@ -101,9 +101,10 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
     `INSERT INTO documents (source_id, edition_id, kind) VALUES ($1,$2,$3) ON CONFLICT (source_id, edition_id) DO NOTHING`,
     [sourceId, ed.rows[0].id, seed.kind],
   );
+  const qrCount = await saveQrFacts(sourceId, ed.rows[0].id, extracted.qrFindings ?? []);
   await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [
     'ingest', 'fetched',
-    { url: seed.url, foundOn: seed.foundOn, sha256: doc.sha256, bytes: doc.bytes.byteLength, pages, policyVersion: doc.decision.policyVersion, etag: doc.etag, lastModified: doc.lastModified, ...ocrDetail },
+    { url: seed.url, foundOn: seed.foundOn, sha256: doc.sha256, bytes: doc.bytes.byteLength, pages, policyVersion: doc.decision.policyVersion, etag: doc.etag, lastModified: doc.lastModified, qrFacts: qrCount, ...ocrDetail },
   ]);
   return { url: seed.url, ok: true, detail: 'fetched, stored privately', sourceId, pages, chars: text.length, sha256: doc.sha256 };
 }
@@ -114,4 +115,28 @@ export async function ingestGame(slug: string, force = false): Promise<IngestRes
   const out: IngestResult[] = [];
   for (const s of seeds) out.push(await ingestSeed(s, force));
   return out;
+}
+
+/**
+ * Turn QR codes found in a document into published 'companion' facts, cited to the page they were printed on.
+ * Link only: the target is never fetched. Safe to re-run (same edition + body is unique, so no duplicates).
+ */
+async function saveQrFacts(sourceId: number, editionId: number, findings: { url: string; page: number }[]): Promise<number> {
+  const pool = getPool();
+  if (!pool || !findings.length) return 0;
+  const doc = await pool.query('SELECT id FROM documents WHERE source_id=$1 AND edition_id=$2', [sourceId, editionId]);
+  if (!doc.rowCount) return 0;
+  let saved = 0;
+  for (const f of findings) {
+    const claim = await pool.query(
+      `INSERT INTO claims (edition_id, topic, body, status, created_by) VALUES ($1,'companion',$2,'draft','qr-scanner')
+       ON CONFLICT DO NOTHING RETURNING id`,
+      [editionId, qrClaimBody(f)],
+    );
+    if (!claim.rowCount) continue;
+    await pool.query('INSERT INTO citations (claim_id, document_id, locator) VALUES ($1,$2,$3)', [claim.rows[0].id, doc.rows[0].id, `page ${f.page} (QR code)`]);
+    await pool.query("UPDATE claims SET status='published' WHERE id=$1", [claim.rows[0].id]);
+    saved++;
+  }
+  return saved;
 }

@@ -1,5 +1,6 @@
 import { extractText, getDocumentProxy } from 'unpdf';
 import { ipv4Fetch } from './services';
+import { scanPdfForQr } from './qr-scan';
 import { applyOcr, needsOcr, ocrProviderFromEnv, type SourceAdapter } from '@rogue/core';
 
 /** PDF implementation of SourceAdapter. Lives in apps/web because the PDF parser dependency does (core stays lean). */
@@ -18,7 +19,11 @@ export const pdfAdapter: SourceAdapter = {
       out.text = ocr.pages;
       notes = { ocr: ocr.recognized.length > 0, ocrPages: ocr.recognized, pagesWithoutText: ocr.lacking, ...(ocr.errors.length ? { ocrErrors: ocr.errors } : {}) };
     }
+    // QR codes (companion app, video links) are recorded as facts by ingest; a scan failure is only noted.
+    const qr = await scanPdfForQr(bytes);
+    notes = { ...(notes ?? {}), qrScanned: qr.scanned, qrFound: qr.findings.length, ...(qr.error ? { qrError: qr.error } : {}) };
     return {
+      qrFindings: qr.findings,
       text: out.text.map((t, i) => `\n\n=== page ${i + 1} ===\n${t}`).join(''),
       pageCount: out.totalPages,
       locators: out.text.map((_, i) => `page ${i + 1}`),
