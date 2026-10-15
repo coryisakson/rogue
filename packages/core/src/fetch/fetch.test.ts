@@ -34,7 +34,7 @@ function fakeFetch(map: Record<string, { status?: number; body: string | Uint8Ar
   return (async (url: string) => {
     const hit = map[url];
     if (!hit) return new Response('nope', { status: 404 });
-    const res = new Response(hit.body as BodyInit, { status: hit.status ?? 200, headers: hit.headers });
+    const res = new Response(hit.body as BodyInit, { status: hit.status ?? 200, ...(hit.headers ? { headers: hit.headers } : {}) });
     Object.defineProperty(res, 'url', { value: url });
     return res;
   }) as unknown as typeof fetch;
