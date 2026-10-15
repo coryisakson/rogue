@@ -25,6 +25,7 @@ describe('security', () => {
     for (const p of ['/discord', '/discord/', '/discord/interactions/', '/discord/interactions/x', '/discord/other', '/discord/interactions/../../api']) expect(isPublicPath(p)).toBe(false);
     expect(isPublicPath('/login')).toBe(true);
     expect(isPublicPath('/rate')).toBe(true);
+    expect(isPublicPath('/rate-answer')).toBe(true);
     expect(isPublicPath('/auth/github')).toBe(true);
     expect(isPublicPath('/auth/github/callback')).toBe(true);
     expect(isPublicPath('/auth/github/callback/../../api')).toBe(false);

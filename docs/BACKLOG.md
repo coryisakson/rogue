@@ -26,3 +26,10 @@ See docs/BGG_NOTES.md for BGG API access rules (registration, bearer token, limi
 - **Automated game search by name, with BGG confirmation** (Cory 2026-10-15). In /request-game the user types only a game name. Rogue searches for candidates (BGG search, see docs/BGG_NOTES.md for the token/registration rules) and shows them with year, publisher and a BoardGameGeek link; the user confirms which one they mean before anything else happens. Then a Scout finds the publisher's rulebook link itself (search + publisher page link extraction, per docs/SCOUT_PLAYBOOK.md), stores bgg_id on the game, and hands the result to the existing Rights Officer checks and admin approval. Manual link entry stays as a fallback. Only link/facts from BGG, no copied descriptions or art. Builds on the add-game flow (0.0.56).
 - **Discord server to host the bot with @bot ability.** A Rogue-owned Discord server where people can @mention the bot (needs gateway/message-content or mention handling, not only slash commands). Do much later.
 - **Discord admin channel (low priority).** Private admins channel for alerts, weekly digest and approval buttons (plan in docs/DISCORD.md). Cory: digest timezone = UTC, button approvals are fine for now. Code may be prepared, but the channel itself is low priority.
+- **Discord app verification** (Cory 2026-10-15, much later). Needed to get the Discord app verified (currently missing 4 criteria):
+  - App must belong to a Team (not a personal account).
+  - No harmful or bad language in app name, description, commands or role connection metadata.
+  - Link to Terms of Service (write and host a /terms page).
+  - Link to Privacy Policy (write and host a /privacy page; GDPR-aligned, covers Discord ids and rating votes).
+  - Install link (set in the Developer Portal, default install settings).
+  - All Team members need a verified email and 2FA.

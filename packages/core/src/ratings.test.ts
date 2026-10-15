@@ -10,3 +10,15 @@ describe('ratings', () => {
   });
   it('formats labels', () => { expect(ratingLabel(4.25, 8)).toBe('4.3 \u2605 (8)'); expect(ratingLabel(null, 0)).toBeNull(); expect(ratingLabel(5, 0)).toBeNull(); });
 });
+
+import { parseAnswerVote } from './ratings.js';
+describe('answer votes', () => {
+  it('accepts up and down', () => {
+    expect(parseAnswerVote(f({ answer: '7', vote: 'up' }))).toEqual({ answerId: 7, helpful: true });
+    expect(parseAnswerVote(f({ answer: '7', vote: 'down' }))).toEqual({ answerId: 7, helpful: false });
+  });
+  it('rejects bad input', () => {
+    for (const o of [{ answer: '0', vote: 'up' }, { answer: '1.5', vote: 'up' }, { answer: 'x', vote: 'up' }, { answer: '1', vote: 'maybe' }, { answer: '1' }, {}])
+      expect(parseAnswerVote(f(o as Record<string, string>))).toBeNull();
+  });
+});

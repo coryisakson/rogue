@@ -83,6 +83,7 @@ export async function linkIdentity(currentUserId: number, provider: ProviderId, 
       const old = Number(owner.user_id);
       await c.query('UPDATE identities SET user_id=$1 WHERE user_id=$2', [currentUserId, old]);
       await c.query('INSERT INTO claim_ratings(claim_id, user_id, stars, created_at) SELECT claim_id, $1, stars, created_at FROM claim_ratings WHERE user_id=$2 ON CONFLICT (claim_id, user_id) DO NOTHING', [currentUserId, old]);
+      await c.query('INSERT INTO chat_answer_ratings(answer_id, user_id, helpful, created_at) SELECT answer_id, $1, helpful, created_at FROM chat_answer_ratings WHERE user_id=$2 ON CONFLICT (answer_id, user_id) DO NOTHING', [currentUserId, old]);
       await c.query('DELETE FROM users WHERE id=$1', [old]); // cascades its sessions and leftover ratings
       // Move linked Discord votes before the old account is deleted (the FK would cascade them away).
       await c.query('UPDATE discord_answer_ratings SET user_id=$1 WHERE user_id=$2', [currentUserId, old]);

@@ -11,3 +11,11 @@ export function ratingLabel(avg: number | null | undefined, count: number | null
   if (!count || avg == null) return null;
   return `${avg.toFixed(1)} \u2605 (${count})`;
 }
+
+/** Parse the chat-answer vote form: whole answer id and verdict "up" or "down". */
+export function parseAnswerVote(form: { get(k: string): unknown }): { answerId: number; helpful: boolean } | null {
+  const answerId = Number(form.get('answer'));
+  const v = String(form.get('vote') ?? '');
+  if (!Number.isInteger(answerId) || answerId < 1 || (v !== 'up' && v !== 'down')) return null;
+  return { answerId, helpful: v === 'up' };
+}

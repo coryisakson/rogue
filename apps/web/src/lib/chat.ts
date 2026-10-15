@@ -1,8 +1,8 @@
 import { CHAT_SYSTEM, badCitations, buildPrompt } from '@rogue/core';
 import { searchRules, type RuleHit } from './rules-index';
-import { getAi } from './services';
+import { ensureMigrated, getAi, getPool } from './services';
 
-export interface ChatAnswer { answer: string; sources: { page: number; title: string; url: string; publisher: string | null; quote: string }[]; warning?: string; ms: number }
+export interface ChatAnswer { id?: number; answer: string; sources: { page: number; title: string; url: string; publisher: string | null; quote: string }[]; warning?: string; ms: number }
 const cache = new Map<string, ChatAnswer>();
 
 /** Rules chat: retrieve (hybrid + rerank) -> answer ONLY from excerpts with page cites -> check cites were retrieved. */
@@ -24,6 +24,11 @@ export async function askRules(game: string, question: string): Promise<ChatAnsw
     ...(bad.length ? { warning: `The answer cites page(s) ${bad.join(', ')} that were not in the retrieved excerpts. Check the rulebook.` } : {}),
     ms: Date.now() - t,
   };
+  // Store an id (no text) so the page can offer helpful / not helpful votes; a cached answer keeps its id.
+  if (answer) {
+    try { const pool = getPool(); if (pool) { await ensureMigrated(); out.id = Number((await pool.query('INSERT INTO chat_answers(game_slug) VALUES ($1) RETURNING id', [game])).rows[0].id); } }
+    catch (e) { console.warn('[ask] could not store answer id', (e as Error).message); }
+  }
   if (answer) { if (cache.size > 200) cache.clear(); cache.set(key, out); }
   return out;
 }
