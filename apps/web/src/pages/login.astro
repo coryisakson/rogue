@@ -1,0 +1,26 @@
+---
+import Base from '../layouts/Base.astro';
+import { safeNext } from '@rogue/core';
+import { configuredProviders } from '../lib/auth';
+import { PROVIDERS } from '@rogue/core';
+const next = safeNext(Astro.url.searchParams.get('next'));
+const err = Astro.url.searchParams.get('error');
+const configured = Object.keys(configuredProviders());
+---
+<Base title="Sign in">
+  <main>
+    <h1>Sign in</h1>
+    <div class="card" style="max-width:26rem">
+      <p style="margin-top:0">Sign in to ask the rules assistant and (soon) rate answers and add games. Reading facts and setup sheets never needs an account.</p>
+      {err && <p><span class="pill bad">sign-in failed</span> Please try again.</p>}
+      {Astro.locals.user ? <p>You are signed in as <b>{Astro.locals.user.name}</b>. <a href={next}>Continue</a></p> : configured.length === 0 ? (
+        <p><span class="pill warn">not configured</span> No sign-in providers are set up on this instance yet.</p>
+      ) : (
+        <div style="display:grid;gap:.6rem">
+          {configured.map((id) => <a class="btn" href={`/auth/${id}?next=${encodeURIComponent(next)}`}>Continue with {PROVIDERS[id as keyof typeof PROVIDERS].label}</a>)}
+        </div>
+      )}
+      <p style="opacity:.7"><small>We store only your provider's user id, display name and avatar. No email, no password.</small></p>
+    </div>
+  </main>
+</Base>

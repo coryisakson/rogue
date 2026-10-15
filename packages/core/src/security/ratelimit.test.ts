@@ -21,6 +21,10 @@ describe('security', () => {
     expect(isCostlyPath('/games/pandemic')).toBe(true);
     expect(isCostlyPath('/')).toBe(false);
     expect(isPublicPath('/games/pandemic/ask')).toBe(true);
+    expect(isPublicPath('/login')).toBe(true);
+    expect(isPublicPath('/auth/github')).toBe(true);
+    expect(isPublicPath('/auth/github/callback')).toBe(true);
+    expect(isPublicPath('/auth/github/callback/../../api')).toBe(false);
     expect(isChatPath('/games/pandemic/ask')).toBe(true);
     expect(isChatPath('/games/pandemic')).toBe(false);
   });

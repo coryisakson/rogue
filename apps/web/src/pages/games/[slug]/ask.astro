@@ -7,16 +7,19 @@ const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
 const q = (Astro.url.searchParams.get('q') ?? '').trim();
 let res = null; let err = '';
-if (q.length >= 3) { try { res = await askRules(slug!, q); } catch (e) { err = 'The rules assistant is busy or offline. Please try again in a minute.'; console.warn('[ask]', (e as Error).message); } }
+const user = Astro.locals.user;
+if (user && q.length >= 3) { try { res = await askRules(slug!, q); } catch (e) { err = 'The rules assistant is busy or offline. Please try again in a minute.'; console.warn('[ask]', (e as Error).message); } }
 ---
 <Base title={`Ask about ${game.name}`}>
   <main>
     <h1>Ask about {game.name}</h1>
     <p><a href={`/games/${slug}`}>← {game.name} facts</a></p>
-    <form method="get" style="margin:1rem 0">
+    {!user ? (
+      <div class="card" style="max-width:28rem"><p style="margin-top:0"><b>Sign in to ask the rules assistant.</b> It uses AI compute, so it is for signed-in players. Facts and setup sheets stay open to everyone.</p><a class="btn" href={`/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`}>Sign in</a></div>
+    ) : (<form method="get" style="margin:1rem 0">
       <input name="q" value={q} placeholder="e.g. What is the hand limit?" maxlength="300" required style="padding:.6rem;width:min(30rem,90%);border-radius:8px;border:0" />
       <button class="btn" type="submit" style="border:0;cursor:pointer">Ask</button>
-    </form>
+    </form>)}
     {err && <div class="card"><b>{err}</b></div>}
     {res && (
       <div class="card">
@@ -31,6 +34,6 @@ if (q.length >= 3) { try { res = await askRules(slug!, q); } catch (e) { err = '
         ))}
       </div>
     )}
-    <p style="opacity:.7"><small>Answers use only the indexed official rulebook. We link to the publisher's file and show short excerpts. Rules chat will require a free login once accounts exist.</small></p>
+    <p style="opacity:.7"><small>Answers use only the indexed official rulebook. We link to the publisher's file and show short excerpts. Rules chat needs a free sign-in (GitHub, Google or Discord).</small></p>
   </main>
 </Base>

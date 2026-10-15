@@ -2,6 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { isChatPath, isCostlyPath, isPublicPath, RateLimiter, safeEqual } from '@rogue/core';
 import { startBackupScheduler } from './lib/backup-runner';
 import { adminToken } from './lib/admin-token';
+import { userFromRequest } from './lib/auth';
 
 const chat = new RateLimiter(Number(process.env['ROGUE_CHAT_RATE_LIMIT'] ?? 8), 60_000);
 const costly = new RateLimiter(Number(process.env['ROGUE_RATE_LIMIT'] ?? 40), 60_000);
@@ -26,6 +27,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     return deny(429, 'rate limit exceeded; retry in a minute', { 'retry-after': '60' });
   }
 
+  ctx.locals.user = !pathname.startsWith('/_astro/') && ctx.request.headers.has('cookie') ? await userFromRequest(ctx.request) : null;
   const res = await next();
   const h = res.headers;
   h.set('x-content-type-options', 'nosniff');
