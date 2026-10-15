@@ -23,3 +23,12 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 ## Curation lifecycle (added 2026-10-15)
 - [x] Policy: docs/CURATION_POLICY.md, docs/TAKEDOWN_RUNBOOK.md
 - [~] Migration 0005: source availability, claim ratings, disproofs, takedown requests, source suggestions (done); recheck + takedown code (done); scheduled weekly recheck, weekly Discord digest, frontier-model confirmation step, rating UI (todo)
+
+## Knowledge pipeline (added 2026-10-15)
+- [x] Fetcher with rights gate; PDF text; page-cited chunk index; hybrid search + LLM rerank (hit@1 92% on 12-question eval)
+- [x] Librarian v0: cited claim drafting with verbatim-quote + verifier gates (Pandemic: 99 claims)
+- [ ] Librarian quality: frontier-model spot verification, bulk reject by creator, semantic dedupe
+- [ ] Scheduled weekly recheck + Discord digest
+- [ ] Rules chat (answer with quotes from search_rules, public UI behind login)
+- [ ] Fit solver / sheet generation from claims instead of hand-built page
+- [ ] Auth (OAuth), ratings UI, Discord bot
