@@ -8,14 +8,13 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 - Phase 1 partly: rights-gated fetcher, page-cited chunk index, hybrid search + LLM rerank, Librarian v0 (Pandemic: 92 published cited claims), claim admin (reject/dedupe), DB-enforced provenance (triggers + provenance_violations view, 0 violations), rules chat, fit-solver setup sheet, ratings on facts, weekly recheck, MCP (backend only).
 
 ## Waiting on Cory
-- RGE-A13: copy Data/rogue/files/backup-key off the disk (without it backups cannot be opened).
-- RGE-A14: Discord webhook into Data/rogue/files/discord.json (alerts + weekly digest).
+- Nothing. RGE-A13 done (key copied). RGE-A14 deferred by Cory: Discord alerts/digests wait for the full Discord integration (users use Rogue inside the Discord app); then add an admins channel. Alert code (notify.ts) already exists and only logs until a webhook/bot is configured.
 
 ## Next (in order)
 1. Phase 1: review queue UI in /admin for Librarian claims (approve/reject/edit, shows quote + page). Also becomes the approvals handshake.
 2. Phase 1: second source adapter (publisher HTML pages), OCR for scanned PDFs, authority ranking across sources.
 3. Rate chat answers (needs stored answer id).
-4. Discord bot sharing the core lib (Operator v0, plan 1a: approval handshake via Discord).
+4. Discord integration: bot sharing the core lib so people use Rogue (setup sheets, rules chat, ratings) inside the Discord app; then an admins channel for alerts, weekly digest and the approval handshake (plan 1a); closes RGE-A14.
 5. Add-game flow behind login (Scout + Rights Officer as code paths first).
 6. Then Phase 1b agent team, Phase 2 learning loop. Cory: no more games for the MVP; acceptable beats gold-plated.
 
