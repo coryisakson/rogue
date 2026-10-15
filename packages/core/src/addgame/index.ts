@@ -120,7 +120,6 @@ export function assessRights(f: ProbeFacts, host: string): RightsAssessment {
     if (f.contentLength !== null && f.contentLength > MAX_RULEBOOK_BYTES) { out.push({ level: 'warn', text: 'The file is larger than the 25 MB cap.' }); problem = true; }
   }
   if (f.redirectHost) { out.push({ level: 'warn', text: `The link redirects to ${f.redirectHost}. Submit the final link instead.` }); problem = true; }
-  out.push({ level: 'warn', text: `Terms of use of ${host} are not read automatically. A human must check them for bot, scraping or AI clauses before approving.` });
   const blocked = out.some((x) => x.level === 'block');
   return { verdict: blocked ? 'blocked' : problem ? 'problem' : 'pass', findings: out };
 }

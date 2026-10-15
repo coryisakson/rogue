@@ -24,3 +24,4 @@ export * from './addgame/index.js';
 export * from './faq.js';
 export * from './scout/index.js';
 export * from './intake/index.js';
+export * from './terms/index.js';

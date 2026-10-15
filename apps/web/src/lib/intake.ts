@@ -110,8 +110,8 @@ async function scoutJob(id: number): Promise<void> {
     await pool.query("UPDATE game_requests SET rulebook_url=$2, found_on=$3, publisher=COALESCE(publisher,$4), status='submitted', stage='rights checks running' WHERE id=$1", [id, rulebookUrl, foundOn, host]);
     await audit('scout', 'game_request_scouted_source', { id, rulebookUrl, foundOn, queries: scoutQueries(r.name, r.year) });
     await runChecks(id);      // Rights Officer (code): robots, TDM, opt-out; status -> checked
-    if (foundOn) await scoutRequest(id); // terms-of-use flags for the human
-    await stage(id, 'waiting for an admin to read the terms and approve the source');
+    if (foundOn) await scoutRequest(id); // candidate documents on the publisher page
+    await stage(id, 'checked; waiting for an admin only if the Terms Agent could not clear the source');
   } catch (e) {
     await toManual(id, `Scout error: ${e instanceof Error ? e.message : 'unknown'}`);
   }

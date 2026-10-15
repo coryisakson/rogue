@@ -33,7 +33,7 @@ const rows = (await getPool()!.query(`SELECT r.*, u.display_name requester FROM 
 const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'bad' };
 ---
 <Admin title="Game requests">
-  <p>Users pick a game from a search list (or describe it). Approving the game puts it in the Scout's queue; when the Scout cannot find a publisher rulebook, or search is off, the request lands here for manual research with a Google link. The Scout searches publisher-first (who makes it, their site, their rules or downloads page) and only then falls back to a direct rulebook PDF hit. It hands the rulebook link to the Rights Officer (code), which runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). <b>You</b> read the site's terms and decide. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
+  <p>Users pick a game from a search list (or describe it). Approving the game puts it in the Scout's queue; when the Scout cannot find a publisher rulebook, or search is off, the request lands here for manual research with a Google link. The Scout searches publisher-first (who makes it, their site, their rules or downloads page) and only then falls back to a direct rulebook PDF hit. It hands the rulebook link to the Rights Officer (code), which runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). The Terms Agent then finds and reads the <b>publisher's</b> terms (not a CDN's); when rights pass and the terms are clearly fine, the source approves itself (audit-logged, kill switch ROGUE_AUTO_APPROVE_SOURCES=0). <b>You</b> only decide the cases it cannot clear. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
   {msg && <p><span class="pill">{msg}</span></p>}
   {rows.length === 0 && <div class="card">No requests yet.</div>}
   {rows.map((r) => (
@@ -45,6 +45,15 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
       {r.rulebook_url ? <div>Rulebook: <a href={r.rulebook_url} rel="noopener nofollow">{r.rulebook_url}</a>{r.found_on && <> · found on <a href={r.found_on} rel="noopener nofollow">{r.found_on}</a></>}</div> : <div><small>No rulebook link yet.</small></div>}
       {r.stage && !['approved','rejected'].includes(r.status) && <div><small>Stage: {r.stage}</small></div>}
       {r.report && <ul>{r.report.findings.map((x: { level: string; text: string }) => <li>{x.level === 'ok' ? '✅' : x.level === 'warn' ? '⚠️' : '⛔'} {x.text}</li>)}</ul>}
+      {r.terms_check && (
+        <div style="margin:.4rem 0">
+          <span class={`pill ${r.terms_check.verdict === 'clear' ? 'ok' : r.terms_check.verdict === 'restricted' ? 'bad' : 'warn'}`}>Terms Agent: {r.terms_check.verdict}</span>
+          {r.terms_check.termsUrl && <> read <a href={r.terms_check.termsUrl} rel="noopener nofollow">{r.terms_check.termsUrl}</a></>}
+          <ul>{r.terms_check.reasons.map((n: string) => <li>{n}</li>)}</ul>
+          {r.terms_check.flags.length > 0 && <ul>{r.terms_check.flags.map((f: { kind: string; excerpt: string }) => <li>🚩 <b>{f.kind}</b>: {f.excerpt}</li>)}</ul>}
+          <details><summary><small>Pages the agent tried</small></summary><ul>{r.terms_check.tried.map((n: string) => <li><small>{n}</small></li>)}</ul></details>
+        </div>
+      )}
       {r.scout && (
         <details style="margin:.4rem 0"><summary>Scout report for the Rights Officer and you: {r.scout.candidates.length} documents on the publisher page, {r.scout.termsFlags.length} terms flags</summary>
           {r.scout.candidates.length > 0 && <ul>{r.scout.candidates.map((c: { url: string; text: string; role: string; why: string }) => <li><b>{c.role}</b> <a href={c.url} rel="noopener nofollow">{c.text || c.url}</a> <small>({c.why})</small></li>)}</ul>}
@@ -78,7 +87,7 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
         <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;margin-top:.5rem">
           {r.report?.verdict !== 'blocked' && (
             <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve" />
-              <label><input type="checkbox" name="terms" value="yes" required /> I read the terms of {r.report?.host}</label>
+              <label><input type="checkbox" name="terms" value="yes" required /> I read the publisher's terms{r.terms_check?.site ? ` (${r.terms_check.site})` : ` (${r.report?.host})`}</label>
               <button class="btn" style="border:0;cursor:pointer">Approve</button></form>
           )}
           <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>

@@ -8,6 +8,7 @@ import { ingestGame } from './ingest';
 import { librarianStatus, runLibrarian } from './librarian-run';
 import { alertOperator } from './notify';
 import { indexSource } from './rules-index';
+import { termsAgentForRequest } from './terms-agent';
 import { ensureMigrated, getPool } from './services';
 
 const MAX_OPEN_PER_USER = 5;
@@ -81,7 +82,15 @@ export async function runChecks(id: number): Promise<void> {
     const report = await probeRulebook(r.rulebook_url);
     await pool.query("UPDATE game_requests SET report=$2, status='checked' WHERE id=$1", [id, report]);
     await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['rights-officer', 'game_request_checked', { id, url: r.rulebook_url, verdict: report.verdict, policyVersion: report.policyVersion }]);
-    await alertOperator(`New game request #${id}: ${r.name} (${r.publisher}). Automated rights check: ${report.verdict}. Review at /admin/requests.`);
+    // Terms Agent: reads the PUBLISHER's terms (not the CDN's). Only when rights pass and the terms are clearly fine
+    // does the source approve itself (Cory 2026-10-15: admins see exceptions only). The game itself was admin-approved earlier.
+    const terms = report.verdict === 'blocked' ? null : await termsAgentForRequest(id).catch(() => null);
+    if (report.verdict === 'pass' && terms?.verdict === 'clear' && autoApproveEnabled()) {
+      const a = await approveRequest(id, null, true, 'terms-agent');
+      if (a.ok) return;
+    }
+    const why = terms ? `Terms Agent: ${terms.verdict}${terms.verdict === 'clear' ? '' : ' - needs you'}` : 'terms not read';
+    await alertOperator(`Game request #${id}: ${r.name} (${r.publisher}). Rights check: ${report.verdict}. ${why}. Review at /admin/requests.`);
   } catch (e) {
     console.warn('[add-game] checks failed', e instanceof Error ? e.message : 'error');
   }
@@ -98,7 +107,10 @@ export async function rejectRequest(id: number, adminId: number, reason: string)
  * Human approval. Allowed only when the automated verdict is not 'blocked' AND the admin confirmed they read the site's terms.
  * Creates the game, allowlists the host, then ingests + indexes + runs the Librarian in the background.
  */
-export async function approveRequest(id: number, adminId: number, termsChecked: boolean): Promise<{ ok: boolean; error?: string }> {
+/** Auto-approval by the Terms Agent can be switched off with ROGUE_AUTO_APPROVE_SOURCES=0 (kill switch). */
+const autoApproveEnabled = () => process.env.ROGUE_AUTO_APPROVE_SOURCES !== '0';
+
+export async function approveRequest(id: number, adminId: number | null, termsChecked: boolean, actor = `admin:${adminId}`): Promise<{ ok: boolean; error?: string }> {
   const pool = getPool(); if (!pool) return { ok: false, error: 'no database' };
   if (!termsChecked) return { ok: false, error: 'Confirm that you read the site terms first.' };
   const c = await pool.connect();
@@ -112,7 +124,7 @@ export async function approveRequest(id: number, adminId: number, termsChecked: 
     await c.query('INSERT INTO games(slug, name, publisher, year, bgg_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (slug) DO NOTHING', [r.slug, r.name, r.publisher, r.year, r.bgg_id ?? null]);
     await c.query('INSERT INTO approved_hosts(host, request_id, approved_by) VALUES ($1,$2,$3) ON CONFLICT (host) DO NOTHING', [r.report.host, id, adminId]);
     await c.query("UPDATE game_requests SET status='approved', decided_by=$2, decided_at=now(), progress='queued' WHERE id=$1", [id, adminId]);
-    await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [`admin:${adminId}`, 'game_request_approved', { id, slug: r.slug, host: r.report.host, url: r.rulebook_url, termsChecked }]);
+    await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [actor, 'game_request_approved', { id, slug: r.slug, host: r.report.host, url: r.rulebook_url, termsChecked, termsVerdict: r.terms_check?.verdict ?? null, termsSite: r.terms_check?.site ?? null }]);
     await c.query('COMMIT');
   } catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
   void runPipeline(id, r.slug);

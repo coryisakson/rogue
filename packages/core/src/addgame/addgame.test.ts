@@ -53,10 +53,10 @@ describe('tdmReserved', () => {
 });
 
 describe('assessRights', () => {
-  it('passes clean results but always leaves the terms check to a human', () => {
+  it('passes clean results; terms are left to the Terms Agent', () => {
     const r = assessRights(facts(), 'cdn.example.com');
     expect(r.verdict).toBe('pass');
-    expect(r.findings.some((f) => f.level === 'warn' && /Terms of use/.test(f.text))).toBe(true);
+    expect(r.findings.some((f) => /Terms of use/.test(f.text))).toBe(false); // the Terms Agent handles terms now
   });
   it('blocks on robots, TDM, opt-out and private addresses', () => {
     for (const o of [{ robots: 'blocked' as const }, { tdmReserved: true }, { optOut: 'noai' }, { resolvedPrivate: true }]) expect(assessRights(facts(o), 'h.com').verdict).toBe('blocked');
