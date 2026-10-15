@@ -54,11 +54,12 @@
   },
   {
    "q": "What carries over between acts?",
-   "must": "deck[\\s\\S]*relic|relic[\\s\\S]*deck|gold",
+   "must": "(deck|cards)[\\s\\S]*(relic|gold|potion)|(relic|gold|potion)[\\s\\S]*(deck|cards)",
    "expected": "Your deck (with upgrades), gold, relics and potions; players heal to max HP at the start of Act II+.",
    "kind": "fact",
    "source": "https://www.reddit.com/r/boardgames/comments/1g28qpa/i_have_been_trying_to_understand_the_slay_the/",
-   "rulebookRef": "Between acts"
+   "rulebookRef": "Between acts",
+   "mustNot": "shouldn.t be shuffled|not be shuffled"
   },
   {
    "q": "If I discard a Daze at end of turn does it still exhaust?",

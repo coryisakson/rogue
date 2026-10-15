@@ -17,7 +17,7 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 - Principle (Cory): AI tasks go to Nanobot agents via MCP in the background; plain code stays in the app so the site is fast. Live Ask stays a direct streamed call (open point, tell Cory). Move order: Librarian, Terms judgement, Scout judgement, Curator.
 
 ## Start here next session (order)
-1. FAQ eval set: web-search 10 real FAQs each for Pandemic and Slay the Spire (source URL, expected answer, rulebook page), store in packages/core/eval/, run against Ask incl. count/list questions. Gates Phase 2. (Was about to start.)
+1. (DONE 0.0.70) FAQ eval set. Baseline Pandemic 6/10, Slay the Spire 7/10 (see PROGRESS). NEXT: fix Ask against the failures (roles count/list wrongly 8-9, hedging on cure count, abstains on discard/Retain/Daze, acts carry-over), re-run via /api/admin/eval-ask (admin token; from/n paging, 5 per call), aim >=90% before Phase 2.
 2. Nanobot sidecar: Python container in the pod (not in the Node image), config generated from agent specs, all risky tools off, restrictToWorkspace true, models via Olares Router; propose-only MCP tools; job queue state in DB; then migrate Librarian first.
 3. Then: Q&A become facts, FAQ Curator agent, one-pager quality gate, printed-page detection, frontier judge (ROGUE_JUDGE_*, needs a model route; ask Cory via APPROVALS).
 Unverified live: Terms Agent auto-approve on a fresh request (Contention should clear now; Z-Man's legal page is JS-built so stays human), Scout publisher-first run (0.0.66).

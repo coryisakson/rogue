@@ -38,7 +38,7 @@
   },
   {
    "q": "How many cards of the same color do I need to discover a cure?",
-   "must": "\\b5\\b|five",
+   "must": "\\b5\\b[\\s\\S]*\\b4\\b[\\s\\S]*Scientist|Scientist[\\s\\S]*\\b4\\b",
    "expected": "5 City cards of the same color at a research station (4 for the Scientist).",
    "kind": "fact",
    "source": "(rulebook, widely asked)",
@@ -54,23 +54,25 @@
   },
   {
    "q": "How many roles are there in Pandemic?",
-   "must": "\\b7\\b|seven",
+   "must": "\\b(7|seven)\\b",
    "expected": "7 roles (derived: 7 role cards listed; no number printed in the rules text).",
    "kind": "count",
    "source": "packages/core/eval (Cory's count/list example)",
-   "rulebookRef": "Contents + Roles"
+   "rulebookRef": "Contents + Roles",
+   "mustNot": "\\b(8|9|eight|nine|at least)\\b"
   },
   {
    "q": "List all the roles in Pandemic.",
-   "must": "Contingency Planner[\\s\\S]*Dispatcher|Dispatcher[\\s\\S]*Contingency Planner",
+   "must": "Contingency Planner[\\s\\S]*Dispatcher[\\s\\S]*Medic[\\s\\S]*Operations Expert[\\s\\S]*Quarantine Specialist[\\s\\S]*Researcher[\\s\\S]*Scientist|Scientist[\\s\\S]*Researcher[\\s\\S]*Quarantine",
    "expected": "Contingency Planner, Dispatcher, Medic, Operations Expert, Quarantine Specialist, Researcher, Scientist.",
    "kind": "list",
    "source": "packages/core/eval",
-   "rulebookRef": "Roles"
+   "rulebookRef": "Roles",
+   "mustNot": "CONTINGENCY PLANNER DISPATCHER|at least [89]"
   },
   {
    "q": "What happens if I draw two Epidemic cards at once?",
-   "must": "second|each|both|resolve",
+   "must": "first|second|events",
    "expected": "Resolve them one after another; the second epidemic's infect card is the new bottom card; events can be played between.",
    "kind": "fact",
    "source": "https://www.reddit.com/r/boardgames/comments/3hwlre/pandemic_question/",

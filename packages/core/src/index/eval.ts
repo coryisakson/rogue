@@ -32,7 +32,7 @@ export function applyRanking<T>(items: T[], picks: number[]): T[] {
 }
 
 /** One answer-level eval question (see packages/core/eval/ask-*.json). */
-export interface AskEvalQuestion { q: string; must: string; mustNot?: string; expected?: string; kind?: string }
+export interface AskEvalQuestion { q: string; must: string; mustNot?: string; expected?: string; kind?: string; mayAbstain?: boolean }
 export interface AskEvalResult { pass: boolean; reasons: string[] }
 
 /** Score one Ask answer: must match `must`, not `mustNot`, carry a citation, and have no citation warning. */
@@ -41,6 +41,7 @@ export function scoreAskAnswer(item: AskEvalQuestion, a: { answer: string; sourc
   if (!new RegExp(item.must, 'i').test(a.answer)) reasons.push('answer does not match the expected pattern');
   if (item.mustNot && new RegExp(item.mustNot, 'i').test(a.answer)) reasons.push('answer matches a forbidden pattern');
   if (!/\((?:p|s)\.\s*\d+/i.test(a.answer) && !a.sources.length) reasons.push('no citation');
+  if (/do(?:es)? not contain|no information|not (?:enough )?(?:information|mention)|cannot find|could not find|excerpts disagree|disagree/i.test(a.answer) && !item.mayAbstain) reasons.push('answer abstains or hedges');
   if (a.warning) reasons.push('citation warning');
   return { pass: reasons.length === 0, reasons };
 }
