@@ -84,12 +84,92 @@ export class CommandOcrProvider implements OcrProvider {
   }
 }
 
-/** Build the provider from env. Unset ROGUE_OCR_COMMAND means OCR is off. */
-export function ocrProviderFromEnv(env: Record<string, string | undefined> = process.env): OcrProvider {
-  const command = env.ROGUE_OCR_COMMAND?.trim();
-  if (!command) return new NoopOcrProvider();
+export interface HttpOcrOptions {
+  /** Service root, e.g. http://paddleocr.<ns>.svc:8080 ; the request goes to <baseUrl>/ocr. */
+  baseUrl: string;
+  /** Optional key, sent as "Authorization: Bearer <key>". */
+  apiKey?: string | undefined;
+  timeoutMs?: number | undefined;
+  maxInputBytes?: number | undefined;
+  /** Inject a fetch (apps/web passes ipv4Fetch: Node's default DNS fails inside Olares pods). */
+  fetchImpl?: typeof fetch | undefined;
+}
+
+/**
+ * OCR through an HTTP service speaking the PaddleOCR / PaddleX serving API (POST /ocr, JSON {file: base64, fileType: 0 = PDF}).
+ * The whole PDF is sent once and the per-page results are cached for that PDF, so a 100-page scan with 80 flagged pages is one request.
+ * Response: result.ocrResults[i].prunedResult.rec_texts = recognised text lines of page i+1.
+ */
+export class HttpOcrProvider implements OcrProvider {
+  readonly name = 'http';
+  private readonly timeoutMs: number;
+  private readonly maxInputBytes: number;
+  private readonly doFetch: typeof fetch;
+  // Keyed by the PDF buffer itself: a new document means a new request, and the cache never outlives the document.
+  private readonly cache = new WeakMap<Uint8Array, Promise<string[]>>();
+
+  constructor(private readonly opts: HttpOcrOptions) {
+    this.timeoutMs = opts.timeoutMs ?? 300_000;
+    this.maxInputBytes = opts.maxInputBytes ?? 100 * 1024 * 1024;
+    this.doFetch = opts.fetchImpl ?? fetch;
+  }
+
+  async recognizePage(req: OcrRequest): Promise<string> {
+    if (req.pdf.byteLength > this.maxInputBytes) throw new Error(`ocr input too large (${req.pdf.byteLength} bytes)`);
+    if (!Number.isInteger(req.pageNumber) || req.pageNumber < 1) throw new Error('invalid page number');
+    let job = this.cache.get(req.pdf);
+    if (!job) {
+      job = this.fetchAllPages(req.pdf);
+      this.cache.set(req.pdf, job);
+      // A failed request must not be cached, or every later page would fail without retrying.
+      job.catch(() => this.cache.delete(req.pdf));
+    }
+    return ((await job)[req.pageNumber - 1] ?? '').trim();
+  }
+
+  private async fetchAllPages(pdf: Uint8Array): Promise<string[]> {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), this.timeoutMs);
+    try {
+      const res = await this.doFetch(`${this.opts.baseUrl.replace(/\/+$/, '')}/ocr`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(this.opts.apiKey ? { authorization: `Bearer ${this.opts.apiKey}` } : {}) },
+        body: JSON.stringify({ file: Buffer.from(pdf).toString('base64'), fileType: 0, visualize: false }),
+        signal: ctl.signal,
+      });
+      if (!res.ok) throw new Error(`ocr service answered HTTP ${res.status}`);
+      return parsePaddleOcrResponse(await res.json());
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/** One string per page, lines joined with newlines. Throws on anything that is not the expected shape. */
+export function parsePaddleOcrResponse(body: unknown): string[] {
+  const results = (body as { result?: { ocrResults?: unknown } } | null)?.result?.ocrResults;
+  if (!Array.isArray(results)) throw new Error('unexpected ocr response (no result.ocrResults)');
+  return results.map((r) => {
+    const lines = (r as { prunedResult?: { rec_texts?: unknown } })?.prunedResult?.rec_texts;
+    return Array.isArray(lines) ? lines.filter((l): l is string => typeof l === 'string').join('\n') : '';
+  });
+}
+
+/**
+ * Choose the OCR engine from env. ROGUE_OCR_PROVIDER = none | command | http. When unset: http if ROGUE_OCR_BASE_URL is set,
+ * else command if ROGUE_OCR_COMMAND is set, else none. The key never goes in the image; set it as an app secret/env.
+ */
+export function ocrProviderFromEnv(env: Record<string, string | undefined> = process.env, fetchImpl?: typeof fetch): OcrProvider {
   const num = (v?: string) => (v && Number(v) > 0 ? Number(v) : undefined);
-  return new CommandOcrProvider({ command, timeoutMs: num(env.ROGUE_OCR_TIMEOUT_MS), maxInputBytes: num(env.ROGUE_OCR_MAX_INPUT_BYTES), maxOutputBytes: num(env.ROGUE_OCR_MAX_OUTPUT_BYTES) });
+  const command = env.ROGUE_OCR_COMMAND?.trim();
+  const baseUrl = env.ROGUE_OCR_BASE_URL?.trim();
+  const kind = (env.ROGUE_OCR_PROVIDER?.trim().toLowerCase() || (baseUrl ? 'http' : command ? 'command' : 'none'));
+  if (kind === 'http') {
+    if (!baseUrl) return new NoopOcrProvider();
+    return new HttpOcrProvider({ baseUrl, apiKey: env.ROGUE_OCR_API_KEY || undefined, timeoutMs: num(env.ROGUE_OCR_TIMEOUT_MS), maxInputBytes: num(env.ROGUE_OCR_MAX_INPUT_BYTES), fetchImpl });
+  }
+  if (kind === 'command' && command) return new CommandOcrProvider({ command, timeoutMs: num(env.ROGUE_OCR_TIMEOUT_MS), maxInputBytes: num(env.ROGUE_OCR_MAX_INPUT_BYTES), maxOutputBytes: num(env.ROGUE_OCR_MAX_OUTPUT_BYTES) });
+  return new NoopOcrProvider();
 }
 
 export interface OcrOutcome {

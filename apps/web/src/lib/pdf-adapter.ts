@@ -1,4 +1,5 @@
 import { extractText, getDocumentProxy } from 'unpdf';
+import { ipv4Fetch } from './services';
 import { applyOcr, needsOcr, ocrProviderFromEnv, type SourceAdapter } from '@rogue/core';
 
 /** PDF implementation of SourceAdapter. Lives in apps/web because the PDF parser dependency does (core stays lean). */
@@ -13,7 +14,7 @@ export const pdfAdapter: SourceAdapter = {
     let notes: Record<string, unknown> | undefined;
     const flagged = needsOcr(out.text);
     if (flagged.length) {
-      const ocr = await applyOcr(out.text, new Uint8Array(bytes), ocrProviderFromEnv(), flagged);
+      const ocr = await applyOcr(out.text, new Uint8Array(bytes), ocrProviderFromEnv(process.env, ipv4Fetch), flagged);
       out.text = ocr.pages;
       notes = { ocr: ocr.recognized.length > 0, ocrPages: ocr.recognized, pagesWithoutText: ocr.lacking, ...(ocr.errors.length ? { ocrErrors: ocr.errors } : {}) };
     }
