@@ -1,25 +1,26 @@
 ---
-import { loadProfile } from '@rogue/core';
-import { VERSION } from '../lib/version';
-const profile = loadProfile(process.env);
+import Base from '../layouts/Base.astro';
+import { listGames } from '../lib/kb';
+const games = await listGames();
+const ready = games.filter((g) => g.claim_count > 0);
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{profile.name}</title>
-    <style>
-      body { font-family: system-ui, sans-serif; background: #1d2a1f; color: #f4ecd8; display: grid; place-items: center; min-height: 100vh; margin: 0; }
-      main { max-width: 36rem; padding: 2rem; text-align: center; }
-      h1 { font-size: 3rem; margin: 0 0 .5rem; }
-      small { opacity: .7; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>{profile.name}</h1>
-      <p>A cited, rights-aware tabletop knowledge base. Coming soon.</p>
-      <small>v{VERSION} &middot; region {profile.region}</small>
-    </main>
-  </body>
-</html>
+<Base title="Rules, cited">
+  <main>
+    <h1 style="font-size:2.4rem;margin-bottom:.2rem">Setup it fast. Rules, cited.</h1>
+    <p style="max-width:42rem">Rogue is an open, rights-aware tabletop knowledge base. Every statement points back to the publisher's own rulebook, and each game gets a one-page setup sheet you can print.</p>
+    <h2>Ready now</h2>
+    <div class="grid">
+      {ready.map((g) => (
+        <div class="card">
+          <h3 style="margin:.1rem 0"><a href={`/games/${g.slug}`}>{g.name}</a></h3>
+          <div>{g.publisher} · {g.year}</div>
+          <div>{g.min_players}–{g.max_players} players</div>
+          <p><span class="pill ok">{g.claim_count} cited facts</span></p>
+          <a class="btn" href={`/games/${g.slug}/setup`}>Setup one-pager</a>
+        </div>
+      ))}
+    </div>
+    <h2>Coming soon</h2>
+    <p>{games.filter((g) => g.claim_count === 0).map((g) => g.name).join(' · ')}</p>
+  </main>
+</Base>

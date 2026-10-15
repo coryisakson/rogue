@@ -90,6 +90,9 @@ export class RightsGatedFetcher {
     if (bytes.byteLength > (this.o.maxBytes ?? 25_000_000)) throw new FetchDenied(rawUrl, deny('over size cap'));
     const contentType = headers['content-type'] ?? 'application/octet-stream';
     const head = contentType.includes('html') ? new TextDecoder().decode(bytes.slice(0, 20000)) : '';
+    // Soft 404: some CDNs answer 200 with an HTML page for missing files. A .pdf URL must contain PDF bytes.
+    if (/\.pdf($|\?)/i.test(url.pathname + url.search) && new TextDecoder('latin1').decode(bytes.slice(0, 5)) !== '%PDF-')
+      throw new FetchHttpError(rawUrl, 404, 'soft 404: expected a PDF but got ' + contentType);
     const optOut = findOptOut(headers, head);
     if (optOut) throw new FetchDenied(rawUrl, deny(`rights holder opt-out: ${optOut}`));
     return {
@@ -120,8 +123,9 @@ export class FetchHttpError extends Error {
   constructor(
     readonly url: string,
     readonly status: number,
+    note?: string,
   ) {
-    super(`fetch ${url} failed: HTTP ${status}`);
+    super(`fetch ${url} failed: HTTP ${status}${note ? ` (${note})` : ''}`);
   }
   /** 404/410 mean the file is gone; anything else is treated as transient. */
   get gone(): boolean {

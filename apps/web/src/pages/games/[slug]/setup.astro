@@ -1,0 +1,52 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { getGame, getClaims } from '../../../lib/kb';
+const { slug } = Astro.params;
+const game = await getGame(slug!);
+if (!game) return new Response('Not found', { status: 404 });
+const claims = await getClaims(slug!);
+const players = Number(Astro.url.searchParams.get('players') ?? 0);
+const setup = claims.filter((c) => c.topic === 'goal' || c.topic === 'lose' || c.topic === 'setup' || c.topic === 'turn');
+const variants = claims.filter((c) => c.topic === 'player_count_variant').sort((a, b) => (a.player_count ?? 0) - (b.player_count ?? 0));
+const srcs = [...new Map(claims.map((c) => [c.source_url, c])).values()];
+if (!claims.length) return new Response('No cited setup facts for this game yet.', { status: 404 });
+---
+<Base title={`${game.name} setup`} bare>
+  <style is:global>
+    body { background:#ccc; }
+    .sheet { background:#fff; color:#111; width:5.5in; min-height:8.5in; margin:1rem auto; padding:.3in; font-family: 'Helvetica Neue', Arial, sans-serif; font-size:8.6pt; line-height:1.28; box-shadow:0 2px 12px #0006; }
+    .sheet h1 { font-size:15pt; margin:0; }
+    .sheet .sub { font-size:7.5pt; color:#555; border-bottom:2px solid #111; padding-bottom:3pt; margin-bottom:5pt; }
+    .sheet ol { margin:4pt 0 4pt 14pt; padding:0; } .sheet li { margin-bottom:2.5pt; }
+    .sheet table { width:100%; margin:4pt 0; font-size:9pt; } .sheet td, .sheet th { border:1.5px solid #111; text-align:center; padding:2pt; }
+    .sheet tr.on { background:#ffd54a; font-weight:bold; }
+    .sheet h2 { font-size:9.5pt; margin:6pt 0 2pt; text-transform:uppercase; letter-spacing:.05em; }
+    .sheet .foot { font-size:6.5pt; color:#444; border-top:1px solid #999; margin-top:6pt; padding-top:3pt; }
+    .toolbar { text-align:center; padding:.6rem; font-family:system-ui; }
+    .toolbar a, .toolbar button { margin:0 .4rem; }
+    @page { size: 5.5in 8.5in; margin: 0; }
+    @media print { body { background:#fff; } .toolbar { display:none; } .sheet { margin:0; box-shadow:none; width:5.5in; height:8.5in; overflow:hidden; page-break-after:avoid; } }
+  </style>
+  <div class="toolbar">
+    <a href={`/games/${slug}`}>← {game.name}</a>
+    Players: {[2,3,4].map((n) => <a href={`?players=${n}`} style={players===n?'font-weight:bold':''}>{n}</a>)} <a href="?">all</a>
+    <button onclick="window.print()">Print (half-letter, 1 page)</button>
+  </div>
+  <div class="sheet">
+    <h1>{game.name} · Setup</h1>
+    <div class="sub">{game.publisher} · {game.min_players}–{game.max_players} players · edition: {claims[0]?.edition}</div>
+    {variants.length > 0 && (<>
+      <h2>Changes by player count</h2>
+      <table><tr><th>Players</th><th>Starting hand (cards each)</th></tr>
+        {variants.map((v) => <tr class={players === v.player_count ? 'on' : ''}><td>{v.player_count}</td><td>{v.body.match(/(\d+) cards/)?.[1]}</td></tr>)}
+      </table>
+    </>)}
+    <h2>Goal and loss</h2>
+    <ol>{setup.filter((c) => c.topic === 'goal' || c.topic === 'lose').map((c) => <li>{c.body}</li>)}</ol>
+    <h2>Setup steps</h2>
+    <ol>{setup.filter((c) => c.topic === 'setup').map((c) => <li>{c.body}</li>)}</ol>
+    <h2>On a turn</h2>
+    <ol>{setup.filter((c) => c.topic === 'turn').map((c) => <li>{c.body}</li>)}</ol>
+    <div class="foot">Sources: {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. AI-drafted from the publisher's rulebook and not yet human-reviewed; the rulebook is authoritative. Not affiliated with the publisher. Rogue v0 · open source.</div>
+  </div>
+</Base>

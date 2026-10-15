@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import { listGames } from '../../lib/kb';
+const games = await listGames();
+---
+<Base title="Games">
+  <main>
+    <h1>Games</h1>
+    <div class="grid">
+      {games.map((g) => (
+        <div class="card">
+          <h3 style="margin:.1rem 0"><a href={`/games/${g.slug}`}>{g.name}</a></h3>
+          <div>{g.publisher} · {g.year} · {g.min_players}–{g.max_players} players</div>
+          <p>{g.claim_count > 0 ? <span class="pill ok">{g.claim_count} cited facts</span> : <span class="pill">no sources ingested yet</span>}</p>
+          {g.bgg_id && <a href={`https://boardgamegeek.com/boardgame/${g.bgg_id}`}>BoardGameGeek ↗</a>}
+        </div>
+      ))}
+    </div>
+  </main>
+</Base>

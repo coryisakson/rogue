@@ -45,7 +45,7 @@ describe('RightsGatedFetcher', () => {
   it('fetches an allowed pdf and hashes it', async () => {
     const f = new RightsGatedFetcher({ ...base, fetchImpl: fakeFetch({
       'https://cdn.example.com/robots.txt': { body: 'User-agent: *\nDisallow: /nope' },
-      'https://cdn.example.com/a.pdf': { body: 'PDFDATA', headers: { 'content-type': 'application/pdf', etag: '"x"' } },
+      'https://cdn.example.com/a.pdf': { body: '%PDF-1.4 data', headers: { 'content-type': 'application/pdf', etag: '"x"' } },
     }) });
     const d = await f.fetch('https://cdn.example.com/a.pdf');
     expect(d.sha256).toHaveLength(64);
@@ -63,9 +63,16 @@ describe('RightsGatedFetcher', () => {
   it('blocks when the server reserves TDM rights', async () => {
     const f = new RightsGatedFetcher({ ...base, fetchImpl: fakeFetch({
       'https://cdn.example.com/robots.txt': { body: '' },
-      'https://cdn.example.com/a.pdf': { body: 'x', headers: { 'tdm-reservation': '1' } },
+      'https://cdn.example.com/a.pdf': { body: '%PDF-1.4', headers: { 'tdm-reservation': '1' } },
     }) });
     await expect(f.fetch('https://cdn.example.com/a.pdf')).rejects.toThrow(/opt-out/);
+  });
+  it('treats a 200 HTML answer for a .pdf url as a soft 404', async () => {
+    const f = new RightsGatedFetcher({ ...base, fetchImpl: fakeFetch({
+      'https://cdn.example.com/robots.txt': { body: '' },
+      'https://cdn.example.com/a.pdf': { body: '<html>Not found</html>', headers: { 'content-type': 'text/html' } },
+    }) });
+    await expect(f.fetch('https://cdn.example.com/a.pdf')).rejects.toMatchObject({ status: 404, gone: true });
   });
   it('blocks conservatively when robots.txt gives a server error', async () => {
     const f = new RightsGatedFetcher({ ...base, fetchImpl: fakeFetch({
