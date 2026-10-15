@@ -82,7 +82,7 @@ export class RightsGatedFetcher {
     const res = await this.f(rawUrl, { headers: { 'user-agent': USER_AGENT }, redirect: 'follow' });
     const headers: Record<string, string> = {};
     res.headers.forEach((v, k) => (headers[k.toLowerCase()] = v));
-    if (!res.ok) throw new Error(`fetch ${rawUrl} failed: HTTP ${res.status}`);
+    if (!res.ok) throw new FetchHttpError(rawUrl, res.status);
     const finalUrl = res.url || rawUrl;
     if (new URL(finalUrl).host !== url.host && !this.o.allowedHosts.includes(new URL(finalUrl).host))
       throw new FetchDenied(rawUrl, deny(`redirected to non-allowlisted host ${new URL(finalUrl).host}`));
@@ -113,5 +113,18 @@ export class FetchDenied extends Error {
     readonly decision: FetchDecision,
   ) {
     super(`fetch denied for ${url}: ${decision.reason} (policy ${decision.policyVersion})`);
+  }
+}
+
+export class FetchHttpError extends Error {
+  constructor(
+    readonly url: string,
+    readonly status: number,
+  ) {
+    super(`fetch ${url} failed: HTTP ${status}`);
+  }
+  /** 404/410 mean the file is gone; anything else is treated as transient. */
+  get gone(): boolean {
+    return this.status === 404 || this.status === 410;
   }
 }

@@ -19,3 +19,7 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 1 KB core · 1a Operator v0 · 1b Agent team + harness bake-off · 2 Learning loop · 3 Setup sheets · 4 Game chat ·
 4b Rights/publisher program · 5 Public surfaces · 5b Ratings/organizers · 5c Admin/compliance · 6 MCP ·
 7 Collections · 7b Cloud storage · 7c Self-host packaging · 8 Launch.
+
+## Curation lifecycle (added 2026-10-15)
+- [x] Policy: docs/CURATION_POLICY.md, docs/TAKEDOWN_RUNBOOK.md
+- [~] Migration 0005: source availability, claim ratings, disproofs, takedown requests, source suggestions (done); recheck + takedown code (done); scheduled weekly recheck, weekly Discord digest, frontier-model confirmation step, rating UI (todo)
