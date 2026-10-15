@@ -1,0 +1,16 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { adminIds } from '../../lib/admin';
+import { ensureMigrated, getPool } from '../../lib/services';
+await ensureMigrated();
+const rows = (await getPool()!.query(`SELECT u.id, u.display_name, u.created_at, u.last_login,
+  (SELECT string_agg(provider, ', ' ORDER BY created_at) FROM identities i WHERE i.user_id=u.id) providers,
+  (SELECT count(*)::int FROM claim_ratings r WHERE r.user_id=u.id) ratings FROM users u ORDER BY u.id`)).rows;
+const admins = adminIds();
+---
+<Admin title="Users">
+  <table class="card" style="width:100%"><thead><tr><th>ID</th><th>Name</th><th>Sign-in</th><th>Ratings</th><th>Last login</th><th>Role</th></tr></thead><tbody>
+    {rows.map((u) => <tr><td>{u.id}</td><td>{u.display_name}</td><td>{u.providers}</td><td>{u.ratings}</td><td>{new Date(u.last_login).toISOString().slice(0, 16)}</td><td>{admins.includes(Number(u.id)) ? 'admin' : ''}</td></tr>)}
+  </tbody></table>
+  <p><small>Admins are set by ROGUE_ADMIN_USER_IDS or admins.json on the data volume. Users can delete their own accounts at /account.</small></p>
+</Admin>

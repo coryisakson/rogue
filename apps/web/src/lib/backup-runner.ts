@@ -108,3 +108,17 @@ export function startBackupScheduler(): void {
   setInterval(() => void tick(), 60 * 60 * 1000).unref();
   setTimeout(() => void tick(), 60 * 1000).unref(); // catch up shortly after a restart
 }
+
+export interface BackupRow { date: string; createdAt: string; appVersion: string; schemaVersion: string; files: { name: string; size: number }[]; problems: string[] }
+
+/** Every complete backup on disk, newest first, each re-verified against its checksums (for the admin Backups page). */
+export async function listBackups(): Promise<BackupRow[]> {
+  const dates = await listBackupDates(backupStore, 'kb').catch(() => [] as string[]);
+  const rows: BackupRow[] = [];
+  for (const date of dates.slice().reverse()) {
+    const raw = await backupStore.get(`backups/kb/${date}/manifest.json`); if (!raw) continue;
+    const m = JSON.parse(new TextDecoder().decode(raw));
+    rows.push({ date, createdAt: m.createdAt, appVersion: m.appVersion, schemaVersion: m.schemaVersion, files: m.items.map((i: { name: string; size: number }) => ({ name: i.name, size: i.size })), problems: await verifyBackup(backupStore, 'kb', date) });
+  }
+  return rows;
+}

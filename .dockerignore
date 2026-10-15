@@ -5,6 +5,7 @@ dist
 .git
 .astro
 deploy
-docs
+docs/*
+!docs/REVIEW_LOG.md
 *.tgz
 .env*

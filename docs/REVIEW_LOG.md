@@ -1,8 +1,31 @@
 # Review Log: items needing legal or expert review
 
-No formal legal review yet. Full list R1-R23 lives in design plan v13 section 14
-(`docs/design/rogue-design-plan-v13.html`). Add new items here as `Rn | area | question | risk | status`.
-Seeding this file with the full list is a Phase 0 task.
+No formal legal review yet. Format: `Rn | area | question | risk | status`. R1-R23 are seeded from design plan v13 section 14; R24+ were added during the build.
+Parsed by the admin console (/admin/review-log): keep one item per line.
+
+R1 | - | EU text and data mining Does fetching, privately caching and extracting facts from public rulebooks fit Article 4 of Directive 2019/790 and each member state's transposition? What counts as an "appropriate" reservation (site terms, robots, meta tags)? How long may raw copies be kept? | high | open
+R2 | - | Quotation Length, purpose and attribution limits for short rulebook excerpts in chat and sheets under the national quotation exceptions. | high | open
+R3 | - | Rules text vs. rules Where is the line between extracting facts in our own words and a derivative of the text (close paraphrase, LLM summaries, translations)? | high | open
+R4 | - | Images Publisher photos and press kits: license scope for thumbnails, hot-linking vs. caching, curated images from other sites. | high | open
+R5 | - | Trademark Clearance of "Rogue" as the project name and the final domain (the word is widely used, including as a genre name); Nominative/referential use of game and publisher names; "not affiliated" footer; effect of affiliate links; clearance search for the project name "Rogue" (a very common word; check existing marks in games, software and entertainment) and for the chosen domain. | medium | open
+R6 | - | BoardGameGeek terms API registration, whether an open-source plus affiliate site counts as commercial, what data may be displayed or stored, attribution rules. | medium | open
+R7 | - | 3D-printing sites Per-site terms for indexing, thumbnails, descriptions and displaying licenses (Printables, MakerWorld, Thingiverse, Thangs, Cults3D). | medium | open
+R8 | - | GDPR Controller/processor roles, lawful bases, LLM provider agreements and transfers, chat retention, public-feed scrubbing, children's age limit, ePrivacy, records of processing, whether a DPIA is required. | high | open
+R9 | - | Asian privacy laws When PIPL (extraterritorial reach) or Korea's PIPA would apply to an EU-hosted instance; whether to geoblock or add overlays. | medium | open
+R10 | - | Affiliate links Disclosure rules (EU and FTC), Amazon Associates terms per country, affiliate links inside AI answers. | medium | open
+R11 | - | Open-source licensing AGPL for code, CC BY-SA or CC0 for data when facts derive from publisher material; contributor license (DCO or CLA); user-submission terms; effect on forks. | medium | open
+R12 | - | User content and liability EU Digital Services Act duties for hosted user content (notice-and-action); whether AI answers are our own speech; disclaimers for wrong rulings. | medium | open
+R13 | - | Takedown process EU and US (DMCA) takedown procedures and whether a designated agent is needed; response times. | medium | open
+R14 | - | Patents Check for patents on mechanics of seed games. (verify) | low | open
+R15 | - | Instance sync Whether data derived under one country's allowances may be shared with instances in another; what to include in the public dump. | medium | open
+R16 | - | Publisher outreach Business-contact email rules in the EU (ePrivacy and national law), opt-out handling, who is the sender. | low | open
+R17 | - | Themed sheets Is "style tokens plus original ornaments" far enough from the source art; does feeding publisher imagery into the Designer agent as input count as a reproduction? | medium | open
+R18 | - | EU AI Act Transparency duties for chatbots and AI-generated content (telling users they're talking to AI, labeling). (verify) | medium | open
+R19 | - | Sending rulebooks to cloud LLMs Provider terms on retention and training when copyrighted PDFs are sent for OCR or extraction; EU-region options. | medium | open
+R20 | - | Accessibility European Accessibility Act applicability and WCAG AA conformance for a small non-profit open-source service. | low | open
+R21 | - | Claude subscription use Whether a consumer subscription may power automated agents; likely needs API access under the commercial terms. Also provider data-retention terms. | medium | open
+R22 | - | Auto-approval Legal and quality exposure of auto-approved content with a single human reviewer; adequacy of the decline rules and rollback. | medium | open
+R23 | - | Seeding from a personal BGG collection Whether importing a user collection through the BGG API (or CSV) is allowed for building a public catalog. | medium | open
 
 R24 | operations | Backups on a single external disk until cloud provider lands | data loss | open
 R25 | brand | Working name 'T-AI-bletop Rogue'; clearance for 'Rogue' still needed | trademark | open

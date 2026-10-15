@@ -1,0 +1,13 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { readReviewLog } from '../../lib/admin';
+const items = readReviewLog();
+const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
+items.sort((a, b) => (order[a.risk] ?? 3) - (order[b.risk] ?? 3) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+---
+<Admin title="Review log">
+  <p>{items.length} items that need legal or expert review. Edit <code>docs/REVIEW_LOG.md</code> in the repo; this page reads the copy shipped in the image. No formal legal review has happened yet.</p>
+  <table class="card" style="width:100%"><thead><tr><th>ID</th><th>Risk</th><th>Question</th><th>Status</th></tr></thead><tbody>
+    {items.map((r) => <tr><td>{r.id}</td><td><span class={`pill ${r.risk === 'high' ? 'bad' : r.risk === 'medium' ? 'warn' : ''}`}>{r.risk}</span></td><td>{r.question}</td><td>{r.status}</td></tr>)}
+  </tbody></table>
+</Admin>

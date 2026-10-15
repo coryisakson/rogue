@@ -3,6 +3,7 @@ import { VERSION } from '../lib/version';
 interface Props { title: string; bare?: boolean }
 const { title, bare = false } = Astro.props;
 const user = Astro.locals.user;
+import { isAdmin } from '../lib/admin';
 ---
 <html lang="en">
   <head>
@@ -36,7 +37,7 @@ const user = Astro.locals.user;
     {!bare && (
       <header class="site">
         <a class="brand" href="/">🎲 Rogue</a>
-        <nav><a href="/games">Games</a><a href="/about">About</a></nav>
+        <nav><a href="/games">Games</a><a href="/about">About</a>{isAdmin(user) && <a href="/admin">Admin</a>}</nav>
         <span style="margin-left:auto;font-size:.9rem">
           {user ? (<form method="post" action="/logout" style="display:inline"><a href="/account">{user.name}</a> <button type="submit" style="background:none;border:0;color:var(--gold);cursor:pointer;text-decoration:underline;font:inherit">Sign out</button></form>)
                 : (<a href={`/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`}>Sign in</a>)}

@@ -29,6 +29,7 @@ export function isPublicPath(pathname: string): boolean {
   if (pathname === '/' || pathname === '/about' || pathname === '/games' || pathname === '/healthz' || pathname === '/favicon.ico' || pathname === '/favicon.svg' || pathname === '/robots.txt') return true;
   if (pathname.startsWith('/_astro/')) return true;
   if (/^\/games\/[a-z0-9-]+(\/setup|\/ask)?\/?$/.test(pathname)) return true;
+  if (pathname === '/admin' || pathname === '/admin/run' || /^\/admin\/(backups|review-log|users)\/?$/.test(pathname)) return true; // pages guard themselves: admin session, else 404
   if (pathname === '/login' || pathname === '/logout' || pathname === '/rate' || pathname === '/account' || pathname === '/account/delete' || /^\/auth\/[a-z]+(\/callback)?\/?$/.test(pathname)) return true;
   return false;
 }

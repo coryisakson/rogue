@@ -1,0 +1,18 @@
+---
+import Base from './Base.astro';
+import { isAdmin } from '../lib/admin';
+interface Props { title: string }
+const { title } = Astro.props;
+const user = Astro.locals.user;
+// Not signed in -> sign-in; signed in but not an admin -> plain 404 so the console is not advertised.
+if (!user) return Astro.redirect(`/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+if (!isAdmin(user)) return new Response('Not found', { status: 404 });
+const tabs = [['/admin', 'Overview'], ['/admin/backups', 'Backups'], ['/admin/review-log', 'Review log'], ['/admin/users', 'Users']];
+---
+<Base title={`Admin: ${title}`}>
+  <main>
+    <h1>Admin · {title}</h1>
+    <p>{tabs.map(([href, label]) => <a href={href} style="margin-right:1rem">{label}</a>)}</p>
+    <slot />
+  </main>
+</Base>

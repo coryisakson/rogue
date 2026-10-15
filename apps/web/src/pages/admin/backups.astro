@@ -1,0 +1,25 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { getBackupState, listBackups } from '../../lib/backup-runner';
+const rows = await listBackups();
+const s = getBackupState();
+const done = Astro.url.searchParams.get('done');
+const mb = (n: number) => (n / 1048576).toFixed(2) + ' MB';
+---
+<Admin title="Backups">
+  {done && <p><span class="pill ok">{done} finished</span> see status below</p>}
+  <div class="card">
+    <p style="margin-top:0">Automatic: one backup a day after 03:00 UTC, restore test on Sundays. Retention 7 daily, 4 weekly, 6 monthly.</p>
+    <p>Last backup: {s.lastBackup ? <><span class={`pill ${s.lastBackup.ok ? 'ok' : 'bad'}`}>{s.lastBackup.ok ? 'ok' : 'failed'}</span> {s.lastBackup.at} {s.lastBackup.detail}</> : 'none since restart'}</p>
+    <p>Last restore test: {s.lastRestoreTest ? <><span class={`pill ${s.lastRestoreTest.ok ? 'ok' : 'bad'}`}>{s.lastRestoreTest.ok ? 'ok' : 'failed'}</span> {s.lastRestoreTest.at} {s.lastRestoreTest.detail}</> : 'none since restart'}</p>
+    {s.running && <p><span class="pill warn">a job is running</span></p>}
+    <form method="post" action="/admin/run" style="display:inline"><input type="hidden" name="action" value="backup" /><button class="btn" style="border:0;cursor:pointer">Back up now</button></form>
+    <form method="post" action="/admin/run" style="display:inline"><input type="hidden" name="action" value="restore-test" /><button class="btn" style="border:0;cursor:pointer">Run restore test</button></form>
+  </div>
+  <h2>Backups on disk</h2>
+  <table class="card" style="width:100%"><thead><tr><th>Date</th><th>Version</th><th>Schema</th><th>Files</th><th>Integrity</th></tr></thead><tbody>
+    {rows.map((r) => <tr><td>{r.date}</td><td>{r.appVersion}</td><td>{r.schemaVersion}</td><td>{r.files.map((f) => `${f.name} ${mb(f.size)}`).join(', ')}</td><td>{r.problems.length ? <span class="pill bad">{r.problems.join('; ')}</span> : <span class="pill ok">checksums match</span>}</td></tr>)}
+    {rows.length === 0 && <tr><td colspan="5">No backups yet.</td></tr>}
+  </tbody></table>
+  <p><small>Restoring production is intentionally not a button: it needs an approval (plan §1a). The automated restore test runs into a scratch database.</small></p>
+</Admin>
