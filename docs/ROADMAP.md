@@ -7,11 +7,11 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [x] Dockerfile, Olares chart (lints), version-sync scripts
 - [x] CI workflow, image-build workflow, deploy/verify scripts
 - [x] AGENTS.md, progress + approvals tracking
-- [!] Docker Hub secrets in GitHub (RGE-A01) -> first image build
-- [!] First deploy to Olares + route (RGE-A02)
-- [ ] Postgres + pgvector service in the Olares chart, migrations tool, schema skeleton (rights grants, tombstone log)
-- [ ] Storage Provider interface + local provider + conformance tests
-- [ ] Backup job (nightly dump to mount), restore CLI, automated restore test
+- [x] Docker Hub secrets in GitHub (RGE-A01) -> image builds
+- [x] First deploy to Olares + route (RGE-A02), live 0.0.7
+- [x] Postgres + pgvector sidecar, migrations tool, schema skeleton, KB core tables
+- [x] Storage Provider interface + local provider + conformance tests
+- [~] Backup job + automated restore test done; restore CLI, Discord alerts, private/encrypted dump, files backup left
 - [ ] Admin console Backups page; auth (login); design system; i18n skeleton
 - [ ] `REVIEW_LOG.md` seeded with R1-R23 from the plan
 
