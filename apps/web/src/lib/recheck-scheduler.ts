@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { isRecheckDue, formatDigest } from '@rogue/core';
 import { services } from './services';
 import { recheckAll } from './lifecycle';
+import { resolveNeedsReview } from './curator';
 
 const STATE_FILE = `${process.env['ROGUE_DATA_DIR'] || '/app/data'}/recheck-state.json`;
 let started = false;
@@ -23,7 +24,10 @@ export function startRecheckScheduler(): void {
     // Write state first so a crash mid-run does not cause a retry storm.
     await writeFile(STATE_FILE, JSON.stringify({ at: now.toISOString() })).catch(() => {});
     const results = await recheckAll();
-    await postDigest(formatDigest(results, now.toISOString().slice(0, 10)));
+    // Settle claims the recheck flagged before bothering a human; only the leftovers reach the exception queue.
+    const cur = await resolveNeedsReview().catch(() => null);
+    const extra = cur ? `\nCurator: ${cur.checked} flagged claims checked, ${cur.restored} restored, ${cur.rejected} rejected, ${cur.kept} left for a human.` : '';
+    await postDigest(formatDigest(results, now.toISOString().slice(0, 10)) + extra);
   };
   setInterval(() => void tick().catch(() => {}), 60 * 60 * 1000).unref();
   setTimeout(() => void tick().catch(() => {}), 2 * 60 * 1000).unref();
