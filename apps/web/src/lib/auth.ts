@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PROVIDERS, randomToken, sha256hex, type ProviderCreds, type ProviderId } from '@rogue/core';
 import { ensureMigrated, getPool, services } from './services';
+import { claimDiscordRatings } from './discord-link';
 
 export interface SessionUser { id: number; name: string; avatar: string | null; provider: ProviderId }
 export const SESSION_COOKIE = 'rogue_session';
@@ -49,10 +50,12 @@ async function userIdForIdentity(provider: ProviderId, p: { uid: string; name: s
   return Number(u.id);
 }
 
+
 export async function upsertUserAndStartSession(provider: ProviderId, p: { uid: string; name: string; avatar: string | null }): Promise<string> {
   const pool = getPool(); if (!pool) throw new Error('database not configured');
   await ensureMigrated();
   const userId = await userIdForIdentity(provider, p);
+  if (provider === 'discord') await claimDiscordRatings(userId, p.uid);
   const token = randomToken();
   await pool.query("INSERT INTO sessions(token_hash, user_id, expires_at) VALUES ($1,$2, now() + ($3 || ' days')::interval)", [sha256hex(token), userId, String(SESSION_DAYS)]);
   await pool.query('DELETE FROM sessions WHERE expires_at < now()');
@@ -81,9 +84,12 @@ export async function linkIdentity(currentUserId: number, provider: ProviderId, 
       await c.query('UPDATE identities SET user_id=$1 WHERE user_id=$2', [currentUserId, old]);
       await c.query('INSERT INTO claim_ratings(claim_id, user_id, stars, created_at) SELECT claim_id, $1, stars, created_at FROM claim_ratings WHERE user_id=$2 ON CONFLICT (claim_id, user_id) DO NOTHING', [currentUserId, old]);
       await c.query('DELETE FROM users WHERE id=$1', [old]); // cascades its sessions and leftover ratings
+      // Move linked Discord votes before the old account is deleted (the FK would cascade them away).
+      await c.query('UPDATE discord_answer_ratings SET user_id=$1 WHERE user_id=$2', [currentUserId, old]);
       result = 'merged';
     }
     await c.query('COMMIT');
+    if (provider === 'discord') await claimDiscordRatings(currentUserId, p.uid);
     return result;
   } catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
 }

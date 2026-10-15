@@ -24,7 +24,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (cmd.kind === 'ping') return json({ type: 1 });
   if (cmd.kind === 'invalid') return message(formatError(cmd.message));
-  if (cmd.kind === 'rate') return message(await recordDiscordRating(cmd, cfg.publicKey));
+  if (cmd.kind === 'rate') return message(await recordDiscordRating(cmd));
   if (!allowDiscordUser(cmd.kind, cmd.userId)) return message(formatError('Slow down a little, try again in a minute.'));
 
   // Acknowledge within Discord's 3 s window, then do the work and edit the reply.

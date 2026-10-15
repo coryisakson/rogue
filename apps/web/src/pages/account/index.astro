@@ -13,9 +13,10 @@ const note = Astro.url.searchParams.get('linked');
     <h1>Your account</h1>
     <div class="card" style="max-width:30rem">
       <p style="margin-top:0">Signed in as <b>{user.name}</b> via {user.provider}.</p>
-      <p>We store your provider user id, display name, avatar, your active sessions and your fact ratings. Nothing else.</p>
+      <p>We store your provider user id, display name, avatar, your active sessions, your fact ratings and, if you link Discord, your thumbs up/down on Discord answers (never the question text). Nothing else.</p>
       {note && <p><span class="pill">{note === 'merged' ? 'accounts merged' : note === 'already' ? 'already linked' : 'linked'}</span></p>}
       <h2>Sign-in methods</h2>
+      <p>Linking Discord ties the 👍/👎 you give to bot answers in Discord to this account, so deleting the account deletes them too.</p>
       <p>All of these open this same account.</p>
       <ul>{available.map((id) => (
         <li>{PROVIDERS[id as keyof typeof PROVIDERS].label}: {linked.includes(id) ? <b>linked</b> : <a href={`/auth/${id}?link=1&next=/account`}>link it</a>}</li>

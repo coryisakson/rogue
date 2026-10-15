@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { RateLimiter, buildSheet, ratingComponents, formatAnswer, formatError, formatSetup, type CitedSource, type ParsedInteraction } from '@rogue/core';
 import { askRules } from './chat';
 import { getClaims, getGame } from './kb';
+import { hashDiscordUser } from './discord-link';
 import { ensureMigrated, getPool, ipv4Fetch } from './services';
 
 /**
@@ -84,18 +85,24 @@ export async function runDiscordCommand(cmd: Extract<ParsedInteraction, { kind: 
   await sendFollowUp(appId, cmd.token, content, components).catch((e) => console.warn('[discord] follow-up error', e instanceof Error ? e.message : 'error'));
 }
 
-// Salted so the stored hash cannot be matched against a list of Discord ids without our key.
-const hashUser = (userId: string, salt: string) => createHash('sha256').update(`${salt}:${userId}`).digest('hex');
+/** The Rogue account linked to this Discord user id (signed in with Discord on the website), if any. */
+async function linkedRogueUser(discordId: string): Promise<number | null> {
+  const r = await getPool()!.query("SELECT user_id FROM identities WHERE provider='discord' AND provider_uid=$1", [discordId]);
+  return r.rows[0] ? Number(r.rows[0].user_id) : null;
+}
 
 /** Record (or replace) one user's thumbs on one answer message. Returns the text shown to that user only. */
-export async function recordDiscordRating(r: Extract<ParsedInteraction, { kind: 'rate' }>, salt: string): Promise<string> {
+export async function recordDiscordRating(r: Extract<ParsedInteraction, { kind: 'rate' }>): Promise<string> {
   try {
     await ensureMigrated();
+    const linked = await linkedRogueUser(r.userId);
     await getPool()!.query(
-      `INSERT INTO discord_answer_ratings(game_slug, message_id, user_hash, helpful) VALUES ($1,$2,$3,$4)
-       ON CONFLICT (message_id, user_hash) DO UPDATE SET helpful = EXCLUDED.helpful, created_at = now()`,
-      [r.game, r.messageId, hashUser(r.userId, salt), r.helpful]);
-    return r.helpful ? 'Thanks, glad it helped.' : 'Thanks, noted. The rulebook is authoritative; check the cited page.';
+      `INSERT INTO discord_answer_ratings(game_slug, message_id, user_hash, helpful, user_id) VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (message_id, user_hash) DO UPDATE SET helpful = EXCLUDED.helpful, created_at = now(), user_id = EXCLUDED.user_id`,
+      [r.game, r.messageId, hashDiscordUser(r.userId), r.helpful, linked]);
+    const thanks = r.helpful ? 'Thanks, glad it helped.' : 'Thanks, noted. The rulebook is authoritative; check the cited page.';
+    // Nudge once per vote: signing in with Discord on the site ties votes to an account you can delete.
+    return linked ? thanks : `${thanks} Tip: sign in with Discord at the Rogue website to link your votes to your account.`;
   } catch (e) {
     console.warn('[discord] rating failed', e instanceof Error ? e.message : 'error');
     return formatError('Could not save your rating. Please try again later.');
