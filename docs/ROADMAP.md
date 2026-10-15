@@ -60,6 +60,7 @@ Most valuable for MVP: (1) generated setup one-pagers, (2) Ask about the game / 
 - [ ] One-pager quality is the other MVP gate: print fit check, player-count variants table (or explicit 'none'), look at the real print
 
 ## Phase 1b · Agent team on Nanobot (decision: docs/adr/0002-nanobot-orchestration.md)
+Principle (Cory 2026-10-15): AI tasks run in Nanobot agents (via MCP) in the background; plain code operations stay in the web app so the site stays fast. Move in this order: Librarian runs, Terms Agent judgement, Scout page judgement, Curator. Live Ask stays a direct streamed call.
 No harness bake-off. Nanobot (HKUDS, MIT) is the multi-agent orchestrator; use only the features needed, nothing speculative.
 - [ ] Run Nanobot as a Docker sidecar (own container, own volume, no access to the DB or data dir); only if it cannot run in-process/beside the pod without it
 - [ ] Agent spec format: one small file per agent (role, allowed tools, model role); Scout, Rights Officer, Librarian, Designer as first specialists

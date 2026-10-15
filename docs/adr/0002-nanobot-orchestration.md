@@ -24,3 +24,10 @@ Plan v13 phase 1b called for running the same tasks on Hermes, DeepSeek Harness 
 - Dangerous defaults to switch off for Rogue: `tools.exec.enable` (shell), `tools.file.enable`, `tools.cliApps` (can install CLI apps), `tools.my`, `webuiAllowRemotePackageInstall`, `dream.enabled`, all `channels`. Keep `tools.web` only if the agent should browse (Rogue's own SSRF-guarded fetch is preferred, so likely off too). `restrictToWorkspace` is false by default: set true.
 - Consequence: the sidecar is a Python container (not in the Node app image), config generated from our agent specs, reachable only inside the pod, models via Olares Router. Not built yet.
 - Still to decide: whether Scout/Terms Agent decisions that are deterministic today (TypeScript in core) gain anything from an LLM loop. Proposal: wrap only the judgement steps (is this page the publisher's? is this terms sentence a prohibition?) as Nanobot agent calls, keep fetch, rights gate and approval in code.
+
+## Principle: AI work goes to agents, the website stays fast (Cory, 2026-10-15)
+- Straightforward code operations stay in code (web app, packages/core): fetching through the rights gate, robots/TDM checks, link extraction and ranking, SSRF guards, DB writes, approvals, rendering.
+- AI tasks (anything that waits on a model) go to Nanobot agents over MCP/the OpenAI-compatible API: Librarian drafting and verifying claims, Terms Agent judgement of legal text, Scout's 'is this the publisher's page' calls, Curator, FAQ Curator, one-pager quality review, eval judging.
+- The website never blocks on slow AI. It enqueues a job, shows status, and the agent writes back through propose-only tools (state in the DB: queued -> running -> done/needs human). Today's in-process queue (intake.ts), Librarian and Curator runs are the code that moves to agents.
+- Open design point: interactive Ask answers are AI but a user waits for them. Plan: keep them a direct, streamed model call (or a fast agent endpoint with streaming); move everything that is not a live user wait to background agents.
+- Agents propose; deterministic code decides; humans only see exceptions.

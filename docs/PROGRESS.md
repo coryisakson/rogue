@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 
+- 2026-10-15 (Hermes): Cory's architecture principle recorded (ADR 0002, ROADMAP Phase 1b): AI tasks go to Nanobot agents via MCP and run in the background; straightforward code stays in the app so the site stays fast. Live Ask is the one open point (user waits; keep a direct streamed call). Docs only.
 - 2026-10-15 (Hermes): Nanobot live-release probe done (ADR 0002 addendum). v0.3.5 installs with pip, has an OpenAI-compatible `serve` mode, MCP client config, and risky defaults (shell exec, file, cliApps, dream memory) that must be switched off. Nothing built or deployed; docs only. Left: sidecar container + chart, agent spec format, propose-only MCP tools, decide which judgement steps go through the agent.
 - 2026-10-15 (Hermes): Cory confirmed live in his browser: signed-in Ask flow, game request flow and Terms Agent are good for now (0.0.69). Docs only.
 - 2026-10-15 (Hermes): Cory accepted generic copyright wording as clear (0.0.69). judgeTerms now returns 'clear' when the only flags are copy/permission sentences (bot/AI prohibitions still 'restricted', bot/AI mentions without a rule still 'unclear'); the reason text says how many generic sentences were passed. Logged as Review Log R28. Contention's /terms/ should now clear (verify with a fresh request). 182 tests.
