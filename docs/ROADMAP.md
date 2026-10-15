@@ -29,6 +29,6 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [x] Librarian v0: cited claim drafting with verbatim-quote + verifier gates (Pandemic: 99 claims)
 - [ ] Librarian quality: frontier-model spot verification, bulk reject by creator, semantic dedupe
 - [ ] Scheduled weekly recheck + Discord digest
-- [ ] Rules chat (answer with quotes from search_rules, public UI behind login)
+- [x] Rules chat v0 (cited answers only from excerpts; login gate later)
 - [ ] Fit solver / sheet generation from claims instead of hand-built page
 - [ ] Auth (OAuth), ratings UI, Discord bot
