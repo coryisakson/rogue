@@ -34,4 +34,5 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [x] Auth (OAuth) code, needs provider credentials (docs/LOGIN_SETUP.md)
 - [x] Ratings UI (facts)
 - [x] Account deletion + ratings FK (GDPR)
+- [ ] Review queue UI (admin) for Librarian claims; second source adapter (HTML), OCR, authority ranking
 - [ ] Rate chat answers; Discord bot

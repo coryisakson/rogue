@@ -1,25 +1,31 @@
-# Handoff (written 2026-10-15, end of session)
+# Handoff (updated 2026-10-15, end of session)
 
-Live: https://rogue.cisakson.olares.com, version 0.0.35 (public: front-end pages only; /api, /mcp, admin need the x-rogue-admin token).
-Working tree: /opt/data/repos/rogue, branch main. Follow AGENTS.md and docs/DEPLOY.md.
+Live: https://rogue.cisakson.olares.com, version 0.0.42 (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
+Working tree: /opt/data/repos/rogue, branch main (commit straight to main until Cory accepts the first Olares build; see AGENTS.md). Follow AGENTS.md and docs/DEPLOY.md.
 
 ## Done
-Fetcher + rights gate, page-cited chunk index, hybrid search + LLM rerank (hit@1 92%), Librarian v0 (Pandemic: 92 published cited claims),
-claim admin (reject/dedupe), rules chat (/games/<slug>/ask, sign-in required), fit solver setup sheet, weekly recheck + Discord digest,
-OAuth login code (GitHub/Google/Discord), ratings on facts, backups, takedown flow. Test leftover in claim_ratings cleared with Cory's approval.
+- Phase 0 complete: Olares deploy, Postgres sidecar, migrations, storage provider, encrypted DB + files backups, restore CLI (scripts/restore.mjs), restore test, Discord alert code, i18n skeleton, design tokens, admin console (/admin: overview, backups, approvals, review log, users, design), OAuth login (GitHub/Google/Discord all working), account linking + merge, account deletion (GDPR), admins via Data/rogue/files/admins.json (Cory = user 8).
+- Phase 1 partly: rights-gated fetcher, page-cited chunk index, hybrid search + LLM rerank, Librarian v0 (Pandemic: 92 published cited claims), claim admin (reject/dedupe), DB-enforced provenance (triggers + provenance_violations view, 0 violations), rules chat, fit-solver setup sheet, ratings on facts, weekly recheck, MCP (backend only).
 
 ## Waiting on Cory
-OAuth app client ids/secrets (docs/LOGIN_SETUP.md). Until then login is untested end to end.
+- RGE-A13: copy Data/rogue/files/backup-key off the disk (without it backups cannot be opened).
+- RGE-A14: Discord webhook into Data/rogue/files/discord.json (alerts + weekly digest).
 
-## Next (core plan, in order)
-1. Rate chat answers (needs a stored answer id).
-2. (done 0.0.36) ratings FK + account deletion.
-3. Discord bot sharing the core lib.
-4. Add-game flow behind login (Scout + Rights Officer as code paths first).
-5. More games only after the above (Cory: no more games for MVP).
+## Next (in order)
+1. Phase 1: review queue UI in /admin for Librarian claims (approve/reject/edit, shows quote + page). Also becomes the approvals handshake.
+2. Phase 1: second source adapter (publisher HTML pages), OCR for scanned PDFs, authority ranking across sources.
+3. Rate chat answers (needs stored answer id).
+4. Discord bot sharing the core lib (Operator v0, plan 1a: approval handshake via Discord).
+5. Add-game flow behind login (Scout + Rights Officer as code paths first).
+6. Then Phase 1b agent team, Phase 2 learning loop. Cory: no more games for the MVP; acceptable beats gold-plated.
 
 ## Not now (Cory)
-BGG collection/what-shall-we-play is backlog only (docs/BACKLOG.md, docs/BGG_NOTES.md; test user CoryIsakson). MVP: acceptable beats gold-plated.
+BGG collection / what-shall-we-play is backlog only (docs/BACKLOG.md, docs/BGG_NOTES.md; test user CoryIsakson). Off-box backups and cloud storage = Phase 7b (R24).
 
 ## Gotchas
-Docker Hub tags lag CI by 1-3 min (deploy.sh retry). Pod DNS needs ipv4Fetch. gemma4 needs large max_tokens. Hourly stall-check cron 9a8bfa208abe resumes ROADMAP work if idle.
+- Deploy chain: scripts/bump-version.sh patch -> commit -> push with GITHUB_TOKEN header (see DEPLOY.md) -> wait for CI + image (monitor-actions.py) -> scripts/deploy.sh (retry once after 90 s: Docker Hub lags 1-3 min) -> scripts/verify.sh. PATH needs /home/linuxbrew/.linuxbrew/bin. Pod takes ~1-2 min after deploy (502 meanwhile).
+- Admin API token: Data/rogue/files/admin-token, header x-rogue-admin. Fetch with olares-cli files download.
+- Pod DNS needs ipv4Fetch; gemma4 needs large max_tokens; Astro checkOrigin is off, every POST handler must call sameOrigin().
+- Layouts cannot return redirects: guard in middleware.ts.
+- Long chained terminal commands can trip the approval timeout; keep deploy steps in separate calls.
+- Hourly stall-check cron 9a8bfa208abe resumes ROADMAP work if idle.
