@@ -14,6 +14,16 @@ export async function listGames(): Promise<Game[]> {
   return r.rows;
 }
 
+/** Games by popularity: questions asked first (chat_answers keeps no user), then size of the fact base. Games with no sources go last. */
+export async function listPopularGames(): Promise<(Game & { asked: number })[]> {
+  const games = await listGames();
+  const pool = getPool();
+  const asked = new Map<string, number>();
+  if (pool) for (const r of (await pool.query('SELECT game_slug, count(*)::int n FROM chat_answers GROUP BY game_slug')).rows) asked.set(r.game_slug, r.n);
+  return games.map((g) => ({ ...g, asked: asked.get(g.slug) ?? 0 }))
+    .sort((a, b) => Number(b.claim_count > 0) - Number(a.claim_count > 0) || b.asked - a.asked || b.claim_count - a.claim_count || a.name.localeCompare(b.name));
+}
+
 export async function getGame(slug: string): Promise<Game | null> {
   return (await listGames()).find((g) => g.slug === slug) ?? null;
 }

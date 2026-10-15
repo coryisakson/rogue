@@ -1,20 +1,56 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { listGames } from '../../lib/kb';
-const games = await listGames();
+import { listPopularGames } from '../../lib/kb';
+const games = await listPopularGames();
+const POPULAR = 6; // shown without scrolling; everything else is reached by typing
+const data = games.map((g) => ({ slug: g.slug, name: g.name, publisher: g.publisher, year: g.year, players: `${g.min_players}–${g.max_players}`, ready: g.claim_count > 0 }));
 ---
 <Base title="Games">
   <main>
     <h1>Games</h1>
-    <div class="grid">
-      {games.map((g) => (
+    <label for="gs" class="sr-only" style="position:absolute;left:-9999px">Search games</label>
+    <input id="gs" type="search" placeholder="Type a game name…" autocomplete="off" style="width:100%;max-width:36rem;padding:.6rem .8rem;font-size:1.05rem" />
+    <p id="gs-count" aria-live="polite" style="margin:.4rem 0"><small>Popular games</small></p>
+    <div id="gs-grid" class="grid">
+      {games.slice(0, POPULAR).map((g) => (
         <div class="card">
           <h3 style="margin:.1rem 0"><a href={`/games/${g.slug}`}>{g.name}</a></h3>
           <div>{g.publisher} · {g.year} · {g.min_players}–{g.max_players} players</div>
-          <p>{g.claim_count > 0 ? <span class="pill ok">{g.claim_count} cited facts</span> : <span class="pill">no sources ingested yet</span>}</p>
+          <p>{g.claim_count > 0 ? <span class="pill ok">ready to ask</span> : <span class="pill">no sources ingested yet</span>}</p>
         </div>
       ))}
     </div>
-    <p style="margin-top:1.5rem">Missing a game? <a href="/request-game">Request it</a> (sign in, publisher rulebook link, admin approves).</p>
+    <div id="gs-missing" class="card" hidden style="margin-top:1rem">
+      <b>We don't have <span id="gs-term"></span> yet.</b>
+      <p style="margin:.4rem 0">Do you want it added? <a id="gs-link" href="/request-game">Request this game</a> (sign in; an agent looks for the publisher's rules and an admin only steps in if needed).</p>
+    </div>
+    <p id="gs-foot" style="margin-top:1.5rem">Missing a game? <a href="/request-game">Request it</a>.</p>
   </main>
+  <script type="application/json" id="gs-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')}></script>
+  <script is:inline>
+    (function () {
+      var all = JSON.parse(document.getElementById('gs-data').textContent);
+      var input = document.getElementById('gs'), grid = document.getElementById('gs-grid'), count = document.getElementById('gs-count');
+      var missing = document.getElementById('gs-missing'), term = document.getElementById('gs-term'), link = document.getElementById('gs-link'), foot = document.getElementById('gs-foot');
+      var POPULAR = 6;
+      function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+      function norm(s) { return String(s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+      function card(g) {
+        return '<div class="card"><h3 style="margin:.1rem 0"><a href="/games/' + encodeURIComponent(g.slug) + '">' + esc(g.name) + '</a></h3><div>' + esc(g.publisher) + ' · ' + esc(g.year) + ' · ' + esc(g.players) + ' players</div><p>' +
+          (g.ready ? '<span class="pill ok">ready to ask</span>' : '<span class="pill">no sources ingested yet</span>') + '</p></div>';
+      }
+      function render() {
+        var raw = input.value.replace(/\s+/g, ' ').trim(), q = norm(raw);
+        if (!q) { grid.innerHTML = all.slice(0, POPULAR).map(card).join(''); count.innerHTML = '<small>Popular games</small>'; missing.hidden = true; foot.hidden = false; return; }
+        var words = q.split(' ');
+        var hits = all.filter(function (g) { var hay = norm(g.name + ' ' + (g.publisher || '')); return words.every(function (w) { return hay.indexOf(w) !== -1; }); });
+        hits.sort(function (a, b) { return Number(norm(b.name).indexOf(q) === 0) - Number(norm(a.name).indexOf(q) === 0); });
+        grid.innerHTML = hits.map(card).join('');
+        count.innerHTML = '<small>' + hits.length + (hits.length === 1 ? ' game' : ' games') + ' match</small>';
+        missing.hidden = hits.length > 0; foot.hidden = hits.length === 0;
+        if (!hits.length) { term.textContent = '“' + raw + '”'; link.href = '/request-game?q=' + encodeURIComponent(raw.slice(0, 80)); }
+      }
+      input.addEventListener('input', render);
+    })();
+  </script>
 </Base>

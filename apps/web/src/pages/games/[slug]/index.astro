@@ -2,6 +2,7 @@
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
 import { ratingLabel } from '@rogue/core';
+import { isAdmin } from '../../../lib/admin';
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
@@ -9,7 +10,9 @@ const user = Astro.locals.user;
 const claims = await getClaims(slug!, user ? { userId: user.id } : {});
 const here = Astro.url.pathname + Astro.url.search;
 const sources = [...new Map(claims.map((c) => [c.source_url, c])).values()];
-const q = Astro.url.searchParams.get('q');
+// Players get one answers-first box (cited answers); the raw fact list is an admin tool (Cory 2026-10-15).
+const admin = isAdmin(user);
+const q = admin ? Astro.url.searchParams.get('facts') : null;
 const links = claims.filter((c) => c.topic === 'companion');
 const rest = claims.filter((c) => c.topic !== 'companion');
 const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase())) : rest;
@@ -18,8 +21,12 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
   <main>
     <h1>{game.name}</h1>
     <p>{game.publisher} · {game.year} · {game.min_players}–{game.max_players} players {game.bgg_id && <>· <a href={`https://boardgamegeek.com/boardgame/${game.bgg_id}`}>BoardGameGeek ↗</a></>}</p>
-    <p><a class="btn" href={`/games/${slug}/setup`}>Setup one-pager</a> <a class="btn" href={`/games/${slug}/ask`} style="background:#cdbf9b">Ask the rules</a> <a class="btn" href={`/games/${slug}/faq`} style="background:#cdbf9b">FAQ</a></p>
-    <form method="get" style="margin:1rem 0"><input name="q" value={q ?? ''} placeholder="Search this game's facts…" style="padding:.5rem;width:min(24rem,80%);border-radius:8px;border:0" /> <button class="btn" style="border:0">Search</button></form>
+    <form method="get" action={`/games/${slug}/ask`} style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap">
+      <input name="q" placeholder={`Ask anything about ${game.name}…`} maxlength="300" required style="padding:.7rem .9rem;font-size:1.05rem;flex:1;min-width:14rem;max-width:40rem;border-radius:8px;border:0" />
+      <button class="btn" type="submit" style="border:0;cursor:pointer">Ask</button>
+    </form>
+    <p><small style="opacity:.8">Every answer cites the publisher's rulebook page.</small></p>
+    <p><a class="btn" href={`/games/${slug}/setup`}>Setup one-pager</a> <a class="btn" href={`/games/${slug}/faq`} style="background:#cdbf9b">Common questions</a></p>
     {links.length > 0 && (
       <div class="card" id="links">
         <h2 style="margin-top:0">Companion app and links</h2>
@@ -33,7 +40,8 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
       </div>
     )}
     {claims.length === 0 && <div class="card"><b>No cited facts yet.</b> We have not ingested an official source for this game. If you are the publisher, you can <a href="/about#publishers">contact us</a> to authorise one.</div>}
-    <details open={Boolean(q)}><summary style="cursor:pointer;margin:.6rem 0"><b>Fact base ({rest.length})</b> <small style="opacity:.7">the cited facts behind our answers and one-pagers; most players just use the buttons above</small></summary>
+    {admin && <details open={Boolean(q)}>
+    <form method="get" style="margin:.6rem 0"><input name="facts" value={q ?? ''} placeholder="Admin: filter facts…" style="padding:.4rem;width:min(20rem,80%)" /> <button class="btn" style="border:0">Filter</button></form><summary style="cursor:pointer;margin:.6rem 0"><b>Fact base ({rest.length})</b> <small style="opacity:.7">the cited facts behind our answers and one-pagers; admin view</small></summary>
     <div style="display:grid;gap:.8rem">
       {shown.map((c) => (
         <div class="card" id={`c${c.id}`}>
@@ -52,7 +60,7 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
         </div>
       ))}
     </div>
-    </details>
+    </details>}
     <h2>Sources</h2>
     <ul>{sources.map((s) => <li><a href={s.source_url}>{s.source_title}</a> · {s.publisher} · edition: {s.edition} · {s.availability === 'available' ? 'available' : 'no longer available'}</li>)}</ul>
     <p style="opacity:.7"><small>We link to the publisher's file and quote only short passages. We do not host rulebooks.</small></p>

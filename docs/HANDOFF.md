@@ -1,6 +1,6 @@
 # Handoff (updated 2026-10-15, end of session)
 
-Live: https://rogue.cisakson.olares.com, version 0.0.66 (game intake: name search, queue, Scout search; Discord bot on, add-game flow) (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
+Live: https://rogue.cisakson.olares.com, version 0.0.68 (game intake: name search, queue, Scout search; Discord bot on, add-game flow) (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
 Working tree: /opt/data/repos/rogue, branch main (commit straight to main until Cory accepts the first Olares build; see AGENTS.md). Follow AGENTS.md and docs/DEPLOY.md.
 
 ## Done
@@ -9,6 +9,8 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 
 ## Waiting on Cory
 - Nothing. RGE-A13 done (key copied). RGE-A14 deferred by Cory: Discord alerts/digests wait for the full Discord integration (users use Rogue inside the Discord app); then add an admins channel. Alert code (notify.ts) already exists and only logs until a webhook/bot is configured.
+
+## Done 2026-10-15 late (pre-Phase 2 todos from Cory): Terms Agent + CDN awareness (0.0.67), merged answers-first game page + /games popular/typeahead/missing-game (0.0.68). Open question for Cory: may generic 'no copying without permission' wording count as clear? (it blocks nearly all auto-clears). Remaining order below: Nanobot wrap, FAQ eval set, then Phase 2.
 
 ## Start here next session (Cory, end of 2026-10-15; the work stopped on purpose)
 Live is 0.0.63. Signed-in click-throughs are DONE (Cory). Do these in order, details in docs/ROADMAP.md 'Priority queue':
