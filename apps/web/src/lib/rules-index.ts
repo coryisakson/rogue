@@ -1,4 +1,4 @@
-import { chunkText, orQuery, rrf } from '@rogue/core';
+import { applyRanking, chunkText, orQuery, parseRanking, rrf } from '@rogue/core';
 import { ensureMigrated, getAi, getPool, storage } from './services';
 
 /** Chunk a source's extracted text and (best effort) embed it. Re-running replaces the source's chunks. */
@@ -65,7 +65,7 @@ async function embedQuery(q: string): Promise<number[] | null> {
 export interface RuleHit { chunk_id: string; game: string; slug: string; page: number; snippet: string; source_title: string; source_url: string; publisher: string | null; availability: string; via: string }
 
 /** Hybrid retrieval over whole rulebooks. Snippets are capped: the full private text is never returned. */
-export async function searchRules(q: string, opts: { game?: string; limit?: number; snippet?: number } = {}): Promise<RuleHit[]> {
+export async function searchRules(q: string, opts: { game?: string; limit?: number; snippet?: number; rerank?: boolean } = {}): Promise<RuleHit[]> {
   const pool = getPool(); if (!pool) return [];
   await ensureMigrated();
   const limit = Math.min(opts.limit ?? 6, 20);
@@ -79,10 +79,38 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   const v = await embedQuery(q);
   if (v) vec = (await pool.query(
     `SELECT ch.id::text id ${base} WHERE ch.embedding IS NOT NULL AND ($2::text IS NULL OR g.slug=$2) ORDER BY ch.embedding <=> $1::vector LIMIT 30`, [`[${v.join(',')}]`, game])).rows.map((r) => r.id as string);
-  const ids = rrf([kw, vec]).slice(0, limit);
+  let ids = rrf([kw, vec]).slice(0, opts.rerank ? Math.max(limit, 10) : limit);
   if (!ids.length) return [];
   const rows = (await pool.query(
     `SELECT ch.id::text chunk_id, g.name game, g.slug, ch.page, left(ch.text, $2) snippet, s.title source_title, s.url source_url, s.publisher, s.availability ${base} WHERE ch.id = ANY($1::bigint[])`, [ids, snip])).rows;
   const byId = new Map(rows.map((r) => [r.chunk_id as string, r]));
+  if (opts.rerank && ids.length > 1) ids = (await rerank(q, ids.filter((id) => byId.has(id)), byId)).slice(0, limit);
   return ids.filter((id) => byId.has(id)).map((id) => ({ ...byId.get(id), via: kw.includes(id) && vec.includes(id) ? 'keyword+semantic' : kw.includes(id) ? 'keyword' : 'semantic' }));
+}
+
+const rerankCache = new Map<string, string[]>();
+
+/** Ask the chat model to order the candidates by usefulness for the question. Any failure keeps the original order. */
+async function rerank(q: string, ids: string[], byId: Map<string, { snippet: string; page: number }>): Promise<string[]> {
+  const ai = getAi(); if (!ai) return ids;
+  const key = q + '|' + ids.join(',');
+  const hit = rerankCache.get(key); if (hit) return hit;
+  const list = ids.map((id, i) => `[${i + 1}] (p.${byId.get(id)!.page}) ${byId.get(id)!.snippet.replace(/\s+/g, ' ').slice(0, 320)}`).join('\n');
+  try {
+    const r = await ai.chat({
+      temperature: 0,
+      maxTokens: 60,
+      messages: [
+        { role: 'system', content: 'You rank excerpts of a board game rulebook by how directly they answer the question. Excerpts that state the rule outrank examples, glossaries or flavour. Reply with ONLY a JSON array of the excerpt numbers, best first, at most 5 numbers. Example: [3,1,4]' },
+        { role: 'user', content: `Question: ${q}\n\nExcerpts:\n${list}` },
+      ],
+    });
+    const out = applyRanking(ids, parseRanking(r.text, ids.length));
+    if (rerankCache.size > 300) rerankCache.clear();
+    rerankCache.set(key, out);
+    return out;
+  } catch (e) {
+    console.warn(`[rules-search] rerank failed, keeping fused order: ${(e as Error).message}`);
+    return ids;
+  }
 }

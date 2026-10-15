@@ -1,0 +1,54 @@
+{
+ "game": "pandemic",
+ "note": "A question passes at rank k if any of the top k snippets contains the regex in `must` (case-insensitive). Text-based so it survives re-chunking.",
+ "questions": [
+  {
+   "q": "Who goes first?",
+   "must": "population"
+  },
+  {
+   "q": "What is the hand limit?",
+   "must": "hand limit"
+  },
+  {
+   "q": "How many cards can a player hold at most?",
+   "must": "hand limit"
+  },
+  {
+   "q": "How do I get rid of a disease for good?",
+   "must": "eradicated"
+  },
+  {
+   "q": "What happens when an outbreak causes a chain reaction?",
+   "must": "chain reaction"
+  },
+  {
+   "q": "Can I give a card to another player?",
+   "must": "share knowledge"
+  },
+  {
+   "q": "How many cards does each player get at the start?",
+   "must": "give cards according"
+  },
+  {
+   "q": "How do I build a research station?",
+   "must": "build a research station"
+  },
+  {
+   "q": "What does an epidemic do?",
+   "must": "epidemic"
+  },
+  {
+   "q": "How do I remove disease cubes from a city?",
+   "must": "treat disease"
+  },
+  {
+   "q": "Wie viele Karten bekommt jeder Spieler am Anfang?",
+   "must": "give cards according"
+  },
+  {
+   "q": "Que se passe-t-il quand une \u00e9pid\u00e9mie se d\u00e9clenche ?",
+   "must": "epidemic"
+  }
+ ]
+}
