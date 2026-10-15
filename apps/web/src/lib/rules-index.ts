@@ -2,7 +2,16 @@ import { chunkText, rrf } from '@rogue/core';
 import { ensureMigrated, getAi, getPool, storage } from './services';
 
 /** Chunk a source's extracted text and (best effort) embed it. Re-running replaces the source's chunks. */
+const running = new Set<number>();
+
 export async function indexSource(sourceId: number): Promise<{ chunks: number; embedded: number; model: string | null; note?: string }> {
+  // Retried or concurrent requests must not index the same source twice at once.
+  if (running.has(sourceId)) return { chunks: 0, embedded: 0, model: null, note: 'already indexing; skipped' };
+  running.add(sourceId);
+  try { return await indexSourceInner(sourceId); } finally { running.delete(sourceId); }
+}
+
+async function indexSourceInner(sourceId: number): Promise<{ chunks: number; embedded: number; model: string | null; note?: string }> {
   const pool = getPool(); if (!pool) throw new Error('database not configured');
   await ensureMigrated();
   const s = (await pool.query('SELECT text_path, language FROM sources WHERE id=$1', [sourceId])).rows[0];
@@ -12,6 +21,7 @@ export async function indexSource(sourceId: number): Promise<{ chunks: number; e
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1)', [sourceId]);
     await client.query('DELETE FROM chunks WHERE source_id=$1', [sourceId]);
     for (const c of chunks) await client.query('INSERT INTO chunks(source_id,page,ord,text,lang) VALUES ($1,$2,$3,$4,$5)', [sourceId, c.page, c.ord, c.text, s.language ?? 'en']);
     await client.query('COMMIT');
