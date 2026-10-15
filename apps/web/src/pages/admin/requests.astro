@@ -2,6 +2,7 @@
 import Admin from '../../layouts/Admin.astro';
 import { sameOrigin } from '@rogue/core';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
+import { scoutRequest } from '../../lib/scout';
 import { isAdmin } from '../../lib/admin';
 import { ensureMigrated, getPool } from '../../lib/services';
 // Middleware already limits /admin to signed-in admins; the check is repeated because this page also handles POST.
@@ -18,6 +19,7 @@ if (Astro.request.method === 'POST') {
   else if (action === 'approve') { const r = await approveRequest(id, me, f.get('terms') === 'yes'); msg = r.ok ? `Request #${id} approved. Fetching, indexing and drafting facts in the background.` : (r.error ?? 'Could not approve.'); }
   else if (action === 'reject') msg = (await rejectRequest(id, me, String(f.get('reason') ?? 'not accepted'))) ? `Request #${id} rejected.` : 'Request was not waiting.';
   else if (action === 'recheck') { await runChecks(id); msg = `Checks re-run for #${id}.`; }
+  else if (action === 'scout') { const r = await scoutRequest(id); msg = r ? `Scout scanned the publisher page for #${id}.` : 'Request was not waiting.'; }
   else msg = 'Unknown action.';
 }
 const rows = (await getPool()!.query(`SELECT r.*, u.display_name requester FROM game_requests r LEFT JOIN users u ON u.id=r.user_id ORDER BY (r.status IN ('submitted','checked')) DESC, r.id DESC LIMIT 50`)).rows;
@@ -33,6 +35,15 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
       <div><small>{r.publisher} · {r.year ?? 'year ?'} · {r.language} · by {r.requester ?? 'deleted user'} · slug <code>{r.slug}</code></small></div>
       <div>Rulebook: <a href={r.rulebook_url} rel="noopener nofollow">{r.rulebook_url}</a>{r.found_on && <> · found on <a href={r.found_on} rel="noopener nofollow">{r.found_on}</a></>}</div>
       {r.report && <ul>{r.report.findings.map((x: { level: string; text: string }) => <li>{x.level === 'ok' ? '✅' : x.level === 'warn' ? '⚠️' : '⛔'} {x.text}</li>)}</ul>}
+      {r.scout && (
+        <details style="margin:.4rem 0"><summary>Scout: {r.scout.candidates.length} candidate documents, {r.scout.termsFlags.length} terms flags</summary>
+          {r.scout.candidates.length > 0 && <ul>{r.scout.candidates.map((c: { url: string; text: string; role: string; why: string }) => <li><b>{c.role}</b> <a href={c.url} rel="noopener nofollow">{c.text || c.url}</a> <small>({c.why})</small></li>)}</ul>}
+          {r.scout.termsUrl && <div>Terms page: <a href={r.scout.termsUrl} rel="noopener nofollow">{r.scout.termsUrl}</a></div>}
+          {r.scout.termsFlags.length > 0 && <ul>{r.scout.termsFlags.map((f: { kind: string; excerpt: string }) => <li>🚩 <b>{f.kind}</b>: {f.excerpt}</li>)}</ul>}
+          {r.scout.notes.length > 0 && <ul>{r.scout.notes.map((n: string) => <li>{n}</li>)}</ul>}
+          <small>Scout only proposes; flags show where to read first and never clear a site.</small>
+        </details>
+      )}
       {r.progress && <div><small>Pipeline: {r.progress}</small></div>}
       {r.reject_reason && <div><small>Rejected: {r.reject_reason}</small></div>}
       {r.status === 'checked' && (
@@ -44,6 +55,7 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
           )}
           <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
           <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="recheck" /><button class="btn" style="border:0;cursor:pointer">Re-run checks</button></form>
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="scout" /><button class="btn" style="border:0;cursor:pointer">Scout the publisher page</button></form>
         </div>
       )}
     </div>

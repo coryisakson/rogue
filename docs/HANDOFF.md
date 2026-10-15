@@ -1,6 +1,6 @@
 # Handoff (updated 2026-10-15, end of session)
 
-Live: https://rogue.cisakson.olares.com, version 0.0.63 (Discord bot on, rating buttons linked to accounts, add-game flow) (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
+Live: https://rogue.cisakson.olares.com, version 0.0.64 (Scout v0 button on /admin/requests; Discord bot on, add-game flow) (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
 Working tree: /opt/data/repos/rogue, branch main (commit straight to main until Cory accepts the first Olares build; see AGENTS.md). Follow AGENTS.md and docs/DEPLOY.md.
 
 ## Done
@@ -12,7 +12,7 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 
 ## Start here next session (Cory, end of 2026-10-15; the work stopped on purpose)
 Live is 0.0.63. Signed-in click-throughs are DONE (Cory). Do these in order, details in docs/ROADMAP.md 'Priority queue':
-1. Agent orchestration (Nanobot, ADR 0002) + the Scout (rulebook link search, publisher page link extraction, terms-of-use flagging). Cory really wants these.
+1. Agent orchestration (Nanobot, ADR 0002; probe the live release first). Scout v0 DONE 0.0.64 (link extraction, ranking, terms flagging, button on /admin/requests); left: web search for the rulebook link, wrap Scout as a Nanobot tool.
 2. FAQ test suite: search the web for 10 FAQs each for Pandemic and Slay the Spire, add them as an eval set run against the Ask endpoint (include count/list questions), before Phase 2.
 3. Merge fact search and rules Ask into one UI (single answers-first search; cited answers are enough).
 4. Then: list/count eval, Q&A become facts, FAQ Curator agent, one-pager quality gate, printed-page detection, frontier judge (ROGUE_JUDGE_*, needs a model route; ask Cory via APPROVALS).

@@ -22,3 +22,4 @@ export * from './ocr/index.js';
 export * from './qr/index.js';
 export * from './addgame/index.js';
 export * from './faq.js';
+export * from './scout/index.js';
