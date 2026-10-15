@@ -25,6 +25,17 @@ export const SEEDS: SourceSeed[] = [
     foundOn: 'https://www.zmangames.com/game/pandemic/',
   },
   {
+    // First HTML source: the publisher's own product page (box contents, player count, age, play time). Ranked below the rulebook.
+    gameSlug: 'pandemic',
+    url: 'https://www.zmangames.com/game/pandemic/',
+    title: 'Pandemic product page (Z-Man Games)',
+    publisher: 'Z-Man Games',
+    language: 'en',
+    kind: 'other',
+    editionLabel: 'Z-Man product page (publisher site)',
+    foundOn: 'https://www.zmangames.com/game/pandemic/',
+  },
+  {
     gameSlug: 'slay-the-spire',
     url: 'https://contentiongames.com/_images/STS_KS_Rulebook.pdf',
     title: 'Slay the Spire: The Board Game Rulebook',

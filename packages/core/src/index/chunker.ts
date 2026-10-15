@@ -36,9 +36,10 @@ export function chunkText(text: string, opts: { target?: number; overlap?: numbe
 }
 
 /** Reciprocal rank fusion of ranked id lists (best first). Used to merge keyword and vector results. */
-export function rrf(lists: string[][], k = 60): string[] {
+export function rrf(lists: string[][], k = 60, weight: (id: string) => number = () => 1): string[] {
   const score = new Map<string, number>();
   for (const l of lists) l.forEach((id, i) => score.set(id, (score.get(id) ?? 0) + 1 / (k + i + 1)));
+  for (const [id, v] of score) score.set(id, v * weight(id));
   return [...score.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
 }
 

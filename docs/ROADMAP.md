@@ -18,8 +18,8 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 ## Phase 1 · KB core (in progress)
 - [x] Rights-gated fetcher, PDF + HTML adapters, OCR (PaddleOCR-VL), QR links, page-cited chunk index, hybrid search + rerank
 - [x] Librarian v0, provenance enforced in DB, review by exception, Curator auto-resolve, rules chat, ratings (facts + answers), Discord bot, add-game flow + Rights Officer v0
-- [ ] First real HTML seed through the HTML adapter (adapter merged, never run on a live page)
-- [ ] Authority ranking across sources (per-game, publisher > third party)
+- [~] First real HTML seed: Pandemic product page seeded 0.0.60 (live ingest to verify)
+- [x] Authority ranking across sources (kind x authority weight in retrieval fusion) 0.0.60
 - [ ] Scout finds the rulebook link itself (search + publisher page link extraction); terms-of-use clause flagging
 - [ ] Configure the frontier judge (ROGUE_JUDGE_*) so Curator can reject, not only restore
 - [x] Rules FAQ from answer ratings (public 'N of M helpful', admin sees low-rated only) 0.0.58

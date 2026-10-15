@@ -1,4 +1,4 @@
-import { applyRanking, chunkText, orQuery, parseRanking, rrf } from '@rogue/core';
+import { applyRanking, chunkText, orQuery, parseRanking, rrf, sourceWeight } from '@rogue/core';
 import { ensureMigrated, getAi, getPool, storage } from './services';
 
 /** Chunk a source's extracted text and (best effort) embed it. Re-running replaces the source's chunks. */
@@ -79,7 +79,12 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   const v = await embedQuery(q);
   if (v) vec = (await pool.query(
     `SELECT ch.id::text id ${base} WHERE ch.embedding IS NOT NULL AND ($2::text IS NULL OR g.slug=$2) ORDER BY ch.embedding <=> $1::vector LIMIT 30`, [`[${v.join(',')}]`, game])).rows.map((r) => r.id as string);
-  let ids = rrf([kw, vec]).slice(0, opts.rerank ? Math.max(limit, 10) : limit);
+  // Authority ranking: official FAQ/errata and publisher sources lift above product pages and community text.
+  const cand = [...new Set([...kw, ...vec])];
+  const wrows = cand.length ? (await pool.query(
+    `SELECT ch.id::text id, d.kind, s.authority ${base} WHERE ch.id = ANY($1::bigint[])`, [cand])).rows : [];
+  const weights = new Map(wrows.map((r) => [r.id as string, sourceWeight(r.kind, r.authority)]));
+  let ids = rrf([kw, vec], 60, (id) => weights.get(id) ?? 1).slice(0, opts.rerank ? Math.max(limit, 10) : limit);
   if (!ids.length) return [];
   const rows = (await pool.query(
     `SELECT ch.id::text chunk_id, g.name game, g.slug, ch.page, left(ch.text, $2) snippet, s.title source_title, s.url source_url, s.publisher, s.availability ${base} WHERE ch.id = ANY($1::bigint[])`, [ids, snip])).rows;
