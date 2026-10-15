@@ -1,4 +1,4 @@
-import { chunkText, rrf } from '@rogue/core';
+import { chunkText, orQuery, rrf } from '@rogue/core';
 import { ensureMigrated, getAi, getPool, storage } from './services';
 
 /** Chunk a source's extracted text and (best effort) embed it. Re-running replaces the source's chunks. */
@@ -48,6 +48,20 @@ async function indexSourceInner(sourceId: number): Promise<{ chunks: number; emb
   return { chunks: chunks.length, embedded, model, ...(note ? { note } : {}) };
 }
 
+const qCache = new Map<string, number[]>();
+async function embedQuery(q: string): Promise<number[] | null> {
+  const hit = qCache.get(q); if (hit) return hit;
+  const ai = getAi(); if (!ai) return null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const v = (await ai.embed([q])).vectors[0];
+      if (v?.length === 768) { if (qCache.size > 500) qCache.clear(); qCache.set(q, v); return v; }
+    } catch (e) { console.warn(`[rules-search] query embed attempt ${attempt + 1} failed: ${(e as Error).message}`); }
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+  }
+  return null;
+}
+
 export interface RuleHit { chunk_id: string; game: string; slug: string; page: number; snippet: string; source_title: string; source_url: string; publisher: string | null; availability: string; via: string }
 
 /** Hybrid retrieval over whole rulebooks. Snippets are capped: the full private text is never returned. */
@@ -58,17 +72,13 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   const snip = Math.min(opts.snippet ?? 400, 600);
   const game = opts.game ?? null;
   const base = `FROM chunks ch JOIN sources s ON s.id=ch.source_id JOIN documents d ON d.source_id=s.id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id`;
-  const kw = (await pool.query(
-    `SELECT ch.id::text id ${base}, websearch_to_tsquery('simple',$1) tq WHERE ch.tsv @@ tq AND ($2::text IS NULL OR g.slug=$2) ORDER BY ts_rank_cd(ch.tsv,tq) DESC LIMIT 30`, [q, game])).rows.map((r) => r.id as string);
+  const oq = orQuery(q);
+  const kw = oq ? (await pool.query(
+    `SELECT ch.id::text id ${base}, to_tsquery('simple',$1) tq WHERE ch.tsv @@ tq AND ($2::text IS NULL OR g.slug=$2) ORDER BY ts_rank_cd(ch.tsv,tq) DESC LIMIT 30`, [oq, game])).rows.map((r) => r.id as string) : [];
   let vec: string[] = [];
-  const ai = getAi();
-  if (ai) {
-    try {
-      const v = (await ai.embed([q])).vectors[0];
-      if (v?.length === 768) vec = (await pool.query(
-        `SELECT ch.id::text id ${base} WHERE ch.embedding IS NOT NULL AND ($2::text IS NULL OR g.slug=$2) ORDER BY ch.embedding <=> $1::vector LIMIT 30`, [`[${v.join(',')}]`, game])).rows.map((r) => r.id as string);
-    } catch { /* keyword results still returned */ }
-  }
+  const v = await embedQuery(q);
+  if (v) vec = (await pool.query(
+    `SELECT ch.id::text id ${base} WHERE ch.embedding IS NOT NULL AND ($2::text IS NULL OR g.slug=$2) ORDER BY ch.embedding <=> $1::vector LIMIT 30`, [`[${v.join(',')}]`, game])).rows.map((r) => r.id as string);
   const ids = rrf([kw, vec]).slice(0, limit);
   if (!ids.length) return [];
   const rows = (await pool.query(

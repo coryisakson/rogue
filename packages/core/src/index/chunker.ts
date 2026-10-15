@@ -41,3 +41,11 @@ export function rrf(lists: string[][], k = 60): string[] {
   for (const l of lists) l.forEach((id, i) => score.set(id, (score.get(id) ?? 0) + 1 / (k + i + 1)));
   return [...score.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
 }
+
+const STOP = new Set('a an the of to in on for and or is are was be do does did can i you we it that this with as at by from how what when who why which my your me if then than so not no'.split(' '));
+/** Conversational question -> OR query over content words (websearch_to_tsquery is AND-only and returns nothing for questions). */
+export function orQuery(q: string): string {
+  const words = [...new Set(q.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 1 && !STOP.has(w)))];
+  return words.join(' | ');
+}
+

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chunkText, rrf, splitPages } from './chunker.js';
+import { chunkText, orQuery, rrf, splitPages } from './chunker.js';
 
 const sample = `\n\n=== page 1 ===\n${'Alpha rule sentence. '.repeat(120)}\n\n=== page 2 ===\nShort page two text here, long enough.\n\n=== page 3 ===\n  `;
 
@@ -29,5 +29,11 @@ describe('chunker', () => {
   it('rrf merges ranked lists', () => {
     expect(rrf([['a', 'b', 'c'], ['b', 'a', 'd']])[0]).toBe('a');
     expect(rrf([['x'], ['y']])).toHaveLength(2);
+  });
+  it('orQuery keeps content words and is tsquery-safe', () => {
+    expect(orQuery('How do I get rid of a disease for good?')).toBe('get | rid | disease | good');
+    expect(orQuery("what's (a:b) & !c")).not.toMatch(/[():&!']/);
+    expect(orQuery('ゲーム 準備')).toBe('ゲーム | 準備');
+    expect(orQuery('the of a')).toBe('');
   });
 });
