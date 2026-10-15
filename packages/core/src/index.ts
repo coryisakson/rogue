@@ -11,3 +11,4 @@ export * from './security/index.js';
 export * from './librarian/index.js';
 export * from './chat/index.js';
 export * from './auth/index.js';
+export * from './digest';

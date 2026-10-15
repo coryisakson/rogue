@@ -28,7 +28,7 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [x] Fetcher with rights gate; PDF text; page-cited chunk index; hybrid search + LLM rerank (hit@1 92% on 12-question eval)
 - [x] Librarian v0: cited claim drafting with verbatim-quote + verifier gates (Pandemic: 99 claims)
 - [ ] Librarian quality: frontier-model spot verification, bulk reject by creator, semantic dedupe
-- [ ] Scheduled weekly recheck + Discord digest
+- [x] Scheduled weekly recheck + digest code (needs ROGUE_DISCORD_WEBHOOK_URL to post)
 - [x] Rules chat v0 (cited answers only from excerpts; login gate later)
 - [ ] Fit solver / sheet generation from claims instead of hand-built page
 - [x] Auth (OAuth) code, needs provider credentials (docs/LOGIN_SETUP.md)

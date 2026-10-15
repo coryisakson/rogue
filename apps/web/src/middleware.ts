@@ -1,6 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { isChatPath, isCostlyPath, isPublicPath, RateLimiter, safeEqual } from '@rogue/core';
 import { startBackupScheduler } from './lib/backup-runner';
+import { startRecheckScheduler } from './lib/recheck-scheduler';
 import { adminToken } from './lib/admin-token';
 import { userFromRequest } from './lib/auth';
 
@@ -15,6 +16,7 @@ const deny = (status: number, msg: string, extra: Record<string, string> = {}) =
 // because the entrance may be public (no Olares login in front).
 export const onRequest = defineMiddleware(async (ctx, next) => {
   startBackupScheduler();
+  startRecheckScheduler();
   const { pathname } = new URL(ctx.request.url);
 
   if (!isPublicPath(pathname)) {
