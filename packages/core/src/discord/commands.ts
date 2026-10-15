@@ -2,11 +2,13 @@
 
 export const INTERACTION_PING = 1;
 export const INTERACTION_APPLICATION_COMMAND = 2;
+export const INTERACTION_MESSAGE_COMPONENT = 3;
 
 export type ParsedInteraction =
   | { kind: 'ping' }
   | { kind: 'setup'; game: string; players: number | null; userId: string; token: string }
   | { kind: 'ask'; game: string; question: string; userId: string; token: string }
+  | { kind: 'rate'; game: string; helpful: boolean; messageId: string; userId: string }
   | { kind: 'invalid'; message: string };
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -48,9 +50,30 @@ export function interactionUserId(i: Record<string, unknown>): string | null {
   return typeof id === 'string' && /^\d{1,25}$/.test(id) ? id : null;
 }
 
+/** custom_id of the rating buttons under an /ask answer. Carries no user text, only the game and the verdict. */
+export const ratingCustomId = (game: string, helpful: boolean): string => `rate:${game}:${helpful ? 'up' : 'down'}`;
+
+/** Action row with the two rating buttons (type 2 = button, style 2 = grey). */
+export function ratingComponents(game: string) {
+  return [{ type: 1, components: [
+    { type: 2, style: 2, label: 'Helpful', emoji: { name: '👍' }, custom_id: ratingCustomId(game, true) },
+    { type: 2, style: 2, label: 'Not helpful', emoji: { name: '👎' }, custom_id: ratingCustomId(game, false) },
+  ] }];
+}
+
+function parseRating(payload: Record<string, unknown>): ParsedInteraction {
+  const data = payload['data'];
+  const m = isObj(data) && typeof data['custom_id'] === 'string' ? /^rate:([a-z0-9][a-z0-9-]{0,63}):(up|down)$/.exec(data['custom_id']) : null;
+  const messageId = isObj(payload['message']) ? payload['message']['id'] : undefined;
+  const userId = interactionUserId(payload);
+  if (!m || !userId || typeof messageId !== 'string' || !/^\d{1,25}$/.test(messageId)) return { kind: 'invalid', message: 'Unknown button.' };
+  return { kind: 'rate', game: m[1]!, helpful: m[2] === 'up', messageId, userId };
+}
+
 export function parseInteraction(payload: unknown): ParsedInteraction {
   if (!isObj(payload)) return { kind: 'invalid', message: 'Unreadable request.' };
   if (payload['type'] === INTERACTION_PING) return { kind: 'ping' };
+  if (payload['type'] === INTERACTION_MESSAGE_COMPONENT) return parseRating(payload);
   if (payload['type'] !== INTERACTION_APPLICATION_COMMAND || !isObj(payload['data'])) return { kind: 'invalid', message: 'Unsupported interaction.' };
   const data = payload['data'];
   const userId = interactionUserId(payload);

@@ -1,7 +1,8 @@
-import { RateLimiter, buildSheet, formatAnswer, formatError, formatSetup, type CitedSource, type ParsedInteraction } from '@rogue/core';
+import { createHash } from 'node:crypto';
+import { RateLimiter, buildSheet, ratingComponents, formatAnswer, formatError, formatSetup, type CitedSource, type ParsedInteraction } from '@rogue/core';
 import { askRules } from './chat';
 import { getClaims, getGame } from './kb';
-import { ipv4Fetch } from './services';
+import { ensureMigrated, getPool, ipv4Fetch } from './services';
 
 /**
  * Discord glue (interactions-webhook style): no gateway socket, no Discord library.
@@ -58,12 +59,12 @@ async function buildAskReply(game: string, question: string): Promise<string> {
 }
 
 /** Edit the deferred "thinking…" message. The interaction token is the credential, so no bot token is needed here. */
-async function sendFollowUp(appId: string, token: string, content: string): Promise<void> {
+async function sendFollowUp(appId: string, token: string, content: string, components?: unknown): Promise<void> {
   const url = `https://discord.com/api/v10/webhooks/${encodeURIComponent(appId)}/${encodeURIComponent(token)}/messages/@original`;
   const res = await ipv4Fetch(url, {
     method: 'PATCH', headers: { 'content-type': 'application/json' },
     // allowed_mentions empty: model text can never ping anyone.
-    body: JSON.stringify({ content, allowed_mentions: { parse: [] } }), signal: AbortSignal.timeout(10_000),
+    body: JSON.stringify({ content, allowed_mentions: { parse: [] }, ...(components ? { components } : {}) }), signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) console.warn('[discord] follow-up failed', res.status);
 }
@@ -71,11 +72,32 @@ async function sendFollowUp(appId: string, token: string, content: string): Prom
 /** Runs after the deferred ACK has been returned. Never throws; users only see a generic error. */
 export async function runDiscordCommand(cmd: Extract<ParsedInteraction, { kind: 'setup' | 'ask' }>, appId: string): Promise<void> {
   let content: string;
+  let components: unknown;
   try {
     content = cmd.kind === 'setup' ? await buildSetupReply(cmd.game, cmd.players) : await buildAskReply(cmd.game, cmd.question);
+    // Only /ask answers can be rated; error replies below get no buttons.
+    if (cmd.kind === 'ask') components = ratingComponents(cmd.game);
   } catch (e) {
     console.warn('[discord] command failed', e instanceof Error ? e.message : 'error');
     content = formatError('Something went wrong on my side. Please try again in a minute.');
   }
-  await sendFollowUp(appId, cmd.token, content).catch((e) => console.warn('[discord] follow-up error', e instanceof Error ? e.message : 'error'));
+  await sendFollowUp(appId, cmd.token, content, components).catch((e) => console.warn('[discord] follow-up error', e instanceof Error ? e.message : 'error'));
+}
+
+// Salted so the stored hash cannot be matched against a list of Discord ids without our key.
+const hashUser = (userId: string, salt: string) => createHash('sha256').update(`${salt}:${userId}`).digest('hex');
+
+/** Record (or replace) one user's thumbs on one answer message. Returns the text shown to that user only. */
+export async function recordDiscordRating(r: Extract<ParsedInteraction, { kind: 'rate' }>, salt: string): Promise<string> {
+  try {
+    await ensureMigrated();
+    await getPool()!.query(
+      `INSERT INTO discord_answer_ratings(game_slug, message_id, user_hash, helpful) VALUES ($1,$2,$3,$4)
+       ON CONFLICT (message_id, user_hash) DO UPDATE SET helpful = EXCLUDED.helpful, created_at = now()`,
+      [r.game, r.messageId, hashUser(r.userId, salt), r.helpful]);
+    return r.helpful ? 'Thanks, glad it helped.' : 'Thanks, noted. The rulebook is authoritative; check the cited page.';
+  } catch (e) {
+    console.warn('[discord] rating failed', e instanceof Error ? e.message : 'error');
+    return formatError('Could not save your rating. Please try again later.');
+  }
 }

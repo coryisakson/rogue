@@ -21,3 +21,7 @@
 
 
 See docs/BGG_NOTES.md for BGG API access rules (registration, bearer token, limits, logo, no BGG login). Not applied yet; Cory decides later.
+
+## Much later (Cory 2026-10-15)
+- **Discord server to host the bot with @bot ability.** A Rogue-owned Discord server where people can @mention the bot (needs gateway/message-content or mention handling, not only slash commands). Do much later.
+- **Discord admin channel (low priority).** Private admins channel for alerts, weekly digest and approval buttons (plan in docs/DISCORD.md). Cory: digest timezone = UTC, button approvals are fine for now. Code may be prepared, but the channel itself is low priority.

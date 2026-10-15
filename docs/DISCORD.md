@@ -12,7 +12,7 @@ library and no always-on connection. Without the two env vars below the route re
 Replies are cut to Discord's 2000-character limit by shortening the body; the **Sources** footer is never cut.
 Mentions are neutralised, so model text cannot ping anyone. Rate limit: per Discord user id, in memory
 (`/ask` 5 per minute, `/setup` 10 per minute; override with `ROGUE_DISCORD_ASK_LIMIT`, `ROGUE_DISCORD_SETUP_LIMIT`).
-Rating buttons are deferred (they need the component-interaction type and a Discord-to-Rogue user link).
+Each `/ask` answer carries Helpful / Not helpful buttons (component interactions on the same endpoint, `custom_id` `rate:<game>:up|down`). A vote is stored in `discord_answer_ratings` (migration 0013) as game, message id, salted hash of the Discord user and the verdict; no question or answer text. One vote per user per answer, voting again replaces it. A Discord-to-Rogue account link is still open.
 
 ## Turn it on (Cory)
 

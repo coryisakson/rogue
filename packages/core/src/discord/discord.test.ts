@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   COMMAND_DEFINITIONS, DISCORD_LIMIT, defang, formatAnswer, formatError, formatSetup, formatSources, interactionUserId,
-  parseInteraction, truncate, verifyDiscordSignature, withFooter,
+  parseInteraction, ratingComponents, ratingCustomId, truncate, verifyDiscordSignature, withFooter,
 } from './index.js';
 
 function keypair() {
@@ -112,5 +112,23 @@ describe('formatting', () => {
   it('defang blocks mass mentions', () => {
     expect(defang('hi @everyone and <@123> and @here')).not.toMatch(/@everyone|@here|<@123>/);
     expect(formatError('@everyone oops')).not.toContain('@everyone');
+  });
+});
+
+describe('rating buttons', () => {
+  const click = (custom_id: unknown, extra: Record<string, unknown> = {}) =>
+    ({ type: 3, token: 't', data: { custom_id }, message: { id: '123456' }, member: { user: { id: '42' } }, ...extra });
+  it('parses a thumbs up and a thumbs down', () => {
+    expect(parseInteraction(click('rate:pandemic:up'))).toEqual({ kind: 'rate', game: 'pandemic', helpful: true, messageId: '123456', userId: '42' });
+    expect(parseInteraction(click('rate:slay-the-spire:down'))).toMatchObject({ kind: 'rate', helpful: false });
+  });
+  it('rejects forged or malformed buttons', () => {
+    for (const id of ['rate:pandemic:maybe', 'rate:../x:up', 'approve:1:x', 42, undefined]) expect(parseInteraction(click(id)).kind).toBe('invalid');
+    expect(parseInteraction(click('rate:pandemic:up', { message: {} })).kind).toBe('invalid');
+    expect(parseInteraction(click('rate:pandemic:up', { member: undefined })).kind).toBe('invalid');
+  });
+  it('builds buttons whose ids parse back', () => {
+    const [row] = ratingComponents('pandemic');
+    expect(row!.components.map((c) => c.custom_id)).toEqual([ratingCustomId('pandemic', true), ratingCustomId('pandemic', false)]);
   });
 });

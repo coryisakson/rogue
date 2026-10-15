@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { formatError, parseInteraction, verifyDiscordSignature } from '@rogue/core';
-import { allowDiscordUser, discordConfig, runDiscordCommand } from '../../lib/discord-bot';
+import { allowDiscordUser, discordConfig, recordDiscordRating, runDiscordCommand } from '../../lib/discord-bot';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -24,6 +24,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (cmd.kind === 'ping') return json({ type: 1 });
   if (cmd.kind === 'invalid') return message(formatError(cmd.message));
+  if (cmd.kind === 'rate') return message(await recordDiscordRating(cmd, cfg.publicKey));
   if (!allowDiscordUser(cmd.kind, cmd.userId)) return message(formatError('Slow down a little, try again in a minute.'));
 
   // Acknowledge within Discord's 3 s window, then do the work and edit the reply.
