@@ -1,8 +1,9 @@
 import { defineMiddleware } from 'astro:middleware';
-import { isCostlyPath, isPublicPath, RateLimiter, safeEqual } from '@rogue/core';
+import { isChatPath, isCostlyPath, isPublicPath, RateLimiter, safeEqual } from '@rogue/core';
 import { startBackupScheduler } from './lib/backup-runner';
 import { adminToken } from './lib/admin-token';
 
+const chat = new RateLimiter(Number(process.env['ROGUE_CHAT_RATE_LIMIT'] ?? 8), 60_000);
 const costly = new RateLimiter(Number(process.env['ROGUE_RATE_LIMIT'] ?? 40), 60_000);
 
 const clientIp = (req: Request) => (req.headers.get('x-forwarded-for')?.split(',')[0] ?? req.headers.get('x-real-ip') ?? 'unknown').trim();
@@ -19,6 +20,8 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     // Backend surface (APIs, MCP, admin). Not exposed publicly: needs the token. 404 on purpose, do not advertise routes.
     const given = ctx.request.headers.get('x-rogue-admin') ?? '';
     if (!safeEqual(given, adminToken())) return deny(404, 'not found');
+  } else if (isChatPath(pathname) && new URL(ctx.request.url).searchParams.has('q') && !chat.allow(clientIp(ctx.request))) {
+    return deny(429, 'too many questions; retry in a minute', { 'retry-after': '60' });
   } else if (isCostlyPath(pathname) && !costly.allow(clientIp(ctx.request))) {
     return deny(429, 'rate limit exceeded; retry in a minute', { 'retry-after': '60' });
   }

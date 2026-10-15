@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCostlyPath, isPublicPath, RateLimiter, safeEqual } from './ratelimit.js';
+import { isChatPath, isCostlyPath, isPublicPath, RateLimiter, safeEqual } from './ratelimit.js';
 
 describe('security', () => {
   it('rate limits per key and resets after the window', () => {
@@ -20,5 +20,8 @@ describe('security', () => {
     for (const p of ['/mcp', '/api/games', '/api/search', '/api/rules/search', '/api/admin/ingest', '/api/ai-ping', '/readyz', '/games/pandemic/../../api', '/games/a/b/c', '/api/games/pandemic/claims']) expect(isPublicPath(p)).toBe(false);
     expect(isCostlyPath('/games/pandemic')).toBe(true);
     expect(isCostlyPath('/')).toBe(false);
+    expect(isPublicPath('/games/pandemic/ask')).toBe(true);
+    expect(isChatPath('/games/pandemic/ask')).toBe(true);
+    expect(isChatPath('/games/pandemic')).toBe(false);
   });
 });

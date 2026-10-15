@@ -1,0 +1,36 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { getGame } from '../../../lib/kb';
+import { askRules } from '../../../lib/chat';
+const { slug } = Astro.params;
+const game = await getGame(slug!);
+if (!game) return new Response('Not found', { status: 404 });
+const q = (Astro.url.searchParams.get('q') ?? '').trim();
+let res = null; let err = '';
+if (q.length >= 3) { try { res = await askRules(slug!, q); } catch (e) { err = 'The rules assistant is busy or offline. Please try again in a minute.'; console.warn('[ask]', (e as Error).message); } }
+---
+<Base title={`Ask about ${game.name}`}>
+  <main>
+    <h1>Ask about {game.name}</h1>
+    <p><a href={`/games/${slug}`}>← {game.name} facts</a></p>
+    <form method="get" style="margin:1rem 0">
+      <input name="q" value={q} placeholder="e.g. What is the hand limit?" maxlength="300" required style="padding:.6rem;width:min(30rem,90%);border-radius:8px;border:0" />
+      <button class="btn" type="submit" style="border:0;cursor:pointer">Ask</button>
+    </form>
+    {err && <div class="card"><b>{err}</b></div>}
+    {res && (
+      <div class="card">
+        <p style="font-size:1.1rem;margin-top:0">{res.answer}</p>
+        {res.warning && <p><span class="pill bad">check</span> {res.warning}</p>}
+        <small><span class="pill warn">AI answer from the publisher rulebook, can be wrong</span></small>
+      </div>
+      <h2>Sources</h2>
+      <div style="display:grid;gap:.6rem">
+        {res.sources.map((s) => (
+          <div class="card"><small><a href={s.url}>{s.title}</a> ({s.publisher}) · p.{s.page}</small><blockquote style="margin:.3rem 0 0;opacity:.8;font-size:.9rem">“{s.quote}…”</blockquote></div>
+        ))}
+      </div>
+    )}
+    <p style="opacity:.7"><small>Answers use only the indexed official rulebook. We link to the publisher's file and show short excerpts. Rules chat will require a free login once accounts exist.</small></p>
+  </main>
+</Base>

@@ -9,3 +9,4 @@ export * from './mcp/index.js';
 export * from './index/index.js';
 export * from './security/index.js';
 export * from './librarian/index.js';
+export * from './chat/index.js';

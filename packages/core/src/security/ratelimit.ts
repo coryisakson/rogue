@@ -28,11 +28,16 @@ export function safeEqual(a: string, b: string): boolean {
 export function isPublicPath(pathname: string): boolean {
   if (pathname === '/' || pathname === '/about' || pathname === '/games' || pathname === '/healthz' || pathname === '/favicon.ico' || pathname === '/favicon.svg' || pathname === '/robots.txt') return true;
   if (pathname.startsWith('/_astro/')) return true;
-  if (/^\/games\/[a-z0-9-]+(\/setup)?\/?$/.test(pathname)) return true;
+  if (/^\/games\/[a-z0-9-]+(\/setup|\/ask)?\/?$/.test(pathname)) return true;
   return false;
 }
 
 /** Public routes that cost compute (database/AI): limited per client IP. */
 export function isCostlyPath(pathname: string): boolean {
   return pathname.startsWith('/games/');
+}
+
+/** The AI-backed ask page is stricter: it runs retrieval, a reranker and an answer model per request. */
+export function isChatPath(pathname: string): boolean {
+  return /^\/games\/[a-z0-9-]+\/ask\/?$/.test(pathname);
 }

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { handleMcp, type McpTool } from '@rogue/core';
 import { getClaims, getGame, listGames, searchClaims } from '../lib/kb';
+import { askRules } from '../lib/chat';
 import { searchRules } from '../lib/rules-index';
 import { VERSION } from '../lib/version';
 
@@ -35,6 +36,16 @@ const tools: McpTool[] = [
     handler: async (a) => {
       const q = str(a['q']); if (!q || q.length < 2) throw new Error('q must be at least 2 characters');
       return { results: await searchClaims(q) };
+    },
+  },
+  {
+    name: 'ask_rules',
+    description: 'Ask a rules question about one game. Retrieves page-cited rulebook excerpts, then answers ONLY from them with (p.N) citations. Returns the answer plus the source excerpts.',
+    inputSchema: { type: 'object', properties: { game: { type: 'string', description: 'game slug' }, question: { type: 'string' } }, required: ['game', 'question'] },
+    handler: async (a) => {
+      const game = str(a['game']); const question = str(a['question']);
+      if (!game || !question || question.length < 3) throw new Error('game and question are required');
+      return await askRules(game, question);
     },
   },
   {
