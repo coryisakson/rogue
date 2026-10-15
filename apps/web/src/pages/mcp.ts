@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { handleMcp, type McpTool } from '@rogue/core';
 import { getClaims, getGame, listGames, searchClaims } from '../lib/kb';
+import { searchRules } from '../lib/rules-index';
 import { VERSION } from '../lib/version';
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
@@ -34,6 +35,18 @@ const tools: McpTool[] = [
     handler: async (a) => {
       const q = str(a['q']); if (!q || q.length < 2) throw new Error('q must be at least 2 characters');
       return { results: await searchClaims(q) };
+    },
+  },
+  {
+    name: 'search_rules',
+    description: 'Search the FULL indexed rulebook text (not only curated facts) with keyword + semantic retrieval. Returns page-cited snippets from the publisher rulebook. Use this to answer rules questions, then quote the snippet and cite the page.',
+    inputSchema: { type: 'object', properties: { q: { type: 'string' }, game: { type: 'string', description: 'optional game slug' }, limit: { type: 'number' } }, required: ['q'] },
+    handler: async (a) => {
+      const q = str(a['q']); if (!q || q.length < 2) throw new Error('q must be at least 2 characters');
+      const o: { game?: string; limit?: number } = {};
+      const g = str(a['game']); if (g) o.game = g;
+      if (typeof a['limit'] === 'number') o.limit = a['limit'];
+      return { hits: await searchRules(q, o), note: 'Snippets are short excerpts of the private working copy; the publisher link is the authority.' };
     },
   },
   {

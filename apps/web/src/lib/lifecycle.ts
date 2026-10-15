@@ -78,6 +78,7 @@ export async function takedown(input: TakedownInput) {
     if (!(await pool.query('SELECT 1 FROM tombstones WHERE url=$1', [s.url])).rowCount)
     await pool.query('INSERT INTO tombstones(url, reason) VALUES ($1,$2)', [s.url, `takedown #${req.rows[0].id}: ${input.reason ?? 'requested by rights holder'}`]);
     for (const p of [s.private_path, s.text_path]) if (p) await storage.delete(p).catch(() => {});
+    await pool.query('DELETE FROM chunks WHERE source_id=$1', [s.id]);
     await pool.query("UPDATE sources SET private_path=NULL, text_path=NULL, content_hash=NULL, availability='unavailable', unavailable_since=now() WHERE id=$1", [s.id]);
   }
   await pool.query('UPDATE citations SET quote=NULL WHERE document_id IN (SELECT id FROM documents WHERE source_id = ANY($1::bigint[]))', [sources.map((s) => s.id)]);
