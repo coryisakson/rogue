@@ -1,0 +1,88 @@
+{
+ "game": "pandemic",
+ "title": "Pandemic",
+ "note": "Answer-level eval for Ask. Pass = answer text matches `must` (case-insensitive regex), does not match `mustNot`, carries at least one citation, and has no citation warning. `expected` is the human-readable truth; `source` is where the question was found (forum/FAQ) or noted as rulebook-derived. Found by web search 2026-10-15; BGG pages block automated reading, so expectations were checked against the publisher rulebook text.",
+ "rulebook": "https://images-cdn.zmangames.com/us-east-1/filer_public/25/12/251252dd-1338-4f78-b90d-afe073c72363/zm7101_pandemic_rules.pdf",
+ "questions": [
+  {
+   "q": "What is the hand limit in Pandemic?",
+   "must": "\\b7\\b|seven",
+   "expected": "7 cards; discard or play events down to 7.",
+   "kind": "fact",
+   "source": "https://boardgamegeek.com/thread/2546460/pandemic-discard-rule",
+   "rulebookRef": "Hand Limit section"
+  },
+  {
+   "q": "Can I discard cards voluntarily when I'm under the hand limit?",
+   "must": "\\bno\\b|not|only",
+   "expected": "No: you discard only when over the limit or as part of an action.",
+   "kind": "fact",
+   "source": "https://boardgames.stackexchange.com/questions/28229/in-pandemic-at-the-end-of-your-turn-can-you-discard-even-when-you-have-fewer-th",
+   "rulebookRef": "Hand Limit section"
+  },
+  {
+   "q": "Does a disease count as eradicated if I haven't cured it yet?",
+   "must": "\\bno\\b|not|must|first|cure",
+   "expected": "No: it must be cured first and then have no cubes left on the board.",
+   "kind": "fact",
+   "source": "https://boardgamegeek.com/thread/2287201/eradication-before-cure",
+   "rulebookRef": "Discover a Cure / eradication"
+  },
+  {
+   "q": "Do I have to be in the same city to Share Knowledge?",
+   "must": "same city|same location",
+   "expected": "Yes, both pawns must be in the same city; the card given must be that city's card (Researcher differs).",
+   "kind": "fact",
+   "source": "https://boardgamegeek.com/thread/1689459/sharing-knowledge-question-answered-by-matt-leacoc",
+   "rulebookRef": "Share Knowledge"
+  },
+  {
+   "q": "How many cards of the same color do I need to discover a cure?",
+   "must": "\\b5\\b|five",
+   "expected": "5 City cards of the same color at a research station (4 for the Scientist).",
+   "kind": "fact",
+   "source": "(rulebook, widely asked)",
+   "rulebookRef": "Discover a Cure"
+  },
+  {
+   "q": "How many outbreaks make the players lose?",
+   "must": "\\b8\\b|eight",
+   "expected": "8 outbreaks.",
+   "kind": "fact",
+   "source": "(rulebook, widely asked)",
+   "rulebookRef": "Game end / losing conditions"
+  },
+  {
+   "q": "How many roles are there in Pandemic?",
+   "must": "\\b7\\b|seven",
+   "expected": "7 roles (derived: 7 role cards listed; no number printed in the rules text).",
+   "kind": "count",
+   "source": "packages/core/eval (Cory's count/list example)",
+   "rulebookRef": "Contents + Roles"
+  },
+  {
+   "q": "List all the roles in Pandemic.",
+   "must": "Contingency Planner[\\s\\S]*Dispatcher|Dispatcher[\\s\\S]*Contingency Planner",
+   "expected": "Contingency Planner, Dispatcher, Medic, Operations Expert, Quarantine Specialist, Researcher, Scientist.",
+   "kind": "list",
+   "source": "packages/core/eval",
+   "rulebookRef": "Roles"
+  },
+  {
+   "q": "What happens if I draw two Epidemic cards at once?",
+   "must": "second|each|both|resolve",
+   "expected": "Resolve them one after another; the second epidemic's infect card is the new bottom card; events can be played between.",
+   "kind": "fact",
+   "source": "https://www.reddit.com/r/boardgames/comments/3hwlre/pandemic_question/",
+   "rulebookRef": "Epidemic cards / drawing 2 at once"
+  },
+  {
+   "q": "Does the Contingency Planner's stored event card count toward the hand limit?",
+   "must": "\\bno\\b|not|does not|doesn't",
+   "expected": "No, it does not count against the hand limit.",
+   "kind": "fact",
+   "source": "https://boardgames.stackexchange.com/questions/22964/making-the-contingency-planner-more-useful",
+   "rulebookRef": "Contingency Planner"
+  }
+ ]
+}

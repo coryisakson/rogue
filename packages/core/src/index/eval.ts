@@ -30,3 +30,17 @@ export function applyRanking<T>(items: T[], picks: number[]): T[] {
   const rest = items.filter((_, i) => !picks.includes(i + 1));
   return [...first, ...rest];
 }
+
+/** One answer-level eval question (see packages/core/eval/ask-*.json). */
+export interface AskEvalQuestion { q: string; must: string; mustNot?: string; expected?: string; kind?: string }
+export interface AskEvalResult { pass: boolean; reasons: string[] }
+
+/** Score one Ask answer: must match `must`, not `mustNot`, carry a citation, and have no citation warning. */
+export function scoreAskAnswer(item: AskEvalQuestion, a: { answer: string; sources: unknown[]; warning?: string }): AskEvalResult {
+  const reasons: string[] = [];
+  if (!new RegExp(item.must, 'i').test(a.answer)) reasons.push('answer does not match the expected pattern');
+  if (item.mustNot && new RegExp(item.mustNot, 'i').test(a.answer)) reasons.push('answer matches a forbidden pattern');
+  if (!/\((?:p|s)\.\s*\d+/i.test(a.answer) && !a.sources.length) reasons.push('no citation');
+  if (a.warning) reasons.push('citation warning');
+  return { pass: reasons.length === 0, reasons };
+}

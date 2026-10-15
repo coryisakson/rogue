@@ -23,3 +23,15 @@ describe('eval helpers', () => {
     expect(applyRanking(['a', 'b'], [])).toEqual(['a', 'b']);
   });
 });
+
+import { scoreAskAnswer } from './eval';
+describe('scoreAskAnswer', () => {
+  const item = { q: 'hand limit?', must: '\\b7\\b' };
+  it('passes a matching cited answer', () => { expect(scoreAskAnswer(item, { answer: 'Seven... 7 cards (p.5)', sources: [{}] }).pass).toBe(true); });
+  it('fails on wrong answer, missing sources and warnings', () => {
+    expect(scoreAskAnswer(item, { answer: '8 cards', sources: [{}] }).pass).toBe(false);
+    expect(scoreAskAnswer(item, { answer: '7', sources: [] }).reasons).toContain('no citation');
+    expect(scoreAskAnswer(item, { answer: '7', sources: [{}], warning: 'x' }).pass).toBe(false);
+  });
+  it('honours mustNot', () => { expect(scoreAskAnswer({ ...item, mustNot: 'eight' }, { answer: '7 or eight', sources: [{}] }).pass).toBe(false); });
+});
