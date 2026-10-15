@@ -42,7 +42,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
       ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
     });
     const text = j?.choices?.[0]?.message?.content;
-    if (typeof text !== 'string') throw new Error('AI chat response missing choices[0].message.content');
+    if (typeof text !== 'string') throw new Error(`AI chat response missing choices[0].message.content: ${JSON.stringify(j).slice(0, 400)}`);
     return {
       text,
       model: j.model ?? model,
