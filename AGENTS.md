@@ -30,7 +30,7 @@ EU/GDPR-first, self-hostable, MCP-native, every model and storage provider plugg
 
 ## Working loop (every task)
 1. Read `docs/PROGRESS.md` (state) and `docs/APPROVALS.md` (blockers). Pick the next unblocked roadmap item (`docs/ROADMAP.md`).
-2. **Branching (current rule, Cory 2026-10-14): commit directly to `main` until the first Olares build is accepted.** After that, switch to feature branches `feat/<slug>`, `fix/<slug>`, `cc/<slug>` with PRs that Cory approves/merges when he wants to test. (Update this line when the switch happens.)
+2. **Branching (Cory 2026-10-15): parallel workers.** Each worker uses its own git worktree and branch `cc/<slug>` (or `feat/`, `fix/`), never edits `main` directly, never edits `docs/PROGRESS.md`/`HANDOFF.md` (put notes in the final report), and only uses its assigned migration number range. When `npm run check` is green the branch is merged to `main` automatically with `scripts/merge-branch.sh <branch>` (rebase on main, re-check, fast-forward merge, push). Hermes then bumps the version and ships from `main`: GitHub Actions builds and pushes the image to Docker Hub, `scripts/deploy.sh` deploys. Deploys stay serial.
 3. Write the test first or alongside. `npm run check` must pass (typecheck, tests, build, version consistency).
 4. Update `docs/PROGRESS.md` (one dated line: what changed, what is verified, what is left).
 5. If you need something you cannot do (credentials, spend, external account, a decision), add an entry to `docs/APPROVALS.md` with the next free ID `RGE-Axx`, then **continue with other unblocked work**. Do not wait.
