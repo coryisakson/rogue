@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { badCitations, buildPrompt, citedPages } from './chat.js';
+import { badCitations, buildPrompt, citedPages, isAggregateQuestion } from './chat.js';
 
 describe('chat helpers', () => {
   const ex = [{ page: 2, text: 'Deal  cards.' }, { page: 6, text: 'Hand limit 7.' }];
@@ -16,5 +16,12 @@ describe('chat helpers', () => {
   it('badCitations flags pages that were never retrieved', () => {
     expect(badCitations('See (p.6) and (p.9).', ex)).toEqual([9]);
     expect(badCitations('See (p.6).', ex)).toEqual([]);
+  });
+  it('detects list and count questions', () => {
+    expect(isAggregateQuestion('how many roles are there in pandemic')).toBe(true);
+    expect(isAggregateQuestion('List all the roles')).toBe(true);
+    expect(isAggregateQuestion('Wie viele Rollen gibt es?')).toBe(true);
+    expect(isAggregateQuestion('What is the hand limit?')).toBe(false);
+    expect(isAggregateQuestion('Who goes first?')).toBe(false);
   });
 });

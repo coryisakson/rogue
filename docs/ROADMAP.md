@@ -25,6 +25,14 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [x] Rules FAQ from answer ratings (public 'N of M helpful', admin sees low-rated only) 0.0.58
 - [ ] Live click-through of signed-in flows (Cory's browser)
 
+## MVP focus (Cory 2026-10-15)
+Most valuable for MVP: (1) generated setup one-pagers, (2) Ask about the game / rules. Individual facts are internal building blocks for those, not a user-facing product; the game page shows them collapsed.
+- [x] Aggregate questions ("how many roles are there") answered by collecting items across excerpts and counting them (wider retrieval + neighbour chunks + list prompt) 0.0.59
+- [ ] Measure it: add list/count questions (Pandemic roles, Slay the Spire characters/card types) to the eval set and check the answers; tune retrieval depth
+- [ ] User Q&A become facts: a well-rated cited answer is stored as a 'qa' candidate fact (question, answer, page citations). Citations must be on retrieved pages, same provenance rules as any claim
+- [ ] FAQ Curator agent (runs occasionally, Phase 1b): merges duplicate/near-duplicate Q&A, rewrites into one concise canonical answer with citations, drops low-rated or uncited ones, publishes the common Q&A list per game (replaces raw question text on /games/<slug>/faq). Proposes; admin sees exceptions only
+- [ ] One-pager quality is the other MVP gate: print fit check, player-count variants table (or explicit 'none'), look at the real print
+
 ## Phase 1b · Agent team on Nanobot (decision: docs/adr/0002-nanobot-orchestration.md)
 No harness bake-off. Nanobot (HKUDS, MIT) is the multi-agent orchestrator; use only the features needed, nothing speculative.
 - [ ] Run Nanobot as a Docker sidecar (own container, own volume, no access to the DB or data dir); only if it cannot run in-process/beside the pod without it

@@ -33,6 +33,7 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
       </div>
     )}
     {claims.length === 0 && <div class="card"><b>No cited facts yet.</b> We have not ingested an official source for this game. If you are the publisher, you can <a href="/about#publishers">contact us</a> to authorise one.</div>}
+    <details open={Boolean(q)}><summary style="cursor:pointer;margin:.6rem 0"><b>Fact base ({rest.length})</b> <small style="opacity:.7">the cited facts behind our answers and one-pagers; most players just use the buttons above</small></summary>
     <div style="display:grid;gap:.8rem">
       {shown.map((c) => (
         <div class="card" id={`c${c.id}`}>
@@ -51,6 +52,7 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
         </div>
       ))}
     </div>
+    </details>
     <h2>Sources</h2>
     <ul>{sources.map((s) => <li><a href={s.source_url}>{s.source_title}</a> · {s.publisher} · edition: {s.edition} · {s.availability === 'available' ? 'available' : 'no longer available'}</li>)}</ul>
     <p style="opacity:.7"><small>We link to the publisher's file and quote only short passages. We do not host rulebooks.</small></p>

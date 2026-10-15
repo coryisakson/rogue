@@ -114,3 +114,13 @@ async function rerank(q: string, ids: string[], byId: Map<string, { snippet: str
     return ids;
   }
 }
+
+/** Excerpts for the chat model: each hit plus its neighbouring chunks (a list often runs across a chunk boundary).
+ *  Sent to the model only; the answer shows short capped quotes, never this text. */
+export async function expandWithNeighbors(chunkIds: string[], radius = 1): Promise<{ page: number; text: string }[]> {
+  const pool = getPool(); if (!pool || !chunkIds.length) return [];
+  const rows = (await pool.query(
+    `SELECT DISTINCT n.source_id, n.ord, n.page, n.text FROM chunks c JOIN chunks n ON n.source_id=c.source_id AND n.ord BETWEEN c.ord-$2 AND c.ord+$2
+     WHERE c.id = ANY($1::bigint[]) ORDER BY n.source_id, n.ord`, [chunkIds, radius])).rows;
+  return rows.map((r) => ({ page: Number(r.page), text: String(r.text) }));
+}

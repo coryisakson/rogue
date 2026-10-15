@@ -18,6 +18,9 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 5. (DONE 0.0.56: /request-game + /admin/requests, Rights Officer v0 as code; needs a live walk-through in Cory's browser). Left: Scout that finds the rulebook link itself (search + publisher page link extraction), terms-of-use clause flagging.
 6. Then Phase 1b agent team on Nanobot (no bake-off; ADR 0002; sidecar only if needed, minimal features), Phase 2 learning loop. Cory: no more games for the MVP; acceptable beats gold-plated.
 
+## MVP direction (Cory 2026-10-15)
+Users don't care about the raw fact list; MVP value = setup one-pagers + Ask the rules. Facts feed those. User Q&A (cited answers) should become facts, and a FAQ Curator agent should occasionally merge them into a concrete common Q&A list per game (see ROADMAP 'MVP focus'). Count/list questions ('how many roles in Pandemic') must work by assembling items from the rulebook (shipped 0.0.59, needs eval).
+
 ## Not now (Cory)
 BGG collection / what-shall-we-play is backlog only (docs/BACKLOG.md, docs/BGG_NOTES.md; test user CoryIsakson). Off-box backups and cloud storage = Phase 7b (R24).
 

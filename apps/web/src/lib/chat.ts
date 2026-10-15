@@ -1,5 +1,5 @@
-import { CHAT_SYSTEM, badCitations, buildPrompt, normalizeQuestion } from '@rogue/core';
-import { searchRules, type RuleHit } from './rules-index';
+import { CHAT_SYSTEM, badCitations, buildPrompt, normalizeQuestion, isAggregateQuestion, CHAT_AGGREGATE_ADDENDUM } from '@rogue/core';
+import { searchRules, expandWithNeighbors, type RuleHit } from './rules-index';
 import { ensureMigrated, getAi, getPool } from './services';
 
 export interface ChatAnswer { id?: number; answer: string; sources: { page: number; title: string; url: string; publisher: string | null; quote: string }[]; warning?: string; ms: number }
@@ -11,11 +11,14 @@ export async function askRules(game: string, question: string): Promise<ChatAnsw
   const key = `${game}|${q.toLowerCase()}`;
   const hit = cache.get(key); if (hit) return hit;
   const t = Date.now();
-  const hits: RuleHit[] = await searchRules(q, { game, limit: 5, snippet: 600, rerank: true });
+  // List/count questions ("how many roles") need many passages, so look wider and add neighbouring chunks.
+  const wide = isAggregateQuestion(q);
+  const hits: RuleHit[] = await searchRules(q, { game, limit: wide ? 8 : 5, snippet: 600, rerank: true });
   if (!hits.length) return { answer: 'I could not find anything about this in the indexed rulebook for this game.', sources: [], ms: Date.now() - t };
   const ai = getAi(); if (!ai) throw new Error('AI is not configured');
-  const excerpts = hits.map((h) => ({ page: h.page, text: h.snippet }));
-  const r = await ai.chat({ temperature: 0, maxTokens: 2500, messages: [{ role: 'system', content: CHAT_SYSTEM }, { role: 'user', content: buildPrompt(q, excerpts) }] });
+  let excerpts = hits.map((h) => ({ page: h.page, text: h.snippet }));
+  if (wide) { const more = await expandWithNeighbors(hits.map((h) => h.chunk_id)); if (more.length) excerpts = more.slice(0, 16); }
+  const r = await ai.chat({ temperature: 0, maxTokens: wide ? 4000 : 2500, messages: [{ role: 'system', content: wide ? CHAT_SYSTEM + CHAT_AGGREGATE_ADDENDUM : CHAT_SYSTEM }, { role: 'user', content: buildPrompt(q, excerpts) }] });
   const answer = r.text.trim();
   const bad = badCitations(answer, excerpts);
   const out: ChatAnswer = {
