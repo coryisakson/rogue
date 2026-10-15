@@ -5,3 +5,4 @@ export * from './ai/index.js';
 export * from './db/index.js';
 export * from './backup/index.js';
 export * from './fetch/index.js';
+export * from './mcp/index.js';
