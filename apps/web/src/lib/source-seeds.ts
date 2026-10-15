@@ -11,7 +11,7 @@ export interface SourceSeed {
   foundOn: string;
 }
 
-export const ALLOWED_HOSTS = ['cdn.svc.asmodee.net', 'www.zmangames.com'];
+export const ALLOWED_HOSTS = ['cdn.svc.asmodee.net', 'www.zmangames.com', 'contentiongames.com'];
 
 export const SEEDS: SourceSeed[] = [
   {
@@ -23,5 +23,15 @@ export const SEEDS: SourceSeed[] = [
     kind: 'rulebook',
     editionLabel: 'Z-Man rulebook (publisher site, 2024-09 upload)',
     foundOn: 'https://www.zmangames.com/game/pandemic/',
+  },
+  {
+    gameSlug: 'slay-the-spire',
+    url: 'https://contentiongames.com/_images/STS_KS_Rulebook.pdf',
+    title: 'Slay the Spire: The Board Game Rulebook',
+    publisher: 'Contention Games',
+    language: 'en',
+    kind: 'rulebook',
+    editionLabel: 'Contention Games rulebook (publisher site, file dated 2024-03-23)',
+    foundOn: 'https://contentiongames.com/games/slay/',
   },
 ];
