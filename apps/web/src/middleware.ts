@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { isAdminPath, isCostlyPath, RateLimiter, safeEqual } from '@rogue/core';
+import { isCostlyPath, isPublicPath, RateLimiter, safeEqual } from '@rogue/core';
 import { startBackupScheduler } from './lib/backup-runner';
 import { adminToken } from './lib/admin-token';
 
@@ -15,9 +15,10 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   startBackupScheduler();
   const { pathname } = new URL(ctx.request.url);
 
-  if (isAdminPath(pathname)) {
+  if (!isPublicPath(pathname)) {
+    // Backend surface (APIs, MCP, admin). Not exposed publicly: needs the token. 404 on purpose, do not advertise routes.
     const given = ctx.request.headers.get('x-rogue-admin') ?? '';
-    if (!safeEqual(given, adminToken())) return deny(404, 'not found'); // 404 on purpose: do not advertise admin routes
+    if (!safeEqual(given, adminToken())) return deny(404, 'not found');
   } else if (isCostlyPath(pathname) && !costly.allow(clientIp(ctx.request))) {
     return deny(429, 'rate limit exceeded; retry in a minute', { 'retry-after': '60' });
   }

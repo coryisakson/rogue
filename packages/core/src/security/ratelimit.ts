@@ -21,12 +21,18 @@ export function safeEqual(a: string, b: string): boolean {
   return d === 0;
 }
 
-/** Paths that mutate or expose internals; need the admin token even when the entrance is public. */
-export function isAdminPath(pathname: string): boolean {
-  return pathname.startsWith('/api/admin') || pathname === '/api/ai-ping';
+/**
+ * Only the web front end is public: HTML pages, static assets and health probes.
+ * Everything else (/api/*, /mcp, ...) is backend and requires the admin token, even when the entrance is public.
+ */
+export function isPublicPath(pathname: string): boolean {
+  if (pathname === '/' || pathname === '/about' || pathname === '/games' || pathname === '/healthz' || pathname === '/favicon.ico' || pathname === '/favicon.svg' || pathname === '/robots.txt') return true;
+  if (pathname.startsWith('/_astro/')) return true;
+  if (/^\/games\/[a-z0-9-]+(\/setup)?\/?$/.test(pathname)) return true;
+  return false;
 }
 
-/** Public routes that cost compute (embeddings, LLM): limited per client IP. */
+/** Public routes that cost compute (database/AI): limited per client IP. */
 export function isCostlyPath(pathname: string): boolean {
-  return pathname === '/mcp' || pathname.startsWith('/api/rules') || pathname === '/api/search';
+  return pathname.startsWith('/games/');
 }

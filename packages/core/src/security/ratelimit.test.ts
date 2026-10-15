@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAdminPath, isCostlyPath, RateLimiter, safeEqual } from './ratelimit.js';
+import { isCostlyPath, isPublicPath, RateLimiter, safeEqual } from './ratelimit.js';
 
 describe('security', () => {
   it('rate limits per key and resets after the window', () => {
@@ -15,12 +15,10 @@ describe('security', () => {
     expect(safeEqual('abc', 'abd')).toBe(false);
     expect(safeEqual('abc', 'abcd')).toBe(false);
   });
-  it('classifies paths', () => {
-    expect(isAdminPath('/api/admin/ingest')).toBe(true);
-    expect(isAdminPath('/api/ai-ping')).toBe(true);
-    expect(isAdminPath('/api/games')).toBe(false);
-    expect(isCostlyPath('/mcp')).toBe(true);
-    expect(isCostlyPath('/api/rules/search')).toBe(true);
-    expect(isCostlyPath('/games/pandemic')).toBe(false);
+  it('only front-end paths are public', () => {
+    for (const p of ['/', '/about', '/games', '/games/pandemic', '/games/pandemic/setup', '/healthz', '/_astro/x.js']) expect(isPublicPath(p)).toBe(true);
+    for (const p of ['/mcp', '/api/games', '/api/search', '/api/rules/search', '/api/admin/ingest', '/api/ai-ping', '/readyz', '/games/pandemic/../../api', '/games/a/b/c', '/api/games/pandemic/claims']) expect(isPublicPath(p)).toBe(false);
+    expect(isCostlyPath('/games/pandemic')).toBe(true);
+    expect(isCostlyPath('/')).toBe(false);
   });
 });
