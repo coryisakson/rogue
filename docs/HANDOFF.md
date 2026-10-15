@@ -13,7 +13,7 @@ OAuth app client ids/secrets (docs/LOGIN_SETUP.md). Until then login is untested
 
 ## Next (core plan, in order)
 1. Rate chat answers (needs a stored answer id).
-2. Migration: claim_ratings.user_id -> BIGINT FK users(id) ON DELETE CASCADE, plus account deletion.
+2. (done 0.0.36) ratings FK + account deletion.
 3. Discord bot sharing the core lib.
 4. Add-game flow behind login (Scout + Rights Officer as code paths first).
 5. More games only after the above (Cory: no more games for MVP).

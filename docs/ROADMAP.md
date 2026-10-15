@@ -33,4 +33,5 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [~] Fit solver v0 (line-budget claim selection) live; print fit check + variants table left
 - [x] Auth (OAuth) code, needs provider credentials (docs/LOGIN_SETUP.md)
 - [x] Ratings UI (facts)
-- [ ] Rate chat answers; Discord bot; account deletion + ratings FK (GDPR)
+- [x] Account deletion + ratings FK (GDPR)
+- [ ] Rate chat answers; Discord bot
