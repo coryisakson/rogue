@@ -7,6 +7,7 @@ const perUser = new RateLimiter(30, 60_000);
 /** POST claim=<id>&stars=1..5&next=/games/x. Signed-in users only; one rating per user per claim (re-rating replaces). */
 export const POST: APIRoute = async ({ request, locals }) => {
   const h = request.headers;
+  console.warn('[dbg-origin]', h.get('origin'), h.get('referer'), h.get('host'), h.get('x-forwarded-host'), h.get('x-forwarded-proto'));
   if (!sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'))) return new Response('Bad origin', { status: 403 });
   const form = await request.formData();
   const next = safeNext(String(form.get('next') ?? '/'));
