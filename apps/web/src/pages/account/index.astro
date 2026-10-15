@@ -1,7 +1,12 @@
 ---
 import Base from '../../layouts/Base.astro';
+import { PROVIDERS } from '@rogue/core';
+import { configuredProviders, identitiesOf } from '../../lib/auth';
 const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login?next=/account');
+const linked = user ? await identitiesOf(user.id) : [];
+const available = Object.keys(configuredProviders());
+const note = Astro.url.searchParams.get('linked');
 ---
 <Base title="Your account">
   <main>
@@ -9,6 +14,12 @@ if (!user) return Astro.redirect('/login?next=/account');
     <div class="card" style="max-width:30rem">
       <p style="margin-top:0">Signed in as <b>{user.name}</b> via {user.provider}.</p>
       <p>We store your provider user id, display name, avatar, your active sessions and your fact ratings. Nothing else.</p>
+      {note && <p><span class="pill">{note === 'merged' ? 'accounts merged' : note === 'already' ? 'already linked' : 'linked'}</span></p>}
+      <h2>Sign-in methods</h2>
+      <p>All of these open this same account.</p>
+      <ul>{available.map((id) => (
+        <li>{PROVIDERS[id as keyof typeof PROVIDERS].label}: {linked.includes(id) ? <b>linked</b> : <a href={`/auth/${id}?link=1&next=/account`}>link it</a>}</li>
+      ))}</ul>
       <h2>Delete my account</h2>
       <p>This permanently removes your account, sessions and all your ratings. It cannot be undone.</p>
       <form method="post" action="/account/delete">
