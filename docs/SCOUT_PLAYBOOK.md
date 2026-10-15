@@ -21,3 +21,6 @@ The agent proposes; deterministic code decides (see `packages/core/src/fetch`). 
 - Wire steps 1-3 and 8 (search, link extraction, scheduled re-check) as agent tools; steps 4-6 already exist as code.
 - Add the terms-of-use check as a tool that flags clauses for review, never as an auto-approval.
 - Extend host allowlist through an approval item, not by the agent itself.
+
+## Tooling pitfalls found while building
+- `olares-cli cluster pod exec` appears to run each command twice. Never use it for non-idempotent actions in tests without a guard; all ingest/takedown endpoints must be idempotent.

@@ -19,6 +19,7 @@ export async function recheckSource(sourceId: number): Promise<RecheckResult> {
     if (audit) await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['curator', `recheck_${outcome}`, { sourceId, url: s.url, detail }]);
     return { sourceId, url: s.url, outcome, detail };
   };
+  if ((await pool.query('SELECT 1 FROM tombstones WHERE url=$1', [s.url])).rowCount) return done('denied', 'tombstoned (takedown); never refetched', false);
   try {
     const doc = await fetcher.fetch(s.url);
     if (doc.sha256 === s.content_hash) {
@@ -70,8 +71,11 @@ export async function takedown(input: TakedownInput) {
   const summary = { sources: sources.length, urls: sources.map((s) => s.url), claims: claims.length, filesDeleted: sources.filter((s) => s.private_path).length, dryRun: !!input.dryRun };
   if (input.dryRun) return summary;
 
+  const dup = await pool.query("SELECT id FROM takedown_requests WHERE requester=$1 AND COALESCE(scope_url,'')=$2 AND COALESCE(scope_game,'')=$3 AND created_at > now() - interval '1 minute'", [input.requester, input.url ?? '', input.game ?? '']);
+  if (dup.rowCount) return { requestId: dup.rows[0].id, ...summary, note: 'duplicate request within 1 minute; ignored' };
   const req = await pool.query('INSERT INTO takedown_requests(requester, scope_url, scope_game, reason) VALUES ($1,$2,$3,$4) RETURNING id', [input.requester, input.url ?? null, input.game ?? null, input.reason ?? null]);
   for (const s of sources) {
+    if (!(await pool.query('SELECT 1 FROM tombstones WHERE url=$1', [s.url])).rowCount)
     await pool.query('INSERT INTO tombstones(url, reason) VALUES ($1,$2)', [s.url, `takedown #${req.rows[0].id}: ${input.reason ?? 'requested by rights holder'}`]);
     for (const p of [s.private_path, s.text_path]) if (p) await storage.delete(p).catch(() => {});
     await pool.query("UPDATE sources SET private_path=NULL, text_path=NULL, content_hash=NULL, availability='unavailable', unavailable_since=now() WHERE id=$1", [s.id]);
