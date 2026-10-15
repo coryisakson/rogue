@@ -15,8 +15,27 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [x] Admin console; auth (login); design tokens (styles/rogue.css); i18n skeleton (packages/core/src/i18n)
 - [x] `REVIEW_LOG.md` seeded with R1-R23 from the plan
 
+## Phase 1 · KB core (in progress)
+- [x] Rights-gated fetcher, PDF + HTML adapters, OCR (PaddleOCR-VL), QR links, page-cited chunk index, hybrid search + rerank
+- [x] Librarian v0, provenance enforced in DB, review by exception, Curator auto-resolve, rules chat, ratings (facts + answers), Discord bot, add-game flow + Rights Officer v0
+- [ ] First real HTML seed through the HTML adapter (adapter merged, never run on a live page)
+- [ ] Authority ranking across sources (per-game, publisher > third party)
+- [ ] Scout finds the rulebook link itself (search + publisher page link extraction); terms-of-use clause flagging
+- [ ] Configure the frontier judge (ROGUE_JUDGE_*) so Curator can reject, not only restore
+- [ ] Admin view of answer ratings; live click-through of signed-in flows (Cory's browser)
+
+## Phase 1b · Agent team on Nanobot (decision: docs/adr/0002-nanobot-orchestration.md)
+No harness bake-off. Nanobot (HKUDS, MIT) is the multi-agent orchestrator; use only the features needed, nothing speculative.
+- [ ] Run Nanobot as a Docker sidecar (own container, own volume, no access to the DB or data dir); only if it cannot run in-process/beside the pod without it
+- [ ] Agent spec format: one small file per agent (role, allowed tools, model role); Scout, Rights Officer, Librarian, Designer as first specialists
+- [ ] Scoped KB tools exposed to Nanobot over MCP (propose-only: propose_source, propose_claim; no direct publish, no rights-grant changes)
+- [ ] Proposals land in the existing review queue / approvals; audit log entry per agent action; kill switch (one flag stops all agent runs)
+- [ ] Jurisdiction Policy engine and opt-out checks stay deterministic code in core (agents propose, code decides)
+- [ ] Exit test: given a game name, Scout + Librarian find permitted sources and propose cited facts; a human approves in the queue
+- Out of scope: multi-harness comparison, scoring report, extra Nanobot channels (chat apps, WebUI, cron, memory/dream), sandboxing beyond the container boundary.
+
 ## Later phases (see plan §11)
-1 KB core · 1a Operator v0 · 1b Agent team + harness bake-off · 2 Learning loop · 3 Setup sheets · 4 Game chat ·
+1 KB core · 1a Operator v0 · 1b Agent team on Nanobot · 2 Learning loop · 3 Setup sheets · 4 Game chat ·
 4b Rights/publisher program · 5 Public surfaces · 5b Ratings/organizers · 5c Admin/compliance · 6 MCP ·
 7 Collections · 7b Cloud storage · 7c Self-host packaging · 8 Launch.
 
