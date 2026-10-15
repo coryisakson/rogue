@@ -76,6 +76,7 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
   await storage.put(privatePath, doc.bytes);
   const pages = extracted.pageCount;
   const text = extracted.text;
+  const ocrDetail = extracted.notes ?? {};
   await storage.put(textPath, new TextEncoder().encode(text));
 
   const game = await pool.query('SELECT id FROM games WHERE slug = $1', [seed.gameSlug]);
@@ -102,7 +103,7 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
   );
   await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [
     'ingest', 'fetched',
-    { url: seed.url, foundOn: seed.foundOn, sha256: doc.sha256, bytes: doc.bytes.byteLength, pages, policyVersion: doc.decision.policyVersion, etag: doc.etag, lastModified: doc.lastModified },
+    { url: seed.url, foundOn: seed.foundOn, sha256: doc.sha256, bytes: doc.bytes.byteLength, pages, policyVersion: doc.decision.policyVersion, etag: doc.etag, lastModified: doc.lastModified, ...ocrDetail },
   ]);
   return { url: seed.url, ok: true, detail: 'fetched, stored privately', sourceId, pages, chars: text.length, sha256: doc.sha256 };
 }

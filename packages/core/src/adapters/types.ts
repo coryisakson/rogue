@@ -10,6 +10,8 @@ export interface ExtractedSource {
   pageCount: number;
   /** Human-readable locator per page, index 0 = page 1 (e.g. the heading text for HTML, "page 1" for PDF). */
   locators: string[];
+  /** Extra facts for the audit log (e.g. which pages were OCR'd). */
+  notes?: Record<string, unknown>;
 }
 
 export interface SourceAdapter {

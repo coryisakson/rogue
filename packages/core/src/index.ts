@@ -18,3 +18,4 @@ export * from './ratings.js';
 export * from './i18n/index.js';
 export * from './review.js';
 export * from './discord/index.js';
+export * from './ocr/index.js';

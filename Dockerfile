@@ -16,8 +16,10 @@ COPY packages/core/package.json packages/core/
 COPY packages/core/src packages/core/src
 COPY packages/core/migrations packages/core/migrations
 COPY docs/REVIEW_LOG.md docs/APPROVALS.md docs/
-COPY scripts/restore.mjs scripts/restore.mjs
-RUN apk add --no-cache postgresql17-client \
+COPY scripts/restore.mjs scripts/ocr-page.sh scripts/
+# poppler-utils + tesseract enable OCR for scanned PDFs (docs/OCR.md); if the binaries are missing the wrapper fails and ingestion just skips OCR.
+ENV ROGUE_OCR_COMMAND=/app/scripts/ocr-page.sh
+RUN apk add --no-cache postgresql17-client poppler-utils tesseract-ocr tesseract-ocr-data-eng \
  && npm install --omit=dev --no-audit --no-fund && mkdir -p /app/data /app/backups && chown -R node:node /app
 COPY --from=builder --chown=node:node /app/apps/web/dist apps/web/dist
 USER node
