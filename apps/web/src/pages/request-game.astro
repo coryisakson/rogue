@@ -1,51 +1,117 @@
 ---
 import Base from '../layouts/Base.astro';
-import { RateLimiter, parseGameRequest, sameOrigin } from '@rogue/core';
+import { RateLimiter, parseBggMatches, parseDetails, parseGameRequest, parsePick, sameOrigin, type GameMatch } from '@rogue/core';
 import { submitRequest } from '../lib/add-game';
+import { submitDetails, submitPick } from '../lib/intake';
+import { searchEnabled, webSearch } from '../lib/search';
 import { ensureMigrated, getPool } from '../lib/services';
-// Per user: each submission triggers outbound checks against a third-party site.
-const limiter = ((globalThis as Record<string, unknown>)['__rogueReqLimit'] ??= new RateLimiter(5, 3_600_000)) as RateLimiter;
+// Per user: each submission or search triggers outbound traffic.
+const g = globalThis as Record<string, unknown>;
+const limiter = (g['__rogueReqLimit'] ??= new RateLimiter(5, 3_600_000)) as RateLimiter;
+const searchLimiter = (g['__rogueSearchLimit'] ??= new RateLimiter(20, 3_600_000)) as RateLimiter;
 const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login?next=/request-game');
 let error: string | null = null; let sent: number | null = null;
 const v: Record<string, string> = {};
+let matches: GameMatch[] | null = null;
+const q = (Astro.url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+const manualLink = Astro.url.searchParams.get('mode') === 'link';
+const searchOn = searchEnabled();
+await ensureMigrated();
 if (Astro.request.method === 'POST') {
   const h = Astro.request.headers;
   if (!sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'))) return new Response('Bad origin', { status: 403 });
   const form = Object.fromEntries((await Astro.request.formData()).entries());
   for (const k of Object.keys(form)) v[k] = String(form[k]);
+  const action = String(form['action'] ?? 'link');
   if (!limiter.allow(String(user.id))) error = 'Too many requests this hour. Please try again later.';
-  else {
+  else if (action === 'pick') {
+    const m = parsePick(form);
+    if (!m) error = 'That choice was not valid. Search again.';
+    else { const r = await submitPick(user.id, m); if ('error' in r) error = r.error; else sent = r.id; }
+  } else if (action === 'details') {
+    const d = parseDetails(form['details']);
+    if (!d.ok) error = d.error;
+    else { const r = await submitDetails(user.id, d.text); if ('error' in r) error = r.error; else sent = r.id; }
+  } else {
     const p = parseGameRequest(form);
     if (!p.ok) error = p.error;
     else { const r = await submitRequest(user.id, p.value); if ('error' in r) error = r.error; else sent = r.id; }
   }
+} else if (q.length >= 2 && searchOn) {
+  if (!searchLimiter.allow(String(user.id))) error = 'Too many searches this hour.';
+  else {
+    try { matches = parseBggMatches(await webSearch(`site:boardgamegeek.com/boardgame ${q}`, 25)); }
+    catch { error = 'Search is not answering right now. Describe the game below instead.'; matches = []; }
+  }
 }
-await ensureMigrated();
-const mine = (await getPool()!.query('SELECT id, name, status, reject_reason, progress, created_at FROM game_requests WHERE user_id=$1 ORDER BY id DESC LIMIT 10', [user.id])).rows;
-const label: Record<string, string> = { submitted: 'being checked', checked: 'waiting for an admin', approved: 'approved', rejected: 'not accepted' };
+const mine = (await getPool()!.query('SELECT id, name, status, reject_reason, progress, stage, created_at FROM game_requests WHERE user_id=$1 ORDER BY id DESC LIMIT 10', [user.id])).rows;
+const label: Record<string, string> = { submitted: 'being checked', queued: 'in the queue', manual: 'being researched by an admin', checked: 'waiting for an admin', approved: 'approved', rejected: 'not accepted' };
+const btn = 'border:0;cursor:pointer';
 ---
 <Base title="Request a game">
   <main>
     <h1>Request a game</h1>
-    <div class="card" style="max-width:34rem">
-      <p style="margin-top:0">Suggest a game and point to the <b>publisher's own</b> rulebook. Automatic checks look at robots.txt and opt-out signals, then an admin decides. Nothing is fetched before approval. Answers always cite the rulebook; we never host it.</p>
-      {sent && <p><span class="pill ok">received</span> Request #{sent} is being checked. Status below.</p>}
-      {error && <p><span class="pill bad">not sent</span> {error}</p>}
-      <form method="post" style="display:grid;gap:.6rem">
-        <label>Game title <input name="name" value={v['name'] ?? ''} required maxlength="80" /></label>
-        <label>Publisher <input name="publisher" value={v['publisher'] ?? ''} required maxlength="80" /></label>
-        <label>Year (optional) <input name="year" value={v['year'] ?? ''} inputmode="numeric" maxlength="4" /></label>
-        <label>Rulebook language <input name="language" value={v['language'] ?? 'en'} maxlength="8" /></label>
-        <label>Link to the rulebook (https, PDF or web page) <input name="rulebookUrl" value={v['rulebookUrl'] ?? ''} required maxlength="400" type="url" /></label>
-        <label>Publisher page where you found it (optional) <input name="foundOn" value={v['foundOn'] ?? ''} maxlength="400" type="url" /></label>
-        <p><button class="btn" type="submit" style="border:0;cursor:pointer">Send request</button></p>
-      </form>
+    <div class="card" style="max-width:38rem">
+      {sent && <p><span class="pill ok">received</span> Request #{sent} is in. Status below.</p>}
+      {error && <p><span class="pill bad">note</span> {error}</p>}
+      {manualLink ? (
+        <>
+          <p style="margin-top:0">Know the <b>publisher's own</b> rulebook link? Paste it. Automatic checks look at robots.txt and opt-out signals, then an admin decides. Nothing is fetched before approval.</p>
+          <form method="post" style="display:grid;gap:.6rem">
+            <input type="hidden" name="action" value="link" />
+            <label>Game title <input name="name" value={v['name'] ?? ''} required maxlength="80" /></label>
+            <label>Publisher <input name="publisher" value={v['publisher'] ?? ''} required maxlength="80" /></label>
+            <label>Year (optional) <input name="year" value={v['year'] ?? ''} inputmode="numeric" maxlength="4" /></label>
+            <label>Rulebook language <input name="language" value={v['language'] ?? 'en'} maxlength="8" /></label>
+            <label>Link to the rulebook (https) <input name="rulebookUrl" value={v['rulebookUrl'] ?? ''} required maxlength="400" type="url" /></label>
+            <label>Publisher page where you found it (optional) <input name="foundOn" value={v['foundOn'] ?? ''} maxlength="400" type="url" /></label>
+            <p><button class="btn" type="submit" style={btn}>Send request</button> <a href="/request-game">Back to search</a></p>
+          </form>
+        </>
+      ) : (
+        <>
+          {searchOn ? (
+            <>
+              <p style="margin-top:0">Type the name of a game and pick it from the list. An admin approves it, then Rogue finds the publisher's rules and builds the game page. Answers always cite the rulebook; we never host it.</p>
+              <form method="get" style="display:flex;gap:.5rem"><input name="q" value={q} placeholder="Game name" required minlength="2" maxlength="80" style="flex:1" /><button class="btn" type="submit" style={btn}>Search</button></form>
+              {matches && matches.length > 0 && (
+                <ul style="list-style:none;padding:0;margin:1rem 0 0">
+                  {matches.map((m) => (
+                    <li style="padding:.4rem 0;border-top:1px solid #8884">
+                      <form method="post" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+                        <input type="hidden" name="action" value="pick" /><input type="hidden" name="bggId" value={m.bggId} /><input type="hidden" name="title" value={m.title} /><input type="hidden" name="year" value={m.year ?? ''} />
+                        <span style="flex:1"><b>{m.title}</b>{m.year && <> ({m.year})</>} · <a href={m.url} rel="noopener nofollow" target="_blank">BoardGameGeek</a></span>
+                        <button class="btn" type="submit" style={btn}>This one</button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {matches && matches.length === 0 && !error && <p>No match found for “{q}”.</p>}
+            </>
+          ) : (
+            <p style="margin-top:0">Automatic game search is not switched on here. Describe the game and an admin will research it.</p>
+          )}
+          {(!searchOn || matches !== null || Astro.request.method === 'POST') && (
+            <details open={!searchOn || (matches !== null && matches.length === 0)} style="margin-top:1rem">
+              <summary>{searchOn ? "Can't find it? Describe the game" : 'Describe the game'}</summary>
+              <form method="post" style="display:grid;gap:.6rem;margin-top:.5rem">
+                <input type="hidden" name="action" value="details" />
+                <label>Give as much detail as you can: title, publisher, year, edition, language, where you saw it, links.
+                  <textarea name="details" rows="5" required minlength="10" maxlength="1200" style="width:100%">{v['details'] ?? q}</textarea></label>
+                <p style="margin:0"><button class="btn" type="submit" style={btn}>Send description</button></p>
+              </form>
+            </details>
+          )}
+          <p style="margin-bottom:0"><small>Already have the publisher's rulebook link? <a href="/request-game?mode=link">Paste it instead</a>.</small></p>
+        </>
+      )}
     </div>
     {mine.length > 0 && (
-      <div class="card" style="max-width:34rem;margin-top:1rem">
+      <div class="card" style="max-width:38rem;margin-top:1rem">
         <h2 style="margin-top:0">Your requests</h2>
-        <ul>{mine.map((r) => <li>#{r.id} {r.name}: <b>{label[r.status]}</b>{r.reject_reason && <> ({r.reject_reason})</>}{r.progress && <> · <small>{r.progress}</small></>}</li>)}</ul>
+        <ul>{mine.map((r) => <li>#{r.id} {r.name}: <b>{label[r.status]}</b>{r.reject_reason && <> ({r.reject_reason})</>}{(r.progress || r.stage) && <> · <small>{r.progress ?? r.stage}</small></>}</li>)}</ul>
       </div>
     )}
   </main>

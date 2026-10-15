@@ -27,12 +27,12 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 
 ## Game intake pipeline (Cory 2026-10-15, replaces the 'paste a rulebook link' idea as the main path)
 User types ONLY a game name -> Rogue shows a pick list of matches (BGG style: title, year, publisher, BGG link) -> user picks one -> admin approves the request -> it enters a job queue -> Scout agent finds publisher, rulebook, FAQ/errata by internet search -> Rights Officer checks (code) -> hand-off to Librarian -> game appears on the site. Manual link entry stays as a fallback.
-- [ ] Catalog search provider interface (pluggable): BGG XML API v2 `search` (needs a registered app token; anonymous calls answer 401, probed 2026-10-15; RGE-A16), fallback provider if no token yet; results cached; only title/year/id/link stored, bgg_id kept on the game
-- [ ] /request-game step 1: name box + pick list; step 2: user confirms the match; request stores bgg_id, no rulebook link needed
-- [ ] Admin approves the request (name/publisher level), NOT yet a host: approval puts a job in the queue
-- [ ] Job queue + stages (queued -> scouting -> rights check -> awaiting terms read -> ingest -> index -> librarian -> published), visible to requester and admin, retries, kill switch
-- [ ] Scout web search tool (search provider pluggable; Firecrawl key exists on the Hermes host, needs an approval before use in the app) finds publisher page + document links; reuses Scout v0 (0.0.64) ranking and terms flagging
-- [ ] Scout output goes to Rights Officer (code) then a second, small human gate for the terms-of-use read and host allowlisting; then Librarian
+- [x] (0.0.65) Catalog search provider interface (pluggable): BGG XML API v2 `search` (needs a registered app token; anonymous calls answer 401, probed 2026-10-15; RGE-A16), fallback provider if no token yet; results cached; only title/year/id/link stored, bgg_id kept on the game
+- [x] (0.0.65) /request-game step 1: name box + pick list; step 2: user confirms the match; request stores bgg_id, no rulebook link needed
+- [x] (0.0.65) Admin approves the request (name/publisher level), NOT yet a host: approval puts a job in the queue
+- [x] (0.0.65) Job queue + stages (queued -> scouting -> rights check -> awaiting terms read -> ingest -> index -> librarian -> published), visible to requester and admin, retries, kill switch
+- [x] (0.0.65) Scout web search tool (search provider pluggable; Firecrawl key exists on the Hermes host, needs an approval before use in the app) finds publisher page + document links; reuses Scout v0 (0.0.64) ranking and terms flagging
+- [x] (0.0.65) Scout output goes to Rights Officer (code) then a second, small human gate for the terms-of-use read and host allowlisting; then Librarian
 - [ ] Nanobot wraps these stages as agents/tools (ADR 0002)
 
 ## Priority queue for the next session (Cory 2026-10-15, set at end of session)

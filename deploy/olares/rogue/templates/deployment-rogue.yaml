@@ -35,6 +35,8 @@ spec:
           value: Olares/embeddinggemma-300m
         - name: ROGUE_AI_BASE_URL
           value: '{{ .Values.rogueAiBaseUrl | default "" }}'
+        - name: ROGUE_SEARCH_BASE_URL
+          value: '{{ .Values.rogueSearchBaseUrl | default "" }}'
         - name: ROGUE_OCR_BASE_URL
           value: '{{ .Values.rogueOcrBaseUrl | default "" }}'
         - name: ROGUE_DISCORD_APP_ID

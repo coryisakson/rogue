@@ -24,7 +24,7 @@ async function safeUrl(raw: string): Promise<URL | null> {
 }
 
 /** Fetch one HTML page through the robots-gated fetcher, only for its own host. Returns text or a note. */
-async function readPage(url: string): Promise<{ html: string; finalUrl: string } | { note: string }> {
+export async function readPage(url: string): Promise<{ html: string; finalUrl: string } | { note: string }> {
   const u = await safeUrl(url);
   if (!u) return { note: `${url} was refused (not a public https address).` };
   try {
@@ -44,7 +44,7 @@ async function readPage(url: string): Promise<{ html: string; finalUrl: string }
 export async function scoutRequest(id: number): Promise<ScoutReport | null> {
   const pool = getPool(); if (!pool) return null;
   const r = (await pool.query("SELECT name, rulebook_url, found_on FROM game_requests WHERE id=$1 AND status IN ('submitted','checked')", [id])).rows[0];
-  if (!r) return null;
+  if (!r || !r.rulebook_url) return null;
   const report: ScoutReport = { scoutedAt: new Date().toISOString(), pageUrl: r.found_on ?? null, candidates: [], termsUrl: null, termsFlags: [], notes: [] };
 
   let links: PageLink[] = [];

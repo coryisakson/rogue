@@ -4,6 +4,8 @@ workloads:
 
 # Olares Router endpoint for local AI (OpenAI-compatible). Empty until confirmed (APPROVALS RGE-A12).
 rogueAiBaseUrl: "http://3a77b15d.shared.olares.com/v1"
+# Web search for game intake and the Scout: a SearXNG root URL (JSON API). Empty = search off; requests then go to an admin for manual research.
+rogueSearchBaseUrl: "http://84a93c3c.cisakson.olares.local"
 # OCR: set to your PaddleOCR service root to use it (empty = built-in tesseract command)
 rogueOcrBaseUrl: "http://43279715.shared.olares.com"
 rogueOcrApiKey: ""

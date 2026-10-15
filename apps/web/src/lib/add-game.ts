@@ -109,7 +109,7 @@ export async function approveRequest(id: number, adminId: number, termsChecked: 
     if (!r) { await c.query('ROLLBACK'); return { ok: false, error: 'Request is not waiting for a decision.' }; }
     if (r.report?.verdict === 'blocked') { await c.query('ROLLBACK'); return { ok: false, error: 'Rights checks blocked this source; it cannot be approved.' }; }
     if (r.report?.host !== new URL(r.rulebook_url).host) { await c.query('ROLLBACK'); return { ok: false, error: 'Checks do not match the link; re-run them.' }; }
-    await c.query('INSERT INTO games(slug, name, publisher, year) VALUES ($1,$2,$3,$4) ON CONFLICT (slug) DO NOTHING', [r.slug, r.name, r.publisher, r.year]);
+    await c.query('INSERT INTO games(slug, name, publisher, year, bgg_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (slug) DO NOTHING', [r.slug, r.name, r.publisher, r.year, r.bgg_id ?? null]);
     await c.query('INSERT INTO approved_hosts(host, request_id, approved_by) VALUES ($1,$2,$3) ON CONFLICT (host) DO NOTHING', [r.report.host, id, adminId]);
     await c.query("UPDATE game_requests SET status='approved', decided_by=$2, decided_at=now(), progress='queued' WHERE id=$1", [id, adminId]);
     await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [`admin:${adminId}`, 'game_request_approved', { id, slug: r.slug, host: r.report.host, url: r.rulebook_url, termsChecked }]);

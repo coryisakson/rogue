@@ -1,6 +1,7 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-import { sameOrigin } from '@rogue/core';
+import { sameOrigin, parseGameRequest, googleLink, adminSearchQuery } from '@rogue/core';
+import { approveGame, completeManual, resumeQueue } from '../../lib/intake';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
 import { scoutRequest } from '../../lib/scout';
 import { isAdmin } from '../../lib/admin';
@@ -8,6 +9,7 @@ import { ensureMigrated, getPool } from '../../lib/services';
 // Middleware already limits /admin to signed-in admins; the check is repeated because this page also handles POST.
 if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
 await ensureMigrated();
+void resumeQueue();
 let msg: string | null = null;
 if (Astro.request.method === 'POST') {
   const h = Astro.request.headers;
@@ -19,21 +21,31 @@ if (Astro.request.method === 'POST') {
   else if (action === 'approve') { const r = await approveRequest(id, me, f.get('terms') === 'yes'); msg = r.ok ? `Request #${id} approved. Fetching, indexing and drafting facts in the background.` : (r.error ?? 'Could not approve.'); }
   else if (action === 'reject') msg = (await rejectRequest(id, me, String(f.get('reason') ?? 'not accepted'))) ? `Request #${id} rejected.` : 'Request was not waiting.';
   else if (action === 'recheck') { await runChecks(id); msg = `Checks re-run for #${id}.`; }
+  else if (action === 'approve-game') { const r = await approveGame(id, me); msg = r.ok ? `Game #${id} approved. It is in the queue; the Scout will look for the publisher's rules.` : (r.error ?? 'Could not approve.'); }
+  else if (action === 'manual') {
+    const cur = (await getPool()!.query('SELECT name FROM game_requests WHERE id=$1', [id])).rows[0];
+    const p = parseGameRequest({ name: f.get('name') || cur?.name, publisher: f.get('publisher'), rulebookUrl: f.get('rulebookUrl'), foundOn: f.get('foundOn'), language: 'en' });
+    if (!p.ok) msg = p.error;
+    else { const r = await completeManual(id, me, p.value); msg = r.ok ? `Request #${id} sent to the rights checks.` : (r.error ?? 'Could not save.'); }
+  }
   else if (action === 'scout') { const r = await scoutRequest(id); msg = r ? `Scout scanned the publisher page for #${id}.` : 'Request was not waiting.'; }
   else msg = 'Unknown action.';
 }
-const rows = (await getPool()!.query(`SELECT r.*, u.display_name requester FROM game_requests r LEFT JOIN users u ON u.id=r.user_id ORDER BY (r.status IN ('submitted','checked')) DESC, r.id DESC LIMIT 50`)).rows;
+const rows = (await getPool()!.query(`SELECT r.*, u.display_name requester FROM game_requests r LEFT JOIN users u ON u.id=r.user_id ORDER BY (r.status IN ('submitted','checked','manual')) DESC, r.id DESC LIMIT 50`)).rows;
 const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'bad' };
 ---
 <Admin title="Game requests">
-  <p>Users propose a game and a publisher rulebook link. Code runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). <b>You</b> read the site's terms and decide. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
+  <p>Users pick a game from a search list (or describe it). Approving the game puts it in the Scout's queue; when the Scout cannot find a publisher rulebook, or search is off, the request lands here for manual research with a Google link. Then Code runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). <b>You</b> read the site's terms and decide. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
   {msg && <p><span class="pill">{msg}</span></p>}
   {rows.length === 0 && <div class="card">No requests yet.</div>}
   {rows.map((r) => (
     <div class="card" style="margin-bottom:.8rem">
       <b>#{r.id} {r.name}</b> <span class="pill">{r.status}</span> {r.report && <span class={`pill ${pill[r.report.verdict] ?? ''}`}>auto check: {r.report.verdict}</span>}
       <div><small>{r.publisher} · {r.year ?? 'year ?'} · {r.language} · by {r.requester ?? 'deleted user'} · slug <code>{r.slug}</code></small></div>
-      <div>Rulebook: <a href={r.rulebook_url} rel="noopener nofollow">{r.rulebook_url}</a>{r.found_on && <> · found on <a href={r.found_on} rel="noopener nofollow">{r.found_on}</a></>}</div>
+      {r.bgg_id && <div><small>Picked from the list: <a href={`https://boardgamegeek.com/boardgame/${r.bgg_id}`} rel="noopener nofollow">BGG {r.bgg_id}</a></small></div>}
+      {r.details && <div style="white-space:pre-wrap;margin:.3rem 0"><b>User's description:</b> {r.details}</div>}
+      {r.rulebook_url ? <div>Rulebook: <a href={r.rulebook_url} rel="noopener nofollow">{r.rulebook_url}</a>{r.found_on && <> · found on <a href={r.found_on} rel="noopener nofollow">{r.found_on}</a></>}</div> : <div><small>No rulebook link yet.</small></div>}
+      {r.stage && !['approved','rejected'].includes(r.status) && <div><small>Stage: {r.stage}</small></div>}
       {r.report && <ul>{r.report.findings.map((x: { level: string; text: string }) => <li>{x.level === 'ok' ? '✅' : x.level === 'warn' ? '⚠️' : '⛔'} {x.text}</li>)}</ul>}
       {r.scout && (
         <details style="margin:.4rem 0"><summary>Scout: {r.scout.candidates.length} candidate documents, {r.scout.termsFlags.length} terms flags</summary>
@@ -46,6 +58,24 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
       )}
       {r.progress && <div><small>Pipeline: {r.progress}</small></div>}
       {r.reject_reason && <div><small>Rejected: {r.reject_reason}</small></div>}
+      {r.status === 'submitted' && r.mode === 'pick' && !r.rulebook_url && (
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;margin-top:.5rem">
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve-game" /><button class="btn" style="border:0;cursor:pointer">Approve game (Scout looks for the rules)</button></form>
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
+        </div>
+      )}
+      {r.status === 'manual' && (
+        <div style="margin-top:.5rem">
+          <a class="btn" href={googleLink(adminSearchQuery(r.details ?? `${r.name} ${r.year ?? ''}`))} target="_blank" rel="noopener noreferrer">Search Google for the rulebook</a>
+          <form method="post" style="display:grid;gap:.4rem;margin-top:.5rem;max-width:36rem"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="manual" />
+            <label>Game title <input name="name" value={r.name} maxlength="80" required /></label>
+            <label>Publisher <input name="publisher" maxlength="80" required /></label>
+            <label>Rulebook link (publisher's own, https) <input name="rulebookUrl" type="url" required maxlength="400" /></label>
+            <label>Publisher page (optional, Scout scans it and reads the terms) <input name="foundOn" type="url" maxlength="400" /></label>
+            <button class="btn" style="border:0;cursor:pointer;justify-self:start">Save and run rights checks</button></form>
+          <form method="post" style="margin-top:.4rem"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
+        </div>
+      )}
       {r.status === 'checked' && (
         <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;margin-top:.5rem">
           {r.report?.verdict !== 'blocked' && (
