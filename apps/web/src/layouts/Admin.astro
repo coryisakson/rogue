@@ -3,7 +3,7 @@ import Base from './Base.astro';
 interface Props { title: string }
 const { title } = Astro.props;
 // Access is enforced in middleware.ts (a layout cannot return a redirect).
-const tabs = [['/admin', 'Overview'], ['/admin/backups', 'Backups'], ['/admin/approvals', 'Approvals'], ['/admin/review-log', 'Review log'], ['/admin/users', 'Users'], ['/admin/design', 'Design']];
+const tabs = [['/admin', 'Overview'], ['/admin/backups', 'Backups'], ['/admin/claims', 'Claims'], ['/admin/approvals', 'Approvals'], ['/admin/review-log', 'Review log'], ['/admin/users', 'Users'], ['/admin/design', 'Design']];
 ---
 <Base title={`Admin: ${title}`}>
   <main>

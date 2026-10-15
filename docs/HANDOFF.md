@@ -11,7 +11,7 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 - Nothing. RGE-A13 done (key copied). RGE-A14 deferred by Cory: Discord alerts/digests wait for the full Discord integration (users use Rogue inside the Discord app); then add an admins channel. Alert code (notify.ts) already exists and only logs until a webhook/bot is configured.
 
 ## Next (in order)
-1. Phase 1: review queue UI in /admin for Librarian claims (approve/reject/edit, shows quote + page). Also becomes the approvals handshake.
+1. (DONE 0.0.43, /admin/claims) Review queue UI. Still to do: reuse it for the approvals handshake.
 2. Phase 1: second source adapter (publisher HTML pages), OCR for scanned PDFs, authority ranking across sources.
 3. Rate chat answers (needs stored answer id).
 4. Discord integration: bot sharing the core lib so people use Rogue (setup sheets, rules chat, ratings) inside the Discord app; then an admins channel for alerts, weekly digest and the approval handshake (plan 1a); closes RGE-A14.

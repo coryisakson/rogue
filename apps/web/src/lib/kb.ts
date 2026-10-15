@@ -1,7 +1,7 @@
 import { ensureMigrated, getPool } from './services';
 
 export interface Game { slug: string; name: string; publisher: string | null; year: number | null; min_players: number | null; max_players: number | null; bgg_id: number | null; claim_count: number }
-export interface Claim { id: string; topic: string; player_count: number | null; body: string; created_by: string; locator: string | null; quote: string | null; source_title: string; source_url: string; publisher: string | null; availability: string; avg_stars: number | null; rating_count: number; my_stars: number | null; edition: string }
+export interface Claim { id: string; topic: string; player_count: number | null; body: string; created_by: string; verified_at: string | null; locator: string | null; quote: string | null; source_title: string; source_url: string; publisher: string | null; availability: string; avg_stars: number | null; rating_count: number; my_stars: number | null; edition: string }
 
 export async function listGames(): Promise<Game[]> {
   const pool = getPool(); if (!pool) return [];
@@ -22,7 +22,7 @@ export async function getClaims(slug: string, opts: { topic?: string; q?: string
   const pool = getPool(); if (!pool) return [];
   await ensureMigrated();
   const r = await pool.query(
-    `SELECT c.id, c.topic, c.player_count, c.body, c.created_by, ci.locator, ci.quote, s.title source_title, s.url source_url, s.publisher, s.availability, e.label edition,
+    `SELECT c.id, c.topic, c.player_count, c.body, c.created_by, c.verified_at, ci.locator, ci.quote, s.title source_title, s.url source_url, s.publisher, s.availability, e.label edition,
             (SELECT avg(stars)::float FROM claim_ratings cr WHERE cr.claim_id=c.id) avg_stars,
             (SELECT count(*)::int FROM claim_ratings cr WHERE cr.claim_id=c.id) rating_count,
             (SELECT stars FROM claim_ratings cr WHERE cr.claim_id=c.id AND cr.user_id=$4::bigint) my_stars
