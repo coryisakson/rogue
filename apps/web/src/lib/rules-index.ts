@@ -99,7 +99,7 @@ async function rerank(q: string, ids: string[], byId: Map<string, { snippet: str
   try {
     const r = await ai.chat({
       temperature: 0,
-      maxTokens: 60,
+      maxTokens: 1500, // gemma4 "thinks" first; a small cap leaves no room for the answer
       messages: [
         { role: 'system', content: 'You rank excerpts of a board game rulebook by how directly they answer the question. Excerpts that state the rule outrank examples, glossaries or flavour. Reply with ONLY a JSON array of the excerpt numbers, best first, at most 5 numbers. Example: [3,1,4]' },
         { role: 'user', content: `Question: ${q}\n\nExcerpts:\n${list}` },
