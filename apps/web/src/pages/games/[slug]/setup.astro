@@ -1,6 +1,7 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
+import { buildSheet } from '@rogue/core';
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
@@ -8,6 +9,7 @@ const claims = await getClaims(slug!);
 const players = Number(Astro.url.searchParams.get('players') ?? 0);
 const setup = claims.filter((c) => c.topic === 'goal' || c.topic === 'lose' || c.topic === 'setup' || c.topic === 'turn');
 const variants = claims.filter((c) => c.topic === 'player_count_variant').sort((a, b) => (a.player_count ?? 0) - (b.player_count ?? 0));
+const sheet = buildSheet(claims);
 const srcs = [...new Map(claims.map((c) => [c.source_url, c])).values()];
 if (!claims.length) return new Response('No cited setup facts for this game yet.', { status: 404 });
 ---
@@ -41,12 +43,10 @@ if (!claims.length) return new Response('No cited setup facts for this game yet.
         {variants.map((v) => <tr class={players === v.player_count ? 'on' : ''}><td>{v.player_count}</td><td>{v.body.match(/(\d+) cards/)?.[1]}</td></tr>)}
       </table>
     </>)}
-    <h2>Goal and loss</h2>
-    <ol>{setup.filter((c) => c.topic === 'goal' || c.topic === 'lose').map((c) => <li>{c.body}</li>)}</ol>
-    <h2>Setup steps</h2>
-    <ol>{setup.filter((c) => c.topic === 'setup').map((c) => <li>{c.body}</li>)}</ol>
-    <h2>On a turn</h2>
-    <ol>{setup.filter((c) => c.topic === 'turn').map((c) => <li>{c.body}</li>)}</ol>
+    {sheet.sections.filter((sec) => sec.lines.length).map((sec) => (<>
+      <h2>{sec.title}</h2>
+      <ol>{sec.lines.map((l) => <li>{l.text}{l.page && <sup> [{l.page}]</sup>}</li>)}</ol>
+    </>))}
     <div class="foot">Sources: {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. AI-drafted from the publisher's rulebook and not yet human-reviewed; the rulebook is authoritative. Not affiliated with the publisher. Rogue v0 · open source.</div>
   </div>
 </Base>

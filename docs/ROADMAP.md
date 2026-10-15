@@ -30,6 +30,6 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [ ] Librarian quality: frontier-model spot verification, bulk reject by creator, semantic dedupe
 - [x] Scheduled weekly recheck + digest code (needs ROGUE_DISCORD_WEBHOOK_URL to post)
 - [x] Rules chat v0 (cited answers only from excerpts; login gate later)
-- [ ] Fit solver / sheet generation from claims instead of hand-built page
+- [~] Fit solver v0 (line-budget claim selection) live; print fit check + variants table left
 - [x] Auth (OAuth) code, needs provider credentials (docs/LOGIN_SETUP.md)
 - [ ] Ratings UI, Discord bot
