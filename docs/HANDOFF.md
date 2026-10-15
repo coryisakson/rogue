@@ -10,16 +10,17 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 ## Waiting on Cory
 - Nothing. RGE-A13 done (key copied). RGE-A14 deferred by Cory: Discord alerts/digests wait for the full Discord integration (users use Rogue inside the Discord app); then add an admins channel. Alert code (notify.ts) already exists and only logs until a webhook/bot is configured.
 
-## Done 2026-10-15 late (pre-Phase 2 todos from Cory): Terms Agent + CDN awareness (0.0.67), merged answers-first game page + /games popular/typeahead/missing-game (0.0.68). Cory accepted generic copyright wording as clear (0.0.69, R28). Remaining order below: Nanobot wrap, FAQ eval set, then Phase 2.
+## Done 2026-10-15 late (pre-Phase 2 todos from Cory, all live in 0.0.69, Cory confirmed Ask flow, game request and Terms Agent in his browser)
+- Terms Agent + CDN awareness (0.0.67): reads the PUBLISHER's terms (linking page, then file host if real, then domain main site), auto-approves a source when rights pass and terms are clear; kill switch ROGUE_AUTO_APPROVE_SOURCES=0. Generic copyright wording counts as clear (0.0.69, Review Log R28).
+- Answers-first game page (one Ask box, fact list admin-only via ?facts=) and /games popular six + typeahead + missing-game link (0.0.68).
+- Nanobot probed (ADR 0002 addendum): v0.3.5, pip install, `nanobot serve` OpenAI-compatible API, MCP via tools.mcpServers; risky defaults (exec, file, cliApps, dream, channels) must be off. Nothing built.
+- Principle (Cory): AI tasks go to Nanobot agents via MCP in the background; plain code stays in the app so the site is fast. Live Ask stays a direct streamed call (open point, tell Cory). Move order: Librarian, Terms judgement, Scout judgement, Curator.
 
-## Start here next session (Cory, end of 2026-10-15; the work stopped on purpose)
-Live is 0.0.63. Signed-in click-throughs are DONE (Cory). Do these in order, details in docs/ROADMAP.md 'Priority queue':
-0. Game intake pipeline (BUILT 0.0.65, see PROGRESS): name -> pick list -> approve -> queue -> Scout web search -> Rights -> admin terms/host approval -> Librarian. In-pod search VERIFIED live. Still needs a signed-in click-through.
-1. Agent orchestration (Nanobot, ADR 0002; probe the live release first). Scout v0 DONE 0.0.64 (link extraction, ranking, terms flagging, button on /admin/requests); left: web search for the rulebook link, wrap Scout as a Nanobot tool.
-2. FAQ test suite: search the web for 10 FAQs each for Pandemic and Slay the Spire, add them as an eval set run against the Ask endpoint (include count/list questions), before Phase 2.
-3. Merge fact search and rules Ask into one UI (single answers-first search; cited answers are enough).
-4. Then: list/count eval, Q&A become facts, FAQ Curator agent, one-pager quality gate, printed-page detection, frontier judge (ROGUE_JUDGE_*, needs a model route; ask Cory via APPROVALS).
-Finished today: BGG link off game cards (0.0.62), HTML ingest verified live, web sources cited by section heading (0.0.63, re-index done).
+## Start here next session (order)
+1. FAQ eval set: web-search 10 real FAQs each for Pandemic and Slay the Spire (source URL, expected answer, rulebook page), store in packages/core/eval/, run against Ask incl. count/list questions. Gates Phase 2. (Was about to start.)
+2. Nanobot sidecar: Python container in the pod (not in the Node image), config generated from agent specs, all risky tools off, restrictToWorkspace true, models via Olares Router; propose-only MCP tools; job queue state in DB; then migrate Librarian first.
+3. Then: Q&A become facts, FAQ Curator agent, one-pager quality gate, printed-page detection, frontier judge (ROGUE_JUDGE_*, needs a model route; ask Cory via APPROVALS).
+Unverified live: Terms Agent auto-approve on a fresh request (Contention should clear now; Z-Man's legal page is JS-built so stays human), Scout publisher-first run (0.0.66).
 
 ## Next (in order)
 1. (DONE 0.0.43, /admin/claims) Review queue UI. Now exceptions-only (needs_review or low-rated), per Cory: agents run the system, humans see only what really needs them. Still to do: reuse for the approvals handshake; (DONE 0.0.46: Curator auto-resolves needs_review; frontier judge via ROGUE_JUDGE_* env still unconfigured, so it restores but never rejects).
