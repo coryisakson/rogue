@@ -46,9 +46,10 @@ export async function seedPandemicClaims(): Promise<{ inserted: number; skipped:
     const exists = await pool.query("SELECT 1 FROM claims WHERE edition_id=$1 AND body=$2", [doc.edition_id, c.body]);
     if (exists.rowCount) continue;
     const cl = await pool.query(
-      "INSERT INTO claims(edition_id, topic, player_count, body, status, created_by) VALUES ($1,$2,$3,$4,'draft','hermes-seed') RETURNING id",
+      "INSERT INTO claims(edition_id, topic, player_count, body, status, created_by) VALUES ($1,$2,$3,$4,'draft','hermes-seed') ON CONFLICT (edition_id, md5(body)) DO NOTHING RETURNING id",
       [doc.edition_id, c.topic, c.playerCount ?? null, c.body],
     );
+    if (!cl.rowCount) continue;
     await pool.query('INSERT INTO citations(claim_id, document_id, locator, quote) VALUES ($1,$2,$3,$4)', [cl.rows[0].id, doc.doc_id, `p.${c.page}`, c.quote]);
     await pool.query("UPDATE claims SET status='published' WHERE id=$1", [cl.rows[0].id]);
     inserted++;

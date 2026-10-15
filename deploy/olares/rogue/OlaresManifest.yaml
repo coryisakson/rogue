@@ -17,7 +17,7 @@ metadata:
   icon: https://rogue.cisakson.olares.com/icon.svg
   name: rogue
   title: Rogue
-  version: 0.0.12
+  version: 0.0.13
 olaresManifest.type: app
 olaresManifest.version: 0.12.0
 options:
@@ -54,7 +54,7 @@ spec:
   supportArch:
   - amd64
   supportClient: {}
-  versionName: "0.0.12"
+  versionName: "0.0.13"
 tailscale: {}
 workloadReplicas:
   rogue: 1
