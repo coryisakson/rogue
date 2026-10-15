@@ -28,6 +28,7 @@ export function safeEqual(a: string, b: string): boolean {
 export function isPublicPath(pathname: string): boolean {
   if (pathname === '/' || pathname === '/about' || pathname === '/games' || pathname === '/healthz' || pathname === '/favicon.ico' || pathname === '/favicon.svg' || pathname === '/robots.txt') return true;
   if (pathname.startsWith('/_astro/')) return true;
+  if (pathname === '/discord/interactions') return true; // Ed25519-verified in the handler; 404 unless Discord env is set
   if (/^\/games\/[a-z0-9-]+(\/setup|\/ask)?\/?$/.test(pathname)) return true;
   if (pathname === '/admin' || pathname === '/admin/run' || pathname === '/admin/review' || /^\/admin\/(claims|backups|review-log|users|approvals|design)\/?$/.test(pathname)) return true; // pages guard themselves: admin session, else 404
   if (pathname === '/login' || pathname === '/logout' || pathname === '/rate' || pathname === '/account' || pathname === '/account/delete' || /^\/auth\/[a-z]+(\/callback)?\/?$/.test(pathname)) return true;

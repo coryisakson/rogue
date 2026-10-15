@@ -21,6 +21,8 @@ describe('security', () => {
     expect(isCostlyPath('/games/pandemic')).toBe(true);
     expect(isCostlyPath('/')).toBe(false);
     expect(isPublicPath('/games/pandemic/ask')).toBe(true);
+    expect(isPublicPath('/discord/interactions')).toBe(true);
+    for (const p of ['/discord', '/discord/', '/discord/interactions/', '/discord/interactions/x', '/discord/other', '/discord/interactions/../../api']) expect(isPublicPath(p)).toBe(false);
     expect(isPublicPath('/login')).toBe(true);
     expect(isPublicPath('/rate')).toBe(true);
     expect(isPublicPath('/auth/github')).toBe(true);

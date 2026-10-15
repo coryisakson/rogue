@@ -16,3 +16,4 @@ export * from './sheet/index.js';
 export * from './ratings.js';
 export * from './i18n/index.js';
 export * from './review.js';
+export * from './discord/index.js';
