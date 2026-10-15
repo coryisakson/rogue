@@ -3,9 +3,10 @@ import {
   LocalStorageProvider, createBackup, pruneBackups, listBackupDates, verifyBackup, DEFAULT_RETENTION,
 } from '@rogue/core';
 import { services, getPool } from './services';
+import { VERSION } from './version';
 
 const backupStore = new LocalStorageProvider(process.env['ROGUE_BACKUP_DIR'] || '/app/backups');
-const APP_VERSION = process.env['npm_package_version'] || process.env['ROGUE_VERSION'] || 'unknown';
+const APP_VERSION = VERSION;
 
 export interface RunStatus { at: string; ok: boolean; detail: string }
 const state: { lastBackup?: RunStatus; lastRestoreTest?: RunStatus; running: boolean } = { running: false };
