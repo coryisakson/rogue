@@ -5,5 +5,5 @@ import { ingestGame } from '../../../lib/ingest';
 export const POST: APIRoute = async ({ url }) => {
   const game = url.searchParams.get('game');
   if (!game) return Response.json({ error: 'use ?game=<slug>' }, { status: 400 });
-  return Response.json({ results: await ingestGame(game) }, { headers: { 'cache-control': 'no-store' } });
+  return Response.json({ results: await ingestGame(game, url.searchParams.get('force') === '1') }, { headers: { 'cache-control': 'no-store' } });
 };

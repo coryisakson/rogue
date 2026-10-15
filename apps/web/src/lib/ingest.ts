@@ -13,19 +13,36 @@ export interface IngestResult {
   sha256?: string;
 }
 
+const inflight = new Set<string>();
 const fetcher = new RightsGatedFetcher({ allowedHosts: ALLOWED_HOSTS, minDelayMs: 2000 });
 
 /**
  * Fetch one seed through the rights gate, keep a PRIVATE copy (never served), extract text for the Librarian,
  * record the source (rights_status stays link_only until a grant exists) and audit the decision.
  */
-export async function ingestSeed(seed: SourceSeed): Promise<IngestResult> {
+export async function ingestSeed(seed: SourceSeed, force = false): Promise<IngestResult> {
+  try {
+    return await ingestSeedInner(seed, force);
+  } finally {
+    inflight.delete(seed.url);
+  }
+}
+
+async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<IngestResult> {
   const pool = getPool();
   if (!pool) return { url: seed.url, ok: false, detail: 'database not configured' };
+  if (inflight.has(seed.url)) return { url: seed.url, ok: false, detail: 'already being fetched' };
   await ensureMigrated();
 
   const tomb = await pool.query('SELECT 1 FROM tombstones WHERE url = $1', [seed.url]);
   if (tomb.rowCount) return { url: seed.url, ok: false, detail: 'tombstoned (takedown); not fetching' };
+
+  // Politeness: never re-download a publisher file within 24h (guards against retries / double clicks) unless forced.
+  if (!force) {
+    const recent = await pool.query("SELECT id, content_hash FROM sources WHERE url = $1 AND fetched_at > now() - interval '24 hours'", [seed.url]);
+    if (recent.rowCount) return { url: seed.url, ok: true, detail: 'fetched within the last 24h; skipped', sourceId: recent.rows[0].id, sha256: recent.rows[0].content_hash };
+  }
+  inflight.add(seed.url);
 
   let doc;
   try {
@@ -81,10 +98,10 @@ export async function ingestSeed(seed: SourceSeed): Promise<IngestResult> {
   return { url: seed.url, ok: true, detail: 'fetched, stored privately', sourceId, pages, chars: text.length, sha256: doc.sha256 };
 }
 
-export async function ingestGame(slug: string): Promise<IngestResult[]> {
+export async function ingestGame(slug: string, force = false): Promise<IngestResult[]> {
   const seeds = SEEDS.filter((s) => s.gameSlug === slug);
   if (!seeds.length) return [{ url: '', ok: false, detail: `no seed sources for ${slug}` }];
   const out: IngestResult[] = [];
-  for (const s of seeds) out.push(await ingestSeed(s));
+  for (const s of seeds) out.push(await ingestSeed(s, force));
   return out;
 }
