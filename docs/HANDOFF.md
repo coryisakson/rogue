@@ -12,7 +12,7 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 
 ## Start here next session (Cory, end of 2026-10-15; the work stopped on purpose)
 Live is 0.0.63. Signed-in click-throughs are DONE (Cory). Do these in order, details in docs/ROADMAP.md 'Priority queue':
-0. Game intake pipeline (BUILT 0.0.65, see PROGRESS): name -> pick list -> approve -> queue -> Scout web search -> Rights -> admin terms/host approval -> Librarian. Needs a signed-in click-through and an in-pod search check (GET /api/admin/search?q=pandemic with x-rogue-admin).
+0. Game intake pipeline (BUILT 0.0.65, see PROGRESS): name -> pick list -> approve -> queue -> Scout web search -> Rights -> admin terms/host approval -> Librarian. In-pod search VERIFIED live. Still needs a signed-in click-through.
 1. Agent orchestration (Nanobot, ADR 0002; probe the live release first). Scout v0 DONE 0.0.64 (link extraction, ranking, terms flagging, button on /admin/requests); left: web search for the rulebook link, wrap Scout as a Nanobot tool.
 2. FAQ test suite: search the web for 10 FAQs each for Pandemic and Slay the Spire, add them as an eval set run against the Ask endpoint (include count/list questions), before Phase 2.
 3. Merge fact search and rules Ask into one UI (single answers-first search; cited answers are enough).
