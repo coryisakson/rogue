@@ -26,4 +26,4 @@ BGG offers no OAuth/OpenID login for third-party sites. Its tokens identify an a
 - Do not use scraped (non-API) BGG pages.
 
 ## Test account
-Cory's BGG username for testing collection import: `CoryIsakson` (provided 2026-10-15). Public username, fine to keep in docs.
+Cory's BGG username for testing collection import: `cisakson` (corrected 2026-10-15; earlier note said CoryIsakson, wrong). Collection: https://boardgamegeek.com/collection/user/cisakson. Public username, fine to keep in docs.

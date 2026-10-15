@@ -22,7 +22,7 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 Users don't care about the raw fact list; MVP value = setup one-pagers + Ask the rules. Facts feed those. User Q&A (cited answers) should become facts, and a FAQ Curator agent should occasionally merge them into a concrete common Q&A list per game (see ROADMAP 'MVP focus'). Count/list questions ('how many roles in Pandemic') must work by assembling items from the rulebook (shipped 0.0.59, needs eval).
 
 ## Not now (Cory)
-BGG collection / what-shall-we-play is backlog only (docs/BACKLOG.md, docs/BGG_NOTES.md; test user CoryIsakson). Off-box backups and cloud storage = Phase 7b (R24).
+BGG collection / what-shall-we-play is backlog only (docs/BACKLOG.md, docs/BGG_NOTES.md; test user cisakson). Off-box backups and cloud storage = Phase 7b (R24).
 
 ## Parallel workers
 Use delegate_task (max 3) with a git worktree + branch cc/<slug> each (git worktree add -b cc/x ../rogue-wt-x main); workers never touch docs/PROGRESS.md or main. Merge with scripts/merge-branch.sh cc/x (rebases, re-checks, ff-merges, pushes; exit 2 = conflict, resolve in the worktree and re-run). Then bump + push + deploy serially.
