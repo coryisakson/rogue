@@ -7,3 +7,7 @@ rogueAiBaseUrl: "http://3a77b15d.shared.olares.com/v1"
 # OCR: set to your PaddleOCR service root to use it (empty = built-in tesseract command)
 rogueOcrBaseUrl: "http://43279715.shared.olares.com"
 rogueOcrApiKey: ""
+
+# Discord bot (public identifiers only; the bot token is never stored in the app). Empty = bot route returns 404.
+rogueDiscordAppId: "1560305840546648118"
+rogueDiscordPublicKey: "3fb5a0277ad9cb13de4a3b1e95944265eeba9788ebfdfb77b58065c298911238"

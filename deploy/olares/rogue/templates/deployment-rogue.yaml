@@ -37,6 +37,10 @@ spec:
           value: '{{ .Values.rogueAiBaseUrl | default "" }}'
         - name: ROGUE_OCR_BASE_URL
           value: '{{ .Values.rogueOcrBaseUrl | default "" }}'
+        - name: ROGUE_DISCORD_APP_ID
+          value: '{{ .Values.rogueDiscordAppId | default "" }}'
+        - name: ROGUE_DISCORD_PUBLIC_KEY
+          value: '{{ .Values.rogueDiscordPublicKey | default "" }}'
         - name: ROGUE_OCR_API_KEY
           value: '{{ .Values.rogueOcrApiKey | default "" }}'
         image: docker.io/cisakson/rogue:{{ .Chart.AppVersion }}
