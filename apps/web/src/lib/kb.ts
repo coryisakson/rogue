@@ -25,7 +25,7 @@ export async function getClaims(slug: string, opts: { topic?: string; q?: string
     `SELECT c.id, c.topic, c.player_count, c.body, c.created_by, ci.locator, ci.quote, s.title source_title, s.url source_url, s.publisher, s.availability, e.label edition,
             (SELECT avg(stars)::float FROM claim_ratings cr WHERE cr.claim_id=c.id) avg_stars,
             (SELECT count(*)::int FROM claim_ratings cr WHERE cr.claim_id=c.id) rating_count,
-            (SELECT stars FROM claim_ratings cr WHERE cr.claim_id=c.id AND cr.user_id=$4) my_stars
+            (SELECT stars FROM claim_ratings cr WHERE cr.claim_id=c.id AND cr.user_id=$4::bigint) my_stars
      FROM claims c JOIN editions e ON e.id=c.edition_id JOIN games g ON g.id=e.game_id
      LEFT JOIN citations ci ON ci.claim_id=c.id LEFT JOIN documents d ON d.id=ci.document_id LEFT JOIN sources s ON s.id=d.source_id
      WHERE g.slug=$1 AND c.status='published' AND ($2::text IS NULL OR c.topic=$2) AND ($3::text IS NULL OR c.body ILIKE '%'||$3||'%')

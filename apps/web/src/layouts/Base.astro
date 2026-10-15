@@ -38,7 +38,7 @@ const user = Astro.locals.user;
         <a class="brand" href="/">🎲 Rogue</a>
         <nav><a href="/games">Games</a><a href="/about">About</a></nav>
         <span style="margin-left:auto;font-size:.9rem">
-          {user ? (<form method="post" action="/logout" style="display:inline"><span>{user.name}</span> <button type="submit" style="background:none;border:0;color:var(--gold);cursor:pointer;text-decoration:underline;font:inherit">Sign out</button></form>)
+          {user ? (<form method="post" action="/logout" style="display:inline"><a href="/account">{user.name}</a> <button type="submit" style="background:none;border:0;color:var(--gold);cursor:pointer;text-decoration:underline;font:inherit">Sign out</button></form>)
                 : (<a href={`/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`}>Sign in</a>)}
         </span>
       </header>

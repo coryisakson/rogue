@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login?next=/account');
+---
+<Base title="Your account">
+  <main>
+    <h1>Your account</h1>
+    <div class="card" style="max-width:30rem">
+      <p style="margin-top:0">Signed in as <b>{user.name}</b> via {user.provider}.</p>
+      <p>We store your provider user id, display name, avatar, your active sessions and your fact ratings. Nothing else.</p>
+      <h2>Delete my account</h2>
+      <p>This permanently removes your account, sessions and all your ratings. It cannot be undone.</p>
+      <form method="post" action="/account/delete">
+        <label><input type="checkbox" name="confirm" value="yes" required /> Yes, delete my account and ratings</label>
+        <p><button type="submit" class="btn" style="border:0;cursor:pointer">Delete everything</button></p>
+      </form>
+    </div>
+  </main>
+</Base>
