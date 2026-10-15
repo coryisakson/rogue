@@ -16,7 +16,7 @@ describe('security', () => {
     expect(safeEqual('abc', 'abcd')).toBe(false);
   });
   it('only front-end paths are public', () => {
-    for (const p of ['/', '/about', '/games', '/games/pandemic', '/games/pandemic/setup', '/healthz', '/_astro/x.js', '/admin', '/admin/backups', '/admin/run', '/admin/claims', '/admin/review', '/admin/requests', '/request-game']) expect(isPublicPath(p)).toBe(true);
+    for (const p of ['/', '/about', '/games', '/games/pandemic', '/games/pandemic/setup', '/healthz', '/_astro/x.js', '/admin', '/admin/backups', '/admin/run', '/admin/claims', '/admin/review', '/admin/requests', '/admin/faq', '/admin/faq-decide', '/games/pandemic/faq', '/request-game']) expect(isPublicPath(p)).toBe(true);
     for (const p of ['/mcp', '/api/games', '/api/search', '/api/rules/search', '/api/admin/ingest', '/admin/other', '/admin/backups/x', '/api/ai-ping', '/readyz', '/games/pandemic/../../api', '/games/a/b/c', '/api/games/pandemic/claims']) expect(isPublicPath(p)).toBe(false);
     expect(isCostlyPath('/games/pandemic')).toBe(true);
     expect(isCostlyPath('/')).toBe(false);

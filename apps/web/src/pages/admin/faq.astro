@@ -1,0 +1,26 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { lowRatedFaq } from '../../lib/faq';
+import { helpfulLabel } from '@rogue/core';
+const items = await lowRatedFaq();
+---
+<Admin title="FAQ ratings">
+  <p>{items.length} question{items.length === 1 ? '' : 's'} where most voters found the answer unhelpful (at least 3 votes, under 50% helpful). Well-rated questions are published in each game's FAQ automatically and need nothing from you. <b>Remove from FAQ</b> hides it publicly (reason required, logged). <b>Keep</b> means you checked it and it is fine; it will not be flagged again. To fix the cause, check the rulebook page cited, and improve or reject the underlying fact on the Claims page.</p>
+  {items.length === 0 && <div class="card">Nothing to review.</div>}
+  <div style="display:grid;gap:.8rem">
+    {items.map((f) => (
+      <div class="card">
+        <span class="pill">{f.game_slug}</span> <span class="pill bad">{helpfulLabel(f.up, f.total)}</span>
+        <h3 style="margin:.4rem 0">{f.question}</h3>
+        <p style="margin:.2rem 0">{f.answer}</p>
+        <small>{f.sources?.map((s) => <><a href={s.url}>p.{s.page}</a>{' '}</>)}</small>
+        <form method="post" action="/admin/faq-decide" style="margin:.5rem 0 0">
+          <input type="hidden" name="game" value={f.game_slug} /><input type="hidden" name="q" value={f.question_norm} />
+          <button class="btn" name="action" value="keep" style="border:0;background:#cdbf9b">Keep (fine)</button>
+          <input name="reason" placeholder="Reason to remove" style="padding:.4rem;border-radius:8px;border:0" />
+          <button class="btn" name="action" value="hide" style="border:0;background:#b5544a">Remove from FAQ</button>
+        </form>
+      </div>
+    ))}
+  </div>
+</Admin>

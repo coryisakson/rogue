@@ -1,4 +1,4 @@
-import { CHAT_SYSTEM, badCitations, buildPrompt } from '@rogue/core';
+import { CHAT_SYSTEM, badCitations, buildPrompt, normalizeQuestion } from '@rogue/core';
 import { searchRules, type RuleHit } from './rules-index';
 import { ensureMigrated, getAi, getPool } from './services';
 
@@ -24,9 +24,12 @@ export async function askRules(game: string, question: string): Promise<ChatAnsw
     ...(bad.length ? { warning: `The answer cites page(s) ${bad.join(', ')} that were not in the retrieved excerpts. Check the rulebook.` } : {}),
     ms: Date.now() - t,
   };
-  // Store an id (no text) so the page can offer helpful / not helpful votes; a cached answer keeps its id.
+  // Store an id (plus question/answer for the FAQ, never the user) so the page can offer helpful / not helpful votes; a cached answer keeps its id.
   if (answer) {
-    try { const pool = getPool(); if (pool) { await ensureMigrated(); out.id = Number((await pool.query('INSERT INTO chat_answers(game_slug) VALUES ($1) RETURNING id', [game])).rows[0].id); } }
+    try { const pool = getPool(); if (pool) { await ensureMigrated(); out.id = Number((await pool.query(
+      'INSERT INTO chat_answers(game_slug, question, question_norm, answer, sources) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+      // Answers with a citation warning are never stored for the FAQ (text stays NULL), so they cannot be published.
+      [game, bad.length ? null : q, bad.length ? null : normalizeQuestion(q), bad.length ? null : answer, bad.length ? null : JSON.stringify(out.sources.map((x) => ({ page: x.page, title: x.title, url: x.url })))])).rows[0].id); } }
     catch (e) { console.warn('[ask] could not store answer id', (e as Error).message); }
   }
   if (answer) { if (cache.size > 200) cache.clear(); cache.set(key, out); }

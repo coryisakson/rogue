@@ -1,6 +1,6 @@
 apiVersion: v2
-appVersion: "0.0.57"
+appVersion: "0.0.58"
 description: Rogue - cited, rights-aware tabletop knowledge platform
 name: rogue
 type: application
-version: 0.0.57
+version: 0.0.58

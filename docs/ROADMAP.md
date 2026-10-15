@@ -22,7 +22,8 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [ ] Authority ranking across sources (per-game, publisher > third party)
 - [ ] Scout finds the rulebook link itself (search + publisher page link extraction); terms-of-use clause flagging
 - [ ] Configure the frontier judge (ROGUE_JUDGE_*) so Curator can reject, not only restore
-- [ ] Admin view of answer ratings; live click-through of signed-in flows (Cory's browser)
+- [x] Rules FAQ from answer ratings (public 'N of M helpful', admin sees low-rated only) 0.0.58
+- [ ] Live click-through of signed-in flows (Cory's browser)
 
 ## Phase 1b · Agent team on Nanobot (decision: docs/adr/0002-nanobot-orchestration.md)
 No harness bake-off. Nanobot (HKUDS, MIT) is the multi-agent orchestrator; use only the features needed, nothing speculative.
