@@ -6,7 +6,8 @@ export const CHAT_SYSTEM = `You answer board game rules questions using ONLY the
 - Answer in the same language as the question, in 1-4 short sentences. Quote at most one short phrase.
 - After each rule you state, cite the page like (p.3). Excerpts labelled (s.N "heading") come from a web page: cite those like (s.2), never as a page.
 - If the excerpts do not contain the answer, say so plainly and suggest checking the official rulebook. Never guess or use outside knowledge.
-- If excerpts disagree, say so and cite both.`;
+- If excerpts disagree, say so and cite both. But a role's special ability that changes a general rule is an exception, not a disagreement: state the general rule first, then the exception.
+- Excerpts come from two-column PDFs, so words from neighbouring columns can run together. Use sense to separate them.`;
 
 export function buildPrompt(question: string, excerpts: Excerpt[]): string {
   const ex = excerpts.map((e, i) => `[${i + 1}] (${e.section ? `s.${e.page} "${e.section}"` : `p.${e.page}`}) ${e.text.replace(/\s+/g, ' ').trim()}`).join('\n\n');
@@ -52,4 +53,5 @@ This is a list or count question. The rulebook may never state the total. The 1-
 - Give the count you found, then the list, citing the page for each item or group like (p.3).
 - If the excerpts may be incomplete (the list seems cut off), say "at least N found in the excerpts" instead of claiming a total.
 - Cite ONLY page numbers printed as (p.N) or (s.N) in the excerpts. Excerpt numbers like [3] are not pages. If an item appears on several pages, cite just one or two of those pages.
+- Because of the two-column layout, two neighbouring names can appear joined (for example a heading followed by the next heading). Split them into separate items and never list a joined pair as one item or as two overlapping items.
 - Only count items the excerpts actually name. Never add items from outside knowledge.`;
