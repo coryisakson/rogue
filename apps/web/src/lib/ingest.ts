@@ -1,7 +1,8 @@
 import { RightsGatedFetcher, FetchDenied, htmlAdapter, selectAdapter, qrClaimBody, type SourceAdapter } from '@rogue/core';
 import { pdfAdapter } from './pdf-adapter';
 import { ensureMigrated, getPool, storage } from './services';
-import { ALLOWED_HOSTS, SEEDS, type SourceSeed } from './source-seeds';
+import { allSeeds, syncApprovedHosts } from './dynamic-sources';
+import { ALLOWED_HOSTS, type SourceSeed } from './source-seeds';
 
 export interface IngestResult {
   url: string;
@@ -36,6 +37,7 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
   if (!pool) return { url: seed.url, ok: false, detail: 'database not configured' };
   if (inflight.has(seed.url)) return { url: seed.url, ok: false, detail: 'already being fetched' };
   await ensureMigrated();
+  await syncApprovedHosts(); // hosts a human approved through the add-game flow
 
   const tomb = await pool.query('SELECT 1 FROM tombstones WHERE url = $1', [seed.url]);
   if (tomb.rowCount) return { url: seed.url, ok: false, detail: 'tombstoned (takedown); not fetching' };
@@ -110,7 +112,7 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
 }
 
 export async function ingestGame(slug: string, force = false): Promise<IngestResult[]> {
-  const seeds = SEEDS.filter((s) => s.gameSlug === slug);
+  const seeds = (await allSeeds()).filter((s) => s.gameSlug === slug);
   if (!seeds.length) return [{ url: '', ok: false, detail: `no seed sources for ${slug}` }];
   const out: IngestResult[] = [];
   for (const s of seeds) out.push(await ingestSeed(s, force));

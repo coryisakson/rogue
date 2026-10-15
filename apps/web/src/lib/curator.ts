@@ -1,7 +1,7 @@
 import { VERIFY_SYSTEM, curatorDecision, parseVerdict, quoteOnPage, splitPages, OpenAiCompatibleProvider } from '@rogue/core';
 import { ensureMigrated, getAi, getPool, ipv4Fetch, storage } from './services';
 import { ingestSeed } from './ingest';
-import { SEEDS } from './source-seeds';
+import { allSeeds } from './dynamic-sources';
 
 /**
  * Optional independent judge (a frontier model through the Claude/OpenAI-compatible endpoint). Not configured by default:
@@ -27,7 +27,7 @@ export async function resolveNeedsReview(dry = false): Promise<CuratorResult> {
 
   // 1. Sources whose file changed: fetch the new version (rights gate applies) so we compare against current text.
   const changed = (await pool.query("SELECT DISTINCT s.id, s.url FROM sources s JOIN documents d ON d.source_id=s.id JOIN citations ci ON ci.document_id=d.id JOIN claims c ON c.id=ci.claim_id WHERE c.status='needs_review' AND s.availability='changed'")).rows;
-  if (!dry) for (const s of changed) { const seed = SEEDS.find((x) => x.url === s.url); if (seed) await ingestSeed(seed, true).catch(() => {}); }
+  if (!dry) for (const s of changed) { const seed = (await allSeeds()).find((x) => x.url === s.url); if (seed) await ingestSeed(seed, true).catch(() => {}); }
 
   const claims = (await pool.query(
     `SELECT c.id, c.body, ci.id cit_id, ci.locator, ci.quote, s.id source_id, s.text_path

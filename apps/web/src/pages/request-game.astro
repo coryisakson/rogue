@@ -1,0 +1,52 @@
+---
+import Base from '../layouts/Base.astro';
+import { RateLimiter, parseGameRequest, sameOrigin } from '@rogue/core';
+import { submitRequest } from '../lib/add-game';
+import { ensureMigrated, getPool } from '../lib/services';
+// Per user: each submission triggers outbound checks against a third-party site.
+const limiter = ((globalThis as Record<string, unknown>)['__rogueReqLimit'] ??= new RateLimiter(5, 3_600_000)) as RateLimiter;
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login?next=/request-game');
+let error: string | null = null; let sent: number | null = null;
+const v: Record<string, string> = {};
+if (Astro.request.method === 'POST') {
+  const h = Astro.request.headers;
+  if (!sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'))) return new Response('Bad origin', { status: 403 });
+  const form = Object.fromEntries((await Astro.request.formData()).entries());
+  for (const k of Object.keys(form)) v[k] = String(form[k]);
+  if (!limiter.allow(String(user.id))) error = 'Too many requests this hour. Please try again later.';
+  else {
+    const p = parseGameRequest(form);
+    if (!p.ok) error = p.error;
+    else { const r = await submitRequest(user.id, p.value); if ('error' in r) error = r.error; else sent = r.id; }
+  }
+}
+await ensureMigrated();
+const mine = (await getPool()!.query('SELECT id, name, status, reject_reason, progress, created_at FROM game_requests WHERE user_id=$1 ORDER BY id DESC LIMIT 10', [user.id])).rows;
+const label: Record<string, string> = { submitted: 'being checked', checked: 'waiting for an admin', approved: 'approved', rejected: 'not accepted' };
+---
+<Base title="Request a game">
+  <main>
+    <h1>Request a game</h1>
+    <div class="card" style="max-width:34rem">
+      <p style="margin-top:0">Suggest a game and point to the <b>publisher's own</b> rulebook. Automatic checks look at robots.txt and opt-out signals, then an admin decides. Nothing is fetched before approval. Answers always cite the rulebook; we never host it.</p>
+      {sent && <p><span class="pill ok">received</span> Request #{sent} is being checked. Status below.</p>}
+      {error && <p><span class="pill bad">not sent</span> {error}</p>}
+      <form method="post" style="display:grid;gap:.6rem">
+        <label>Game title <input name="name" value={v['name'] ?? ''} required maxlength="80" /></label>
+        <label>Publisher <input name="publisher" value={v['publisher'] ?? ''} required maxlength="80" /></label>
+        <label>Year (optional) <input name="year" value={v['year'] ?? ''} inputmode="numeric" maxlength="4" /></label>
+        <label>Rulebook language <input name="language" value={v['language'] ?? 'en'} maxlength="8" /></label>
+        <label>Link to the rulebook (https, PDF or web page) <input name="rulebookUrl" value={v['rulebookUrl'] ?? ''} required maxlength="400" type="url" /></label>
+        <label>Publisher page where you found it (optional) <input name="foundOn" value={v['foundOn'] ?? ''} maxlength="400" type="url" /></label>
+        <p><button class="btn" type="submit" style="border:0;cursor:pointer">Send request</button></p>
+      </form>
+    </div>
+    {mine.length > 0 && (
+      <div class="card" style="max-width:34rem;margin-top:1rem">
+        <h2 style="margin-top:0">Your requests</h2>
+        <ul>{mine.map((r) => <li>#{r.id} {r.name}: <b>{label[r.status]}</b>{r.reject_reason && <> ({r.reject_reason})</>}{r.progress && <> · <small>{r.progress}</small></>}</li>)}</ul>
+      </div>
+    )}
+  </main>
+</Base>

@@ -1,5 +1,6 @@
 import { FetchDenied, FetchHttpError, RightsGatedFetcher } from '@rogue/core';
 import { ensureMigrated, getPool, storage } from './services';
+import { syncApprovedHosts } from './dynamic-sources';
 import { ALLOWED_HOSTS } from './source-seeds';
 
 const fetcher = new RightsGatedFetcher({ allowedHosts: ALLOWED_HOSTS, minDelayMs: 2000 });
@@ -13,6 +14,7 @@ export interface RecheckResult { sourceId: number; url: string; outcome: 'unchan
 export async function recheckSource(sourceId: number): Promise<RecheckResult> {
   const pool = getPool()!;
   await ensureMigrated();
+  await syncApprovedHosts();
   const s = (await pool.query('SELECT id, url, content_hash FROM sources WHERE id=$1', [sourceId])).rows[0];
   if (!s) return { sourceId, url: '', outcome: 'transient_error', detail: 'unknown source' };
   const done = async (outcome: RecheckResult['outcome'], detail: string, audit = true): Promise<RecheckResult> => {

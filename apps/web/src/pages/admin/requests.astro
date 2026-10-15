@@ -1,0 +1,51 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { sameOrigin } from '@rogue/core';
+import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
+import { isAdmin } from '../../lib/admin';
+import { ensureMigrated, getPool } from '../../lib/services';
+// Middleware already limits /admin to signed-in admins; the check is repeated because this page also handles POST.
+if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
+await ensureMigrated();
+let msg: string | null = null;
+if (Astro.request.method === 'POST') {
+  const h = Astro.request.headers;
+  if (!sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'))) return new Response('Bad origin', { status: 403 });
+  const f = await Astro.request.formData();
+  const id = Number(f.get('id')); const action = String(f.get('action'));
+  const me = Astro.locals.user!.id;
+  if (!Number.isInteger(id) || id < 1) msg = 'Bad request id.';
+  else if (action === 'approve') { const r = await approveRequest(id, me, f.get('terms') === 'yes'); msg = r.ok ? `Request #${id} approved. Fetching, indexing and drafting facts in the background.` : (r.error ?? 'Could not approve.'); }
+  else if (action === 'reject') msg = (await rejectRequest(id, me, String(f.get('reason') ?? 'not accepted'))) ? `Request #${id} rejected.` : 'Request was not waiting.';
+  else if (action === 'recheck') { await runChecks(id); msg = `Checks re-run for #${id}.`; }
+  else msg = 'Unknown action.';
+}
+const rows = (await getPool()!.query(`SELECT r.*, u.display_name requester FROM game_requests r LEFT JOIN users u ON u.id=r.user_id ORDER BY (r.status IN ('submitted','checked')) DESC, r.id DESC LIMIT 50`)).rows;
+const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'bad' };
+---
+<Admin title="Game requests">
+  <p>Users propose a game and a publisher rulebook link. Code runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). <b>You</b> read the site's terms and decide. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
+  {msg && <p><span class="pill">{msg}</span></p>}
+  {rows.length === 0 && <div class="card">No requests yet.</div>}
+  {rows.map((r) => (
+    <div class="card" style="margin-bottom:.8rem">
+      <b>#{r.id} {r.name}</b> <span class="pill">{r.status}</span> {r.report && <span class={`pill ${pill[r.report.verdict] ?? ''}`}>auto check: {r.report.verdict}</span>}
+      <div><small>{r.publisher} · {r.year ?? 'year ?'} · {r.language} · by {r.requester ?? 'deleted user'} · slug <code>{r.slug}</code></small></div>
+      <div>Rulebook: <a href={r.rulebook_url} rel="noopener nofollow">{r.rulebook_url}</a>{r.found_on && <> · found on <a href={r.found_on} rel="noopener nofollow">{r.found_on}</a></>}</div>
+      {r.report && <ul>{r.report.findings.map((x: { level: string; text: string }) => <li>{x.level === 'ok' ? '✅' : x.level === 'warn' ? '⚠️' : '⛔'} {x.text}</li>)}</ul>}
+      {r.progress && <div><small>Pipeline: {r.progress}</small></div>}
+      {r.reject_reason && <div><small>Rejected: {r.reject_reason}</small></div>}
+      {r.status === 'checked' && (
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;margin-top:.5rem">
+          {r.report?.verdict !== 'blocked' && (
+            <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve" />
+              <label><input type="checkbox" name="terms" value="yes" required /> I read the terms of {r.report?.host}</label>
+              <button class="btn" style="border:0;cursor:pointer">Approve</button></form>
+          )}
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="recheck" /><button class="btn" style="border:0;cursor:pointer">Re-run checks</button></form>
+        </div>
+      )}
+    </div>
+  ))}
+</Admin>

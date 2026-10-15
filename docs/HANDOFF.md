@@ -1,6 +1,6 @@
 # Handoff (updated 2026-10-15, end of session)
 
-Live: https://rogue.cisakson.olares.com, version 0.0.54 (Discord bot on, rating buttons) (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
+Live: https://rogue.cisakson.olares.com, version 0.0.56 (Discord bot on, rating buttons linked to accounts, add-game flow) (games: Pandemic, Slay the Spire) (public: front-end pages only; /api, /mcp and admin APIs need the x-rogue-admin token; /admin pages need a signed-in admin).
 Working tree: /opt/data/repos/rogue, branch main (commit straight to main until Cory accepts the first Olares build; see AGENTS.md). Follow AGENTS.md and docs/DEPLOY.md.
 
 ## Done
@@ -14,8 +14,8 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 1. (DONE 0.0.43, /admin/claims) Review queue UI. Now exceptions-only (needs_review or low-rated), per Cory: agents run the system, humans see only what really needs them. Still to do: reuse for the approvals handshake; (DONE 0.0.46: Curator auto-resolves needs_review; frontier judge via ROGUE_JUDGE_* env still unconfigured, so it restores but never rejects).
 2. HTML adapter + OCR merged; OCR http provider verified live against Cory's PaddleOCR-VL (0.0.49; in-pod OCR confirmed on Slay the Spire p.1). Left: first real HTML seed, authority ranking across sources.
 3. Rate chat answers (needs stored answer id).
-4. Discord integration (ENABLED 0.0.53, endpoint verified by Discord; Cory must invite the bot, then test live /ask; rating buttons DONE 0.0.54; left: Discord-to-Rogue user link; Cory decisions: digest timezone UTC, button approvals OK for now; admins channel is low priority backlog): bot sharing the core lib so people use Rogue (setup sheets, rules chat, ratings) inside the Discord app; then an admins channel for alerts, weekly digest and the approval handshake (plan 1a); closes RGE-A14.
-5. Add-game flow behind login (Scout + Rights Officer as code paths first).
+4. Discord integration (ENABLED 0.0.53, endpoint verified by Discord; Cory must invite the bot, then test live /ask; rating buttons DONE 0.0.54; left: Discord-to-Rogue user link DONE 0.0.55 (sign in with Discord on the site; votes tied to account); Cory decisions: digest timezone UTC, button approvals OK for now; admins channel is low priority backlog): bot sharing the core lib so people use Rogue (setup sheets, rules chat, ratings) inside the Discord app; then an admins channel for alerts, weekly digest and the approval handshake (plan 1a); closes RGE-A14.
+5. (DONE 0.0.56: /request-game + /admin/requests, Rights Officer v0 as code; needs a live walk-through in Cory's browser). Left: Scout that finds the rulebook link itself (search + publisher page link extraction), terms-of-use clause flagging.
 6. Then Phase 1b agent team, Phase 2 learning loop. Cory: no more games for the MVP; acceptable beats gold-plated.
 
 ## Not now (Cory)
