@@ -35,6 +35,9 @@ export async function createBackup(
     schemaVersion: meta.schemaVersion,
     items: items.map((i) => ({ name: i.name, size: i.data.byteLength, sha256: sha(i.data) })),
   };
+  // A second backup on the same day replaces the first: drop leftovers (e.g. an older unencrypted dump) that the new manifest does not list.
+  const wanted = new Set([...items.map((i) => i.name), 'manifest.json']);
+  for (const o of await store.list(`${prefix}/`)) if (!wanted.has(o.key.slice(prefix.length + 1))) await store.delete(o.key);
   for (const item of items) await store.put(`${prefix}/${item.name}`, item.data);
   // Manifest last: a backup without a manifest is incomplete and ignored by retention/restore.
   await store.put(`${prefix}/manifest.json`, new TextEncoder().encode(JSON.stringify(manifest, null, 2)));

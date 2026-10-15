@@ -11,9 +11,9 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [x] First deploy to Olares + route (RGE-A02), live 0.0.7
 - [x] Postgres + pgvector sidecar, migrations tool, schema skeleton, KB core tables
 - [x] Storage Provider interface + local provider + conformance tests
-- [~] Backup job + automated restore test done; restore CLI, Discord alerts, private/encrypted dump, files backup left
-- [ ] Admin console Backups page; auth (login); design system; i18n skeleton
-- [ ] `REVIEW_LOG.md` seeded with R1-R23 from the plan
+- [x] Backup job, encrypted DB + files archive, automated restore test, restore CLI (scripts/restore.mjs), Discord failure alerts (needs webhook, RGE-A14)
+- [x] Admin console; auth (login); design tokens (styles/rogue.css); i18n skeleton (packages/core/src/i18n)
+- [x] `REVIEW_LOG.md` seeded with R1-R23 from the plan
 
 ## Later phases (see plan §11)
 1 KB core · 1a Operator v0 · 1b Agent team + harness bake-off · 2 Learning loop · 3 Setup sheets · 4 Game chat ·

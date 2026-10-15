@@ -17,3 +17,5 @@ Status: OPEN / DONE. Newest IDs at the bottom.
 | RGE-A10 | DONE | | Approved: poll GitHub Actions and Docker Hub releases (read-only). | |
 | RGE-A11 | DONE | PR merge | Hermes merged PR #1 (Cory: skip branching until first Olares build; now committing to main). | |
 | RGE-A12 | DONE | Postgres/AI | Cory: Postgres runs as a sidecar in the same pod (pgvector/pgvector:pg17, PVC subPath postgres). AI via Olares Router shared entrance (see PROGRESS). Compose file for desktop testing. | |
+| RGE-A13 | OPEN | Restoring after losing the volume | Backups are encrypted (AES-256-GCM). The key is the file `backup-key` on the Rogue data share (Data/rogue/files/backup-key). Save a copy somewhere that is NOT the same disk (password manager). Without it the backups are unreadable. | Copy it now; the file is 44 bytes. |
+| RGE-A14 | OPEN | Discord alerts | Create a Discord webhook in the channel for backup-failure alerts and weekly source digests, then put `{"webhook":"https://..."}` in Data/rogue/files/discord.json. Until then alerts are only logged. | Use your existing notifications channel. |

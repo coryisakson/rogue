@@ -11,3 +11,11 @@ Pattern copied from Cory's `web-olares` project.
 7. **Tag** a release `vX.Y.Z` after a verified deploy.
 
 Pitfalls (inherited): never uninstall to upgrade; chart folder name must be lowercase alnum; set `metadata.appid`; amd64-only builds (QEMU arm64 crashes); mirror pull errors are transient, retry the upgrade; pod rollout takes minutes.
+
+
+## Restore (runbook)
+Backups: `Data/rogue/backups/backups/kb/<date>/` = `kb.dump.enc` (database) + `files.tar.enc` (data dir: private rulebook copies, oauth.json, admin token) + `manifest.json`. AES-256-GCM; key = `Data/rogue/files/backup-key` (or env ROGUE_BACKUP_KEY). `scripts/restore.mjs` needs only Node (plus pg_restore/tar):
+- `node scripts/restore.mjs list <dir>` / `verify <dir> <date>` (checksums + decrypt, writes nothing)
+- `node scripts/restore.mjs db <dir> <date> <targetDatabaseUrl>`: into a scratch DB first. Restoring over the live DATABASE_URL is refused without `--force-prod`, which needs Cory's approval.
+- `node scripts/restore.mjs files <dir> <date> <targetDir>`
+The app runs a restore test on Sundays and from /admin/backups. Failures post to Discord (RGE-A14).

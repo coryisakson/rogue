@@ -57,3 +57,13 @@ describe('backup', () => {
     await expect(pruneBackups(s, 'kb', { daily: 1, weekly: 0, monthly: 0 })).rejects.toThrow(/refusing to prune/);
   });
 });
+
+describe('same-day re-backup', () => {
+  it('removes files the new manifest does not list', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'rogue-bk-'));
+    const s = new LocalStorageProvider(dir);
+    await createBackup(s, 'kb', [{ name: 'kb.dump', data: enc('plain') }], meta('2026-10-14'));
+    await createBackup(s, 'kb', [{ name: 'kb.dump.enc', data: enc('cipher') }], meta('2026-10-14'));
+    expect((await s.list('backups/kb/2026-10-14/')).map((o) => o.key.split('/').pop()).sort()).toEqual(['kb.dump.enc', 'manifest.json']);
+  });
+});
