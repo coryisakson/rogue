@@ -28,6 +28,8 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 ## MVP focus (Cory 2026-10-15)
 Most valuable for MVP: (1) generated setup one-pagers, (2) Ask about the game / rules. Individual facts are internal building blocks for those, not a user-facing product; the game page shows them collapsed.
 - [x] Aggregate questions ("how many roles are there") answered by collecting items across excerpts and counting them (wider retrieval + neighbour chunks + list prompt) 0.0.59
+- [x] Game cards on /games no longer link to BGG (details page keeps it) 0.0.62
+- [ ] Principle: facts a rule never states outright ("how many roles in Pandemic": no number printed, 7 role cards listed) are derived by chat from the listed items and counted; the eval set must include such questions and the expected count, and the answer must cite the pages listing the items
 - [ ] Measure it: add list/count questions (Pandemic roles, Slay the Spire characters/card types) to the eval set and check the answers; tune retrieval depth
 - [ ] User Q&A become facts: a well-rated cited answer is stored as a 'qa' candidate fact (question, answer, page citations). Citations must be on retrieved pages, same provenance rules as any claim
 - [ ] FAQ Curator agent (runs occasionally, Phase 1b): merges duplicate/near-duplicate Q&A, rewrites into one concise canonical answer with citations, drops low-rated or uncited ones, publishes the common Q&A list per game (replaces raw question text on /games/<slug>/faq). Proposes; admin sees exceptions only
