@@ -1,5 +1,5 @@
-import { extractText, getDocumentProxy } from 'unpdf';
-import { RightsGatedFetcher, FetchDenied } from '@rogue/core';
+import { RightsGatedFetcher, FetchDenied, htmlAdapter, selectAdapter, type SourceAdapter } from '@rogue/core';
+import { pdfAdapter } from './pdf-adapter';
 import { ensureMigrated, getPool, storage } from './services';
 import { ALLOWED_HOSTS, SEEDS, type SourceSeed } from './source-seeds';
 
@@ -12,6 +12,9 @@ export interface IngestResult {
   chars?: number;
   sha256?: string;
 }
+
+// Adapters are chosen by the response content-type; add new formats here.
+const ADAPTERS: SourceAdapter[] = [pdfAdapter, htmlAdapter];
 
 const inflight = new Set<string>();
 const fetcher = new RightsGatedFetcher({ allowedHosts: ALLOWED_HOSTS, minDelayMs: 2000 });
@@ -55,19 +58,25 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
     return { url: seed.url, ok: false, detail: (e as Error).message };
   }
 
-  const privatePath = `private/sources/${doc.sha256}.pdf`;
+  // Extract first: an unsupported or unreadable body is refused before anything is stored.
+  const adapter = selectAdapter(ADAPTERS, doc.contentType);
+  let extracted;
+  try {
+    if (!adapter) throw new Error(`unsupported content-type ${doc.contentType}`);
+    extracted = await adapter.extract(doc.bytes, doc.contentType);
+  } catch (e) {
+    await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [
+      'ingest', 'extract_failed', { url: seed.url, contentType: doc.contentType, error: (e as Error).message },
+    ]);
+    return { url: seed.url, ok: false, detail: (e as Error).message };
+  }
+
+  const privatePath = `private/sources/${doc.sha256}.${adapter!.extension}`;
   const textPath = `private/sources/${doc.sha256}.txt`;
   await storage.put(privatePath, doc.bytes);
-
-  let pages = 0;
-  let text = '';
-  if (doc.contentType.includes('pdf')) {
-    const pdf = await getDocumentProxy(new Uint8Array(doc.bytes));
-    const out = await extractText(pdf, { mergePages: false });
-    pages = out.totalPages;
-    text = out.text.map((t, i) => `\n\n=== page ${i + 1} ===\n${t}`).join('');
-    await storage.put(textPath, new TextEncoder().encode(text));
-  }
+  const pages = extracted.pageCount;
+  const text = extracted.text;
+  await storage.put(textPath, new TextEncoder().encode(text));
 
   const game = await pool.query('SELECT id FROM games WHERE slug = $1', [seed.gameSlug]);
   if (!game.rowCount) return { url: seed.url, ok: false, detail: `unknown game ${seed.gameSlug}` };

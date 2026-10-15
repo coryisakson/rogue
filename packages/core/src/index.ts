@@ -5,6 +5,7 @@ export * from './ai/index.js';
 export * from './db/index.js';
 export * from './backup/index.js';
 export * from './fetch/index.js';
+export * from './adapters/index.js';
 export * from './mcp/index.js';
 export * from './index/index.js';
 export * from './security/index.js';
