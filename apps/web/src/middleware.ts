@@ -4,6 +4,7 @@ import { startBackupScheduler } from './lib/backup-runner';
 import { startRecheckScheduler } from './lib/recheck-scheduler';
 import { adminToken } from './lib/admin-token';
 import { userFromRequest } from './lib/auth';
+import { isAdmin } from './lib/admin';
 
 const chat = new RateLimiter(Number(process.env['ROGUE_CHAT_RATE_LIMIT'] ?? 8), 60_000);
 const costly = new RateLimiter(Number(process.env['ROGUE_RATE_LIMIT'] ?? 40), 60_000);
@@ -30,6 +31,11 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
 
   ctx.locals.user = !pathname.startsWith('/_astro/') && ctx.request.headers.has('cookie') ? await userFromRequest(ctx.request) : null;
+  // Admin console pages: not signed in -> login; signed in but not an admin -> 404 (not advertised).
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    if (!ctx.locals.user) return new Response(null, { status: 302, headers: { location: `/login?next=${encodeURIComponent(pathname)}`, 'cache-control': 'no-store' } });
+    if (!isAdmin(ctx.locals.user)) return deny(404, 'not found');
+  }
   const res = await next();
   const h = res.headers;
   h.set('x-content-type-options', 'nosniff');
