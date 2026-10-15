@@ -57,7 +57,8 @@ export const adminSearchQuery = (details: string): string => `${details.split('\
 /** Search phrases the Scout runs for a confirmed game. */
 export function scoutQueries(name: string, year: number | null): string[] {
   const y = year ? ` ${year}` : '';
-  return [`${name}${y} board game official rulebook pdf`, `${name} board game publisher official website rules`];
+  // Publisher first: who makes the game, then their rules/downloads, then a direct rulebook PDF search.
+  return [`${name}${y} board game publisher official website`, `${name} board game official rules download`, `${name}${y} board game official rulebook pdf`];
 }
 
 // Sites that copy, resell or discuss rulebooks. Never a source for Rogue (publisher/rights holder only).
@@ -85,4 +86,34 @@ export function pickFromSearch(hits: SearchHit[], gameName: string): ScoutPick {
     } catch { /* skip */ }
   }
   return { rulebook: named ?? null, pagesToScan: pages };
+}
+
+// Shops, crowdfunding, museums and media: they mention the game but are not where the rulebook lives.
+const NOT_PUBLISHER = /(^|\.)(store\.[a-z0-9.-]+|gamefound\.com|kickstarter\.com|myshopify\.com|shopify\.com|gamers-hq\.de|miniature-market\.com|coolstuffinc\.com|noblenet\.com|target\.com|walmart\.com|barnesandnoble\.com|gamestop\.com|vam\.ac\.uk|nerdlab-games\.com|bgg\.cc|geekdo\.com|boardgameatlas\.com|tabletopia\.com|steampowered\.com|store\.steampowered\.com)$/i;
+
+/**
+ * Publisher-first: from search results choose the pages most likely to be the publisher's own page for the game.
+ * Score = game words in title/path (strong), home page of the host (weak), same host seen in several results.
+ * Aggregators, shops and crowdfunding pages are skipped. The Scout reads these pages for rulebook links.
+ */
+export function rankPublisherPages(hits: SearchHit[], gameName: string, limit = 5): string[] {
+  const words = gameName.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
+  const hostCount = new Map<string, number>();
+  for (const h of hits) { try { const k = new URL(h.url).hostname.replace(/^www\./, ''); hostCount.set(k, (hostCount.get(k) ?? 0) + 1); } catch { /* skip */ } }
+  const scored: { url: string; score: number; order: number }[] = [];
+  hits.forEach((h, order) => {
+    try {
+      const u = new URL(h.url);
+      if (u.protocol !== 'https:' || /\.pdf$/i.test(u.pathname) || isAggregator(u.hostname) || NOT_PUBLISHER.test(u.hostname)) return;
+      const hay = `${h.title} ${u.pathname}`.toLowerCase();
+      const matched = words.filter((w) => hay.includes(w)).length;
+      let score = words.length ? (matched / words.length) * 10 : 5;
+      if (/\/(game|games|product|products)\//.test(u.pathname)) score += 2;
+      if (u.pathname === '/' || u.pathname === '') score += 1;
+      score += Math.min(2, (hostCount.get(u.hostname.replace(/^www\./, '')) ?? 1) - 1);
+      scored.push({ url: h.url, score, order });
+    } catch { /* skip */ }
+  });
+  const seen = new Set<string>();
+  return scored.sort((a, b) => b.score - a.score || a.order - b.order).filter((x) => !seen.has(x.url) && !!seen.add(x.url)).slice(0, limit).map((x) => x.url);
 }

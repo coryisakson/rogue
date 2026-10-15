@@ -1,4 +1,4 @@
-import { extractLinks, rankCandidates, pickFromSearch, scoutQueries, slugify, isAggregator, type GameMatch } from '@rogue/core';
+import { extractLinks, rankCandidates, pickFromSearch, rankPublisherPages, scoutQueries, slugify, isAggregator, type GameMatch } from '@rogue/core';
 import { runChecks } from './add-game';
 import { alertOperator } from './notify';
 import { readPage, scoutRequest } from './scout';
@@ -68,6 +68,22 @@ const toManual = async (id: number, why: string) => {
   await alertOperator(`Game request #${id} needs manual research: ${why}`);
 };
 
+/** Read one publisher page; if it has no rulebook PDF, follow its best same-host rules/downloads/support link once. */
+async function findRulebookOnSite(pageUrl: string, gameName: string): Promise<{ pdf: string; page: string } | null> {
+  const p = await readPage(pageUrl);
+  if ('note' in p) return null;
+  const ranked = rankCandidates(extractLinks(p.html, p.finalUrl), gameName);
+  const pdf = ranked.find((c) => c.role === 'rulebook' && c.isPdf);
+  if (pdf) return { pdf: pdf.url, page: p.finalUrl };
+  const host = new URL(p.finalUrl).host;
+  const next = ranked.find((c) => c.role === 'rulebook' && !c.isPdf && new URL(c.url).host === host && c.url !== p.finalUrl);
+  if (!next) return null;
+  const q = await readPage(next.url);
+  if ('note' in q) return null;
+  const pdf2 = rankCandidates(extractLinks(q.html, q.finalUrl), gameName).find((c) => c.role === 'rulebook' && c.isPdf);
+  return pdf2 ? { pdf: pdf2.url, page: q.finalUrl } : null;
+}
+
 /** Scout job: search, choose a rulebook, then hand over to the Rights Officer (runChecks) and the terms scan. */
 async function scoutJob(id: number): Promise<void> {
   const pool = getPool(); if (!pool) return;
@@ -78,17 +94,16 @@ async function scoutJob(id: number): Promise<void> {
     await stage(id, 'searching the web');
     let hits = [] as Awaited<ReturnType<typeof webSearch>>;
     for (const q of scoutQueries(r.name, r.year)) hits = hits.concat(await webSearch(q, 15));
-    const pick = pickFromSearch(hits, r.name);
-    let rulebookUrl = pick.rulebook?.url ?? null;
+    // 1. Publisher first: read the most likely publisher pages and follow rules/downloads links one level.
+    let rulebookUrl: string | null = null;
     let foundOn: string | null = null;
-    // No direct PDF hit: scan up to 3 publisher pages from the results for rulebook links.
-    for (const page of rulebookUrl ? [] : pick.pagesToScan) {
+    for (const page of rankPublisherPages(hits, r.name)) {
       await stage(id, `reading ${new URL(page).host}`);
-      const p = await readPage(page);
-      if ('note' in p) continue;
-      const best = rankCandidates(extractLinks(p.html, p.finalUrl), r.name).find((c) => c.role === 'rulebook' && c.isPdf);
-      if (best) { rulebookUrl = best.url; foundOn = p.finalUrl; break; }
+      const found = await findRulebookOnSite(page, r.name);
+      if (found) { rulebookUrl = found.pdf; foundOn = found.page; break; }
     }
+    // 2. Fallback: a rulebook PDF straight from the search results (non-aggregator host).
+    if (!rulebookUrl) rulebookUrl = pickFromSearch(hits, r.name).rulebook?.url ?? null;
     if (!rulebookUrl) return await toManual(id, 'the Scout found no publisher rulebook in the search results');
     if (isAggregator(new URL(rulebookUrl).hostname)) return await toManual(id, 'only third-party copies were found');
     const host = new URL(rulebookUrl).hostname.replace(/^www\./, '');
