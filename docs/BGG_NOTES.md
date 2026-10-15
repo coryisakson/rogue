@@ -24,3 +24,6 @@ BGG offers no OAuth/OpenID login for third-party sites. Its tokens identify an a
 - Cache collections per username with a TTL, rate-limit our own fetches, show the Powered by BGG logo on those pages.
 - Match to Rogue games by BGG id (store `bgg_id` on games). Unindexed games show as "not in Rogue yet".
 - Do not use scraped (non-API) BGG pages.
+
+## Test account
+Cory's BGG username for testing collection import: `CoryIsakson` (provided 2026-10-15). Public username, fine to keep in docs.
