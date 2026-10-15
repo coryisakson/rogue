@@ -10,6 +10,14 @@ Working tree: /opt/data/repos/rogue, branch main (commit straight to main until 
 ## Waiting on Cory
 - Nothing. RGE-A13 done (key copied). RGE-A14 deferred by Cory: Discord alerts/digests wait for the full Discord integration (users use Rogue inside the Discord app); then add an admins channel. Alert code (notify.ts) already exists and only logs until a webhook/bot is configured.
 
+## Start here next session (Cory, end of 2026-10-15; the work stopped on purpose)
+Live is 0.0.63. Signed-in click-throughs are DONE (Cory). Do these in order, details in docs/ROADMAP.md 'Priority queue':
+1. Agent orchestration (Nanobot, ADR 0002) + the Scout (rulebook link search, publisher page link extraction, terms-of-use flagging). Cory really wants these.
+2. FAQ test suite: search the web for 10 FAQs each for Pandemic and Slay the Spire, add them as an eval set run against the Ask endpoint (include count/list questions), before Phase 2.
+3. Merge fact search and rules Ask into one UI (single answers-first search; cited answers are enough).
+4. Then: list/count eval, Q&A become facts, FAQ Curator agent, one-pager quality gate, printed-page detection, frontier judge (ROGUE_JUDGE_*, needs a model route; ask Cory via APPROVALS).
+Finished today: BGG link off game cards (0.0.62), HTML ingest verified live, web sources cited by section heading (0.0.63, re-index done).
+
 ## Next (in order)
 1. (DONE 0.0.43, /admin/claims) Review queue UI. Now exceptions-only (needs_review or low-rated), per Cory: agents run the system, humans see only what really needs them. Still to do: reuse for the approvals handshake; (DONE 0.0.46: Curator auto-resolves needs_review; frontier judge via ROGUE_JUDGE_* env still unconfigured, so it restores but never rejects).
 2. HTML adapter + OCR merged; OCR http provider verified live against Cory's PaddleOCR-VL (0.0.49; in-pod OCR confirmed on Slay the Spire p.1). HTML seed (Pandemic product page) + authority ranking shipped 0.0.60; left: verify live ingest.
