@@ -7,5 +7,6 @@ dist
 deploy
 docs/*
 !docs/REVIEW_LOG.md
+!docs/APPROVALS.md
 *.tgz
 .env*

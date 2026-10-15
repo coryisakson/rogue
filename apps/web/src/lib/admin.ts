@@ -22,3 +22,14 @@ export function readReviewLog(): ReviewItem[] {
     return { id, area, question, risk, status };
   });
 }
+
+export interface ApprovalItem { id: string; status: string; blocks: string; need: string; recommendation: string }
+/** docs/APPROVALS.md is a markdown table: | ID | Status | Blocks | What is needed | Recommendation |. Cory answers by ID; agents edit the file. */
+export function readApprovals(): ApprovalItem[] {
+  const path = process.env['ROGUE_APPROVALS'] ?? join(process.cwd(), 'docs', 'APPROVALS.md');
+  let text = ''; try { text = readFileSync(path, 'utf8'); } catch { return []; }
+  return text.split('\n').filter((l) => /^\|\s*RGE-A\d+/.test(l)).map((l) => {
+    const c = l.split('|').slice(1, -1).map((x) => x.trim());
+    return { id: c[0] ?? '', status: c[1] ?? '', blocks: c[2] ?? '', need: c[3] ?? '', recommendation: c[4] ?? '' };
+  });
+}

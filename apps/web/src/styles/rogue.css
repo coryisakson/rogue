@@ -1,0 +1,27 @@
+/* Rogue design system: tokens first, then components. Table-top look: felt background, cream card stock, wood header, gold accents. Change colours here only. */
+
+      :root { --felt:#1d3a2a; --felt2:#27503a; --wood:#6b4423; --cream:#f6efdc; --ink:#2a2118; --gold:#d9a441; --red:#b8442f; }
+      * { box-sizing: border-box; }
+      body { margin:0; font-family: Georgia, 'Iowan Old Style', serif; background: var(--felt); color: var(--cream); line-height:1.5; }
+      a { color: var(--gold); }
+      header.site { background: var(--wood); border-bottom: 4px solid #3f2812; padding: .6rem 1rem; display:flex; gap:1rem; align-items:baseline; flex-wrap:wrap; }
+      header.site a.brand { font-size:1.4rem; font-weight:bold; color: var(--cream); text-decoration:none; letter-spacing:.04em; }
+      header.site nav a { margin-right:1rem; color: var(--cream); }
+      main { max-width: 62rem; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+      .card { background: var(--cream); color: var(--ink); border-radius: 12px; padding: 1rem 1.2rem; box-shadow: 0 3px 0 #0006; }
+      .card a { color: #8a3a12; }
+      .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(15rem,1fr)); gap: 1rem; }
+      .pill { display:inline-block; font-size:.75rem; padding:.1rem .55rem; border-radius:999px; background:#0002; margin-right:.3rem; }
+      .pill.warn { background: #d9a44155; }
+      .pill.ok { background: #3b8a5a44; }
+      .pill.bad { background: #b8442f44; }
+      footer.site { text-align:center; opacity:.65; font-size:.8rem; padding:1.5rem 1rem; }
+      h1,h2,h3 { font-family: 'Trebuchet MS', Georgia, serif; }
+      .btn { display:inline-block; background: var(--gold); color:#2a2118; padding:.5rem 1rem; border-radius:8px; text-decoration:none; font-weight:bold; }
+      table { border-collapse: collapse; }
+      td, th { padding: .3rem .7rem; border: 1px solid #0003; text-align:left; }
+    
+/* Dark/light: the site is already a dark 'game night' table; print views opt out below. */
+@media print { body { background:#fff; color:#000; } header.site, footer.site { display:none; } }
+@media (prefers-reduced-motion: no-preference) { .btn { transition: transform .08s; } .btn:active { transform: translateY(1px); } }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }

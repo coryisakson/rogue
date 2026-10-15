@@ -1,0 +1,14 @@
+---
+import Admin from '../../layouts/Admin.astro';
+const tokens = [['--felt', 'page background'], ['--felt2', 'raised background'], ['--wood', 'header'], ['--cream', 'card stock / text'], ['--ink', 'text on cards'], ['--gold', 'accent / links'], ['--red', 'danger']];
+---
+<Admin title="Design system">
+  <p>Tokens and components live in <code>apps/web/src/styles/rogue.css</code>. Change a colour there once and the whole site follows.</p>
+  <div class="grid">{tokens.map(([name, use]) => <div class="card"><div style={`height:2.2rem;border-radius:6px;background:var(${name});border:1px solid #0004`}></div><b>{name}</b><br /><small>{use}</small></div>)}</div>
+  <h2>Components</h2>
+  <div class="card">
+    <p><a class="btn" href="/admin/design">Button</a> <span class="pill">pill</span> <span class="pill ok">ok</span> <span class="pill warn">warn</span> <span class="pill bad">bad</span></p>
+    <table><thead><tr><th>Table</th><th>Header</th></tr></thead><tbody><tr><td>cell</td><td>cell</td></tr></tbody></table>
+    <p>Link style: <a href="/admin/design">a link on card stock</a>. Keyboard focus shows a gold outline. Print hides the header and footer.</p>
+  </div>
+</Admin>

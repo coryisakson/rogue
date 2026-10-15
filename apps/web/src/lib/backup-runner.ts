@@ -1,9 +1,26 @@
 import { spawn } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
-  LocalStorageProvider, createBackup, pruneBackups, listBackupDates, verifyBackup, DEFAULT_RETENTION,
+  LocalStorageProvider, createBackup, pruneBackups, listBackupDates, verifyBackup, DEFAULT_RETENTION, encryptBytes, decryptBytes, newBackupKey,
 } from '@rogue/core';
 import { services, getPool } from './services';
 import { VERSION } from './version';
+import { alertOperator } from './notify';
+
+/**
+ * Encryption key: env ROGUE_BACKUP_KEY, else a file in the data volume (created on first use). The key lives on a DIFFERENT
+ * volume path than the backups, so copying /app/backups off-box does not copy the key. Keep a copy of the key somewhere safe:
+ * without it the backups cannot be read.
+ */
+function backupKey(): string {
+  const env = process.env['ROGUE_BACKUP_KEY']; if (env) return env;
+  const path = join(services.dataDir, 'backup-key');
+  if (existsSync(path)) return readFileSync(path, 'utf8');
+  const k = newBackupKey(); writeFileSync(path, k, { mode: 0o600 });
+  void alertOperator('A new backup encryption key was created at data/backup-key. Store a copy off-box, or backups cannot be restored if this volume is lost.');
+  return k;
+}
 
 const backupStore = new LocalStorageProvider(process.env['ROGUE_BACKUP_DIR'] || '/app/backups');
 const APP_VERSION = VERSION;
@@ -36,14 +53,22 @@ export async function runBackup(): Promise<RunStatus> {
   if (state.running) return { at: new Date().toISOString(), ok: false, detail: 'another backup/test is running' };
   state.running = true;
   try {
+    const key = backupKey();
     const dump = await run('pg_dump', ['-Fc', '--no-owner', services.databaseUrl]);
-    const manifest = await createBackup(backupStore, 'kb', [{ name: 'kb.dump', data: dump }], {
+    // The data directory holds private rulebook copies plus secrets (oauth.json, admin token), so everything is encrypted.
+    // The key file itself is excluded from the archive.
+    const files = await run('tar', ['-cf', '-', '-C', services.dataDir, '--exclude=./backup-key', '.']);
+    const manifest = await createBackup(backupStore, 'kb', [
+      { name: 'kb.dump.enc', data: encryptBytes(dump, key) },
+      { name: 'files.tar.enc', data: encryptBytes(files, key) },
+    ], {
       appVersion: APP_VERSION, schemaVersion: await schemaVersion(),
     });
     const pruned = await pruneBackups(backupStore, 'kb', DEFAULT_RETENTION);
-    state.lastBackup = { at: manifest.createdAt, ok: true, detail: `${dump.byteLength} bytes, pruned ${pruned.length}` };
+    state.lastBackup = { at: manifest.createdAt, ok: true, detail: `db ${dump.byteLength} B + files ${files.byteLength} B (encrypted), pruned ${pruned.length}` };
   } catch (e) {
     state.lastBackup = { at: new Date().toISOString(), ok: false, detail: (e as Error).message };
+    void alertOperator(`BACKUP FAILED: ${state.lastBackup.detail}`);
   } finally {
     state.running = false;
   }
@@ -64,7 +89,15 @@ export async function runRestoreTest(): Promise<RunStatus> {
     if (!latest) throw new Error('no backups to test');
     const bad = await verifyBackup(backupStore, 'kb', latest);
     if (bad.length) throw new Error(`backup ${latest} fails verification: ${bad.join(', ')}`);
-    const dump = await backupStore.get(`backups/kb/${latest}/kb.dump`);
+    // Older backups (before encryption) are plain kb.dump; newer ones are kb.dump.enc.
+    const encrypted = await backupStore.get(`backups/kb/${latest}/kb.dump.enc`);
+    const dump = encrypted ? decryptBytes(encrypted, backupKey()) : await backupStore.get(`backups/kb/${latest}/kb.dump`);
+    const filesEnc = await backupStore.get(`backups/kb/${latest}/files.tar.enc`);
+    let fileCount = 0;
+    if (filesEnc) {
+      await backupStore.put('tmp/restore-test.tar', decryptBytes(filesEnc, backupKey()));
+      fileCount = (await run('tar', ['-tf', `${process.env['ROGUE_BACKUP_DIR'] || '/app/backups'}/tmp/restore-test.tar`])).toString().split('\n').filter(Boolean).length;
+    }
     await pool.query(`DROP DATABASE IF EXISTS ${scratch}`);
     await pool.query(`CREATE DATABASE ${scratch}`);
     const scratchUrl = new URL(services.databaseUrl);
@@ -79,12 +112,14 @@ export async function runRestoreTest(): Promise<RunStatus> {
     };
     const [live, restored] = [await count(services.databaseUrl), await count(scratchUrl.toString())];
     if (live !== restored) throw new Error(`table count mismatch: live ${live}, restored ${restored}`);
-    state.lastRestoreTest = { at, ok: true, detail: `restored ${latest}: ${restored} tables match` };
+    state.lastRestoreTest = { at, ok: true, detail: `restored ${latest}: ${restored} tables match${filesEnc ? `, files archive readable (${fileCount} entries)` : ''}` };
   } catch (e) {
     state.lastRestoreTest = { at, ok: false, detail: (e as Error).message };
+    void alertOperator(`RESTORE TEST FAILED: ${state.lastRestoreTest.detail}`);
   } finally {
     await pool.query(`DROP DATABASE IF EXISTS ${scratch}`).catch(() => {});
     await backupStore.delete('tmp/restore-test.dump').catch(() => {});
+    await backupStore.delete('tmp/restore-test.tar').catch(() => {});
     state.running = false;
   }
   return state.lastRestoreTest!;

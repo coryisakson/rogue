@@ -14,3 +14,4 @@ export * from './auth/index.js';
 export * from './digest';
 export * from './sheet/index.js';
 export * from './ratings.js';
+export * from './i18n/index.js';

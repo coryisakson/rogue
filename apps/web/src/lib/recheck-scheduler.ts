@@ -1,3 +1,4 @@
+import { alertOperator } from './notify';
 import { readFile, writeFile } from 'node:fs/promises';
 import { isRecheckDue, formatDigest } from '@rogue/core';
 import { services } from './services';
@@ -10,12 +11,7 @@ async function lastRun(): Promise<string | undefined> {
   try { return JSON.parse(await readFile(STATE_FILE, 'utf8')).at; } catch { return undefined; }
 }
 
-/** Optional: post the digest to a Discord webhook (env ROGUE_DISCORD_WEBHOOK_URL). Failure never breaks the recheck. */
-async function postDigest(text: string): Promise<void> {
-  const hook = process.env['ROGUE_DISCORD_WEBHOOK_URL'];
-  if (!hook) return;
-  await fetch(hook, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: text }) }).catch(() => {});
-}
+const postDigest = (text: string) => alertOperator(text);
 
 /** Hourly tick; runs the source recheck once a week and sends the digest. */
 export function startRecheckScheduler(): void {
