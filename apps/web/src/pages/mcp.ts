@@ -43,7 +43,7 @@ const tools: McpTool[] = [
     inputSchema: { type: 'object', properties: { q: { type: 'string' }, game: { type: 'string', description: 'optional game slug' }, limit: { type: 'number' } }, required: ['q'] },
     handler: async (a) => {
       const q = str(a['q']); if (!q || q.length < 2) throw new Error('q must be at least 2 characters');
-      const o: { game?: string; limit?: number } = {};
+      const o: { game?: string; limit?: number; rerank?: boolean } = { rerank: true };
       const g = str(a['game']); if (g) o.game = g;
       if (typeof a['limit'] === 'number') o.limit = a['limit'];
       return { hits: await searchRules(q, o), note: 'Snippets are short excerpts of the private working copy; the publisher link is the authority.' };
