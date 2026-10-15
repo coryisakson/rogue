@@ -54,3 +54,6 @@ Blockers are tracked as `RGE-Axx` in `docs/APPROVALS.md` and emailed to Cory. Co
 
 ## Where decisions live
 `docs/adr/NNNN-title.md` for architecture decisions (short: context, decision, consequences). Add one whenever you choose between real alternatives.
+
+## Product principle: agents do what the builder did
+The manual find-and-retrieve work done while building Rogue (search, read publisher pages, check rights, fetch, extract, cite) is the template for the in-product agents. Follow `docs/SCOUT_PLAYBOOK.md`; when you learn a better way while building, update the playbook so the product agents inherit it.
