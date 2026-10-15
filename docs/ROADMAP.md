@@ -31,4 +31,5 @@ Status key: [x] done, [~] in progress, [ ] not started, [!] blocked (see APPROVA
 - [ ] Scheduled weekly recheck + Discord digest
 - [x] Rules chat v0 (cited answers only from excerpts; login gate later)
 - [ ] Fit solver / sheet generation from claims instead of hand-built page
-- [ ] Auth (OAuth), ratings UI, Discord bot
+- [x] Auth (OAuth) code, needs provider credentials (docs/LOGIN_SETUP.md)
+- [ ] Ratings UI, Discord bot
