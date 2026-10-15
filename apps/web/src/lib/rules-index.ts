@@ -23,16 +23,14 @@ export async function indexSource(sourceId: number): Promise<{ chunks: number; e
   else {
     const rows = (await pool.query('SELECT id, text FROM chunks WHERE source_id=$1 ORDER BY ord', [sourceId])).rows;
     try {
-      for (let i = 0; i < rows.length; i += 8) {
-        const batch = rows.slice(i, i + 8);
-        const r = await ai.embed(batch.map((b: { text: string }) => b.text));
+      // The Router embedding model accepts one text per request (single-concurrency), so go sequentially.
+      for (const row of rows as { id: string; text: string }[]) {
+        const r = await ai.embed([row.text]);
         model = r.model;
-        for (let j = 0; j < batch.length; j++) {
-          const v = r.vectors[j];
-          if (!v || v.length !== 768) throw new Error(`unexpected embedding size ${v?.length}`);
-          await pool.query('UPDATE chunks SET embedding=$2::vector, embed_model=$3 WHERE id=$1', [batch[j].id, `[${v.join(',')}]`, r.model]);
-          embedded++;
-        }
+        const v = r.vectors[0];
+        if (!v || v.length !== 768) throw new Error(`unexpected embedding size ${v?.length}`);
+        await pool.query('UPDATE chunks SET embedding=$2::vector, embed_model=$3 WHERE id=$1', [row.id, `[${v.join(',')}]`, r.model]);
+        embedded++;
       }
     } catch (e) { note = `embedding stopped: ${(e as Error).message}; keyword search still works`; }
   }
