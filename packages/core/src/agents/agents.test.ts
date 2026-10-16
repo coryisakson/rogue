@@ -39,4 +39,12 @@ describe('agent jobs', () => {
     expect(agentMayActOn('librarian', { kind: 'unknown', status: 'running' })).toBe(false);
     expect(agentMayActOn('librarian', null)).toBe(false);
   });
+  it('gives terms_judge jobs only to the terms agent', () => {
+    expect(JOB_AGENT.terms_judge).toBe('terms-agent');
+    expect(AGENT_PORTS['terms-agent']).toBe(8904);
+    expect(verifyAgentHeader(`terms-agent:${agentToken('k', 'terms-agent')}`, 'k')).toBe('terms-agent');
+    expect(agentMayActOn('terms-agent', { kind: 'terms_judge', status: 'running' })).toBe(true);
+    expect(agentMayActOn('scout', { kind: 'terms_judge', status: 'running' })).toBe(false);
+    expect(agentMayActOn('terms-agent', { kind: 'scout_variants', status: 'running' })).toBe(false);
+  });
 });
