@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-16 (Hermes): Ran qa-facts live on Pandemic with admin token: 200, created 0, skipped 4 (not eligible; no well-rated cited answers yet). Endpoint verified working. Next: one-pager quality gate.
 
 - 2026-10-16 (Hermes): 0.0.85: Q&A become facts. POST /api/admin/qa-facts?game= stores well-rated cited answers as 'qa' claims (needs_review, citations required, idempotent). 11 tests, check green. Not yet run live; no admin button.
 - 2026-10-16 (Hermes): Re-indexed Pandemic on 0.0.84 (5 sources, 174 chunks, all embedded). Spot searches (outbreak, epidemic, setup) return clean rules text, no map-label noise seen. Only 3 queries checked; no eval run.
