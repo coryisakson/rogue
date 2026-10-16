@@ -8,7 +8,7 @@ if (!game) return new Response('Not found', { status: 404 });
 const claims = await getClaims(slug!);
 const players = Number(Astro.url.searchParams.get('players') ?? 0);
 const setup = claims.filter((c) => c.topic === 'goal' || c.topic === 'lose' || c.topic === 'setup' || c.topic === 'turn');
-const variants = claims.filter((c) => c.topic === 'player_count_variant').sort((a, b) => (a.player_count ?? 0) - (b.player_count ?? 0));
+const variants = claims.filter((c) => c.topic === 'player_count_variant' && c.player_count != null).sort((a, b) => (a.player_count ?? 0) - (b.player_count ?? 0));
 const sheet = buildSheet(claims);
 const srcs = [...new Map(claims.map((c) => [c.source_url, c])).values()];
 if (!claims.length) return new Response('No cited setup facts for this game yet.', { status: 404 });
@@ -39,8 +39,8 @@ if (!claims.length) return new Response('No cited setup facts for this game yet.
     <div class="sub">{game.publisher} · {game.min_players}–{game.max_players} players · edition: {claims[0]?.edition}</div>
     {variants.length > 0 && (<>
       <h2>Changes by player count</h2>
-      <table><tr><th>Players</th><th>Starting hand (cards each)</th></tr>
-        {variants.map((v) => <tr class={players === v.player_count ? 'on' : ''}><td>{v.player_count}</td><td>{v.body.match(/(\d+) cards/)?.[1]}</td></tr>)}
+      <table class="pc"><tr><th>Players</th><th>What changes</th></tr>
+        {variants.map((v) => <tr class={players === v.player_count ? 'on' : ''}><td>{v.player_count}</td><td style="text-align:left">{v.body}{v.locator && <sup> [{v.locator}]</sup>}</td></tr>)}
       </table>
     </>)}
     {variants.length === 0 && (<p class="none"><em>No player-count changes recorded for this game.</em></p>)}
@@ -50,4 +50,15 @@ if (!claims.length) return new Response('No cited setup facts for this game yet.
     </>))}
     <div class="foot">Sources: {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. Written by AI from the publisher's rulebook, each line quote-checked against the cited page; the rulebook is authoritative. Not affiliated with the publisher. Rogue v0 · open source.</div>
   </div>
+  <script is:inline>
+    // Fit check: shrink the text until the sheet fits one half-letter page, so print never clips the end.
+    (function () {
+      var sheet = document.querySelector('.sheet'); if (!sheet) return;
+      var pt = 8.6, limit = 8.5 * 96;
+      sheet.style.fontSize = pt + 'pt';
+      while (sheet.scrollHeight > limit + 1 && pt > 6.2) { pt -= 0.1; sheet.style.fontSize = pt.toFixed(1) + 'pt'; }
+      sheet.dataset.fit = sheet.scrollHeight > limit + 1 ? 'overflow' : 'ok';
+      sheet.dataset.fontPt = pt.toFixed(1);
+    })();
+  </script>
 </Base>

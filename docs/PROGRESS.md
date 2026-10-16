@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-16 (Hermes): 0.0.93: one-pager fit gate. Live sheets overflowed half-letter (Pandemic 877px vs 816, StS 833) and print clipped the end; now a fit script shrinks text until it fits. Player-count table shows the variant text (StS cells were empty). Per Cory: MVP work now, answer polishing paused.
 - 2026-10-16 (Hermes): 0.0.92: evals fixed: 'how many roles' mustNot matched page cite p.8 (answer was correct, 7 roles on 0.0.91); StS Retain/Daze now mayAbstain (rulebook silent). Open: StS 'what carries over between acts' retrieval.
 - 2026-10-16 (Hermes): 0.0.91: count/list questions retrieve 12 hits, neighbours radius 2, cap 30; prompt prefers a stated total (7 Role Cards). Eval on 0.0.90 was Pandemic 8/10, StS 7/10 (weights changed nothing). Re-run on 0.0.91 pending.
 - 2026-10-16 (Hermes): 0.0.90: source weights per Cory: rulebook 1.3 > errata 1.15 > faq 1.1 > quickstart/article/other > forum 0.7, times authority (publisher 1.0 ... forum 0.75). Weight shown per source on /admin/quality. Tests updated, check green. Next: re-run evals, then item 2.
