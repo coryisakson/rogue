@@ -1,6 +1,6 @@
 # Handoff (rewritten 2026-10-16 evening). Keep this file under 3 KB; history lives in docs/archive/.
 
-Live: https://rogue.cisakson.olares.com, version 0.0.100. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
+Live: https://rogue.cisakson.olares.com, version 0.0.101. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
 Rulebook: AGENTS.md. Product principle: AI tasks -> Nanobot agents over MCP in background; plain code stays in app (ADR 0002).
 
 ## Next (ordered; do the first unfinished one)
