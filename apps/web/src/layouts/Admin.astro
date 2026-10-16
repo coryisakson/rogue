@@ -1,14 +1,16 @@
 ---
 import Base from './Base.astro';
 interface Props { title: string }
+import { adminBadges } from '../lib/admin-badges';
 const { title } = Astro.props;
+const badges = await adminBadges();
 // Access is enforced in middleware.ts (a layout cannot return a redirect).
 const tabs = [['/admin', 'Overview'], ['/admin/backups', 'Backups'], ['/admin/claims', 'Claims'], ['/admin/faq', 'FAQ ratings'], ['/admin/quality', 'Text quality'], ['/admin/extracts', 'Extracts'],['/admin/requests', 'Game requests'], ['/admin/approvals', 'Approvals'], ['/admin/review-log', 'Review log'], ['/admin/users', 'Users'], ['/admin/design', 'Design']];
 ---
 <Base title={`Admin: ${title}`}>
   <main>
     <h1>Admin · {title}</h1>
-    <p>{tabs.map(([href, label]) => <a href={href} style="margin-right:1rem">{label}</a>)}</p>
+    <nav aria-label="Admin sections" style="margin:.6rem 0">{tabs.map(([href, label]) => <a href={href} style="margin-right:1rem;white-space:nowrap">{label}{badges[href] ? <span class="pill bad" style="margin-left:.3rem" title={`${badges[href]} waiting`}>{badges[href]}<span style="position:absolute;left:-9999px"> waiting</span></span> : null}</a>)}</nav>
     <slot />
   </main>
 </Base>
