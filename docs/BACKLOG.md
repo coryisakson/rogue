@@ -33,3 +33,4 @@ See docs/BGG_NOTES.md for BGG API access rules (registration, bearer token, limi
   - Link to Privacy Policy (write and host a /privacy page; GDPR-aligned, covers Discord ids and rating votes).
   - Install link (set in the Developer Portal, default install settings).
   - All Team members need a verified email and 2FA.
+- **Answer Improvement Agent** (Cory 2026-10-16). Nanobot agent that works the improvement queue (poorly rated answers and unanswered asks): diagnoses why (missing source, bad chunk, weak retrieval, gate too strict), and proposes fixes via propose-only tools (new claim, source to scout, FAQ edit). Humans approve. Depends on the improvement queue below being built.

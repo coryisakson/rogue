@@ -1,6 +1,7 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
 
+- 2026-10-16 (Hermes): Cory added two items to Next (button click feedback + double-click guard; unanswered asks join the poor-rating improvement queue) and backlogged an Answer Improvement Agent. Docs only.
 - 2026-10-16 (Hermes): Re-indexed Pandemic and StS live on 0.0.82. Printed pages stored for Pandemic PDFs (src 1, 7: 119/119, printed = physical, so no 'printed' suffix shown); StS sources 10-12 have none (no consistent number found). Pandemic page text is noisy (card art/map labels mixed in): next is OCR/page-text quality.
 - 2026-10-16 (Hermes): Printed page numbers (0.0.82, migration 0027). pagelabels.ts finds the header/footer number by a consistent offset (60% agreement, else none); chunks.printed_page set at index time for PDFs; Ask list, prompts and Discord footer show 'p.7 (printed 5)'. Stored locators stay physical. Re-index needed per game; not yet tested on real rulebooks.
 - 2026-10-16 (Hermes): FAQ Curator runs as Nanobot job faq_curate (0.0.81, sidecar 0.5.0, port 8905, migration 0026). Merges duplicate Q&A into canonical cited answers; gate rejects invented citations/numbers and hidden questions; raw tally stays as fallback. POST /api/admin/faq-curate?game=. Not yet tested live.
