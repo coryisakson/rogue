@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-16 (Hermes): Re-ingested + re-indexed Pandemic and StS on 0.0.89 with MinerU (ocrPages 8/8 and 23/24; StS p.5 empty). Evals: Pandemic 6->8/10, StS 8->7/10 (single runs, ~1 question noise). Still failing: 'how many roles' (says 4, list says 7), Share Knowledge, StS Retain/Daze/acts.
 - 2026-10-16 (Hermes): 0.0.89: fix MinerU upload (FormData unsupported by ipv4Fetch -> hand-built multipart Buffer). 0.0.88 forced re-ingest silently fell back to the text layer (ocrErrors in audit). Eval baseline on old index: Pandemic 6/10, StS 8/10. Next: re-ingest + re-index + rerun evals.
 - 2026-10-16 (Hermes): 0.0.88: MinerU HTML tables (merged cells; no server option exists) are rebuilt as markdown tables client-side. Ask evals/KB checks re-enabled by Cory (AGENTS.md, HANDOFF). Next: force re-ingest + re-index Pandemic and StS, run evals vs baseline 6/10 and 7/10.
 - 2026-10-16 (Hermes): 0.0.88: one-pager shows explicit 'No player-count changes recorded' instead of an empty gap when a game has no variants (first part of the quality gate). Check green. Print-fit check and card-size player aids still open.
