@@ -11,3 +11,5 @@ coverage/
 .cc-result.json
 *.db
 *.sqlite
+.cc-summary.txt
+TASK.md

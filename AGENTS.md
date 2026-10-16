@@ -57,3 +57,10 @@ Blockers are tracked as `RGE-Axx` in `docs/APPROVALS.md` and emailed to Cory. Co
 
 ## Product principle: agents do what the builder did
 The manual find-and-retrieve work done while building Rogue (search, read publisher pages, check rights, fetch, extract, cite) is the template for the in-product agents. Follow `docs/SCOUT_PLAYBOOK.md`; when you learn a better way while building, update the playbook so the product agents inherit it.
+
+## Context discipline (every agent; sessions were hitting context limits)
+- Session start reads ONLY `docs/HANDOFF.md` (<3 KB) and the top 8 lines of `docs/PROGRESS.md`. Do not read ROADMAP, APPROVALS, REVIEW_LOG or archive files unless the task touches them; `grep` them instead.
+- `docs/PROGRESS.md` entries stay under 400 characters. Detail goes in the commit message or an ADR. When the file passes 4 KB, move older entries to `docs/archive/PROGRESS-archive.md`.
+- Never dump long output. Use `scripts/qcheck.sh` (not raw `npm run check`), `scripts/wait-build.py` (not polling loops), and redirect anything else to a file, then grep/`head`.
+- Read files with `grep -n` + a line range, not whole. Do not re-read a file you just edited.
+- Anything that touches 3 or more files, or a self-contained subsystem, goes to a worker: `scripts/new-worker.sh <slug>`, fill TASK.md, `scripts/run-worker.sh <slug>` (background), then `scripts/merge-branch.sh cc/<slug>`. The orchestrator reads only the worker's short report and `git diff --stat`, never the full diff unless something looks wrong.
