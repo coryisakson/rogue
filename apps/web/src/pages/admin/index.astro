@@ -8,6 +8,8 @@ await ensureMigrated();
 const pool = getPool();
 const n = async (sql: string) => pool ? Number((await pool.query(sql)).rows[0].n) : 0;
 const stats = { claims: await n("SELECT count(*) n FROM claims WHERE status='published'"), users: await n('SELECT count(*) n FROM users'), ratings: await n('SELECT count(*) n FROM claim_ratings'), violations: await n('SELECT count(*) n FROM provenance_violations') };
+// Rules-chat cost watch (migration 0030): tokens across rewrite, rerank and answer calls since UTC midnight.
+const tok = pool ? (await pool.query(`SELECT count(*) n, coalesce(sum(prompt_tokens),0) p, coalesce(sum(completion_tokens),0) c FROM chat_answers WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`)).rows[0] : { n: 0, p: 0, c: 0 };
 const b = getBackupState();
 const openApprovals = readApprovals().filter((a) => a.status === 'OPEN').length;
 const open = readReviewLog().filter((r) => r.status === 'open').length;
@@ -20,6 +22,7 @@ const open = readReviewLog().filter((r) => r.status === 'open').length;
     <div class="card"><b>Provenance</b><br />{stats.violations === 0 ? <span class="pill ok">0 violations</span> : <span class="pill bad">{stats.violations} violations</span>}</div>
     <div class="card"><b>Last backup (since restart)</b><br />{b.lastBackup ? <span class={`pill ${b.lastBackup.ok ? 'ok' : 'bad'}`}>{b.lastBackup.ok ? 'ok' : 'failed'}</span> : 'none yet'} <a href="/admin/backups">details</a></div>
     <div class="card"><b>Open approvals</b><br />{openApprovals} <a href="/admin/approvals">view</a></div>
+    <div class="card"><b>Chat tokens today</b><br />{Number(tok.p).toLocaleString('en')} in / {Number(tok.c).toLocaleString('en')} out · {Number(tok.n)} answers</div>
     <div class="card"><b>Open review items</b><br />{open} <a href="/admin/review-log">view</a></div>
   </div>
 </Admin>

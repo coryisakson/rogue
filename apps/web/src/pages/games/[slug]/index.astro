@@ -1,9 +1,9 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
-import { askRules, gameSources, type ChatAnswer } from '../../../lib/chat';
+import { askRules, gameSources, spendChatBudget, type ChatAnswer } from '../../../lib/chat';
 import { recordAsk } from '../../../lib/unanswered';
-import { groupCitations, pageList } from '@rogue/core';
+import { MAX_THREAD_TURNS, THREAD_WARN_TURN, groupCitations, pageList } from '@rogue/core';
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
@@ -17,9 +17,13 @@ const voted = Astro.url.searchParams.get('voted');
 const nextUrl = `/games/${slug}?q=${encodeURIComponent(q)}`;
 let res: ChatAnswer | null = null; let err = '';
 if (user && q.length >= 3) {
-  try { res = await askRules(slug!, q); } catch (e) { err = 'The rules assistant is busy or offline. Please try again in a minute.'; console.warn('[ask]', (e as Error).message); }
-  // The page reloads after a vote; that is not a new ask, so it is not counted again.
-  if (!voted) recordAsk(slug!, q, 'web', res ?? { error: err });
+  // A single question without history (no-JS form). The page reloads after a vote; that is not a new ask, so it is not counted again.
+  const budget = voted ? null : spendChatBudget(user, 0);
+  if (budget && !budget.ok) err = budget.message;
+  else {
+    try { res = await askRules(slug!, q); } catch (e) { err = 'The rules assistant is busy or offline. Please try again in a minute.'; console.warn('[ask]', (e as Error).message); }
+    if (!voted) recordAsk(slug!, q, 'web', res ?? { error: err });
+  }
 }
 const docs = res ? groupCitations(res.sources) : [];
 const loginUrl = `/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`;
@@ -35,6 +39,11 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
     .a-docs { margin: .5rem 0 0; padding-left: 1.1rem }
     .a-docs blockquote { margin: .3rem 0 0; opacity: .8; font-size: .9rem }
     .vote { margin-top: .8rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap }
+    .thinking { display: flex; gap: .6rem; align-items: center }
+    .spinner { width: 1rem; height: 1rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; flex: none }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s } }
+    #chat-meter { margin: -.6rem 0 1rem; opacity: .8 }
   </style>
   <main>
     <h1>{game.name}</h1>
@@ -77,12 +86,13 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
     {!user ? (
       <div class="card" style="max-width:28rem"><p style="margin-top:0"><b>Sign in to ask the rules assistant.</b> It uses AI compute, so it is for signed-in players. Setup sheets stay open to everyone.</p><a class="btn" href={loginUrl}>Sign in</a></div>
     ) : (
-      <form id="ask-form" method="get" action={`/games/${slug}`} data-game={slug} style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap;max-width:46rem">
+      <form id="ask-form" method="get" action={`/games/${slug}`} data-game={slug} data-max-turns={MAX_THREAD_TURNS} data-warn-turn={THREAD_WARN_TURN} style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap;max-width:46rem">
         <input name="q" placeholder={`Ask anything about ${game.name}…`} maxlength="300" minlength="3" required autocomplete="off" style="padding:.7rem .9rem;font-size:1.05rem;flex:1;min-width:14rem;border-radius:8px;border:0" />
         <button class="btn" type="submit" style="border:0;cursor:pointer">Ask</button>
         <button class="btn" type="button" id="chat-clear" hidden style="border:0;cursor:pointer;background:#cdbf9b">New conversation</button>
       </form>
     )}
+    {user && <p id="chat-meter" hidden aria-live="polite"><small></small></p>}
     <p><small style="opacity:.8">Every answer cites the publisher's rulebook page.</small></p>
 
     <p><a class="btn" href={`/games/${slug}/setup`}>Setup one-pager</a> <a class="btn" href={`/games/${slug}/aid`}>Player aid</a> <a class="btn" href={`/games/${slug}/faq`} style="background:#cdbf9b">Common questions</a></p>
@@ -124,9 +134,13 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
       if (!form || !thread) return;
       const game = form.dataset.game;
       const KEY = `rogue-chat:${game}`;
-      const MAX_TURNS = 10;
+      // Server limits (12 turns per thread, warning from turn 10). The server re-checks; this only keeps the UI honest.
+      const MAX_TURNS = Number(form.dataset.maxTurns) || 12;
+      const WARN_TURN = Number(form.dataset.warnTurn) || 10;
       const clearBtn = document.getElementById('chat-clear');
       const input = form.querySelector('input[name="q"]');
+      const askBtn = form.querySelector('button[type="submit"]');
+      const meter = document.getElementById('chat-meter');
 
       const load = () => { try { return JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch { return []; } };
       const save = (turns) => { try { sessionStorage.setItem(KEY, JSON.stringify(turns.slice(-MAX_TURNS))); } catch { /* storage full or blocked: thread just won't survive a reload */ } };
@@ -168,9 +182,26 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
         return card;
       }
 
+      // Shows the thread size as turns (what the limit counts), warns near the end, and locks the box at the limit.
+      function updateMeter(full) {
+        const n = load().length;
+        const atLimit = full || n >= MAX_TURNS;
+        input.disabled = atLimit;
+        if (askBtn) askBtn.disabled = atLimit;
+        if (clearBtn) clearBtn.textContent = atLimit ? 'Start new conversation' : 'New conversation';
+        if (!meter) return;
+        meter.hidden = n === 0 && !atLimit;
+        const text = meter.querySelector('small');
+        if (atLimit) text.textContent = `Turn ${Math.min(n, MAX_TURNS)} of ${MAX_TURNS}. This conversation is full; start a new one to keep asking.`;
+        else if (n + 1 >= WARN_TURN) text.textContent = `Turn ${n + 1} of ${MAX_TURNS}. Nearly full: answers stay most accurate in a fresh conversation.`;
+        else text.textContent = `Turn ${n + 1} of ${MAX_TURNS}`;
+      }
+
       function addTurn(t) {
         const turn = el('div', { class: 'turn', 'data-answer-id': t.id ? String(t.id) : '' }, el('div', { class: 'q-bubble', text: t.q }));
-        turn.append(t.pending ? el('div', { class: 'card a-bubble', text: 'Looking it up in the rulebook…' }) : answerCard(t));
+        turn.append(t.pending
+          ? el('div', { class: 'card a-bubble thinking', role: 'status' }, el('span', { class: 'spinner', 'aria-hidden': 'true' }), el('span', { text: 'Looking it up in the rulebook…' }))
+          : answerCard(t));
         thread.append(turn);
         if (clearBtn) clearBtn.hidden = false;
         return turn;
@@ -185,6 +216,7 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
         if (serverTurn) thread.insertBefore(n, serverTurn);
       }
       if (serverTurn && clearBtn) clearBtn.hidden = false;
+      updateMeter(false);
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault(); // we handle it; Base.astro's busy guard skips prevented submits, so set it ourselves
@@ -193,18 +225,22 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
         window.RogueBusy && window.RogueBusy.set(form, e.submitter);
         const turn = addTurn({ q, pending: true });
         turn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        let t;
+        let t; let full = false;
+        // Earlier answered turns go along so follow-ups ("and the medic?") make sense; the server clamps and trims them.
+        const prior = load().map((x) => ({ q: x.q, a: x.answer || '' }));
         try {
-          const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ game, q }) });
+          const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ game, q, history: prior }) });
           const body = await r.json().catch(() => ({}));
-          t = r.ok ? { q, id: body.id, answer: body.answer, warning: body.warning, docs: body.docs } : { q, error: body.error || 'Something went wrong. Please try again.', signIn: r.status === 401 };
+          if (body.limit) { t = { q, error: body.message }; full = body.limit === 'thread'; }
+          else t = r.ok ? { q, id: body.id, answer: body.answer, warning: body.warning, docs: body.docs } : { q, error: body.error || 'Something went wrong. Please try again.', signIn: r.status === 401 };
         } catch {
           t = { q, error: 'Could not reach the rules assistant. Check your connection and try again.' };
         }
         turn.replaceWith(addTurn(t));
         if (!t.error) { save([...load(), t]); input.value = ''; }
         window.RogueBusy && window.RogueBusy.clear(form);
-        input.focus();
+        updateMeter(full);
+        if (!input.disabled) input.focus(); else if (clearBtn) clearBtn.focus();
       });
 
       // Votes are sent in the background so the thread is not reloaded (rate-answer answers with a redirect).
@@ -229,6 +265,7 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
         thread.replaceChildren();
         clearBtn.hidden = true;
         if (location.search) history.replaceState(null, '', location.pathname);
+        updateMeter(false);
         input.focus();
       });
     })();
