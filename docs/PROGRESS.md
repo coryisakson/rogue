@@ -1,6 +1,7 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
 
+- 2026-10-16 (Hermes): Terms Agent judgement runs as Nanobot job terms_judge (0.0.79, sidecar 0.3.0, migration 0024). Verbatim-quote gate; restricted from either side wins; deterministic fallback when agents off. Not yet tested live on a fresh request.
 - 2026-10-16 (Hermes): Librarian runs as a Nanobot agent (0.0.78, sidecar 0.2.0, migration 0023). New job kind librarian_draft, tools get_page_text/propose_claim with the same quote/duplicate/verifier gates in code; in-process path stays as fallback. Live test on Slay the Spire: job done in ~1 min, 22 pages read, 5 drafted, 1 published, 4 rejected by gates. Low yield: agent proposes few claims per page; tune later.
 - 2026-10-15 (Hermes): FAQ eval set shipped (0.0.70, Phase 2 gate). packages/core/eval/ask-pandemic.json and ask-slay-the-spire.json: 10 questions each (forum/FAQ-sourced, plus count/list questions like Pandemic roles), each with expected answer, source and rulebook ref. New GET /api/admin/eval-ask?game=&from=&n= (admin token) runs them through the real Ask path; (full text: docs/archive/PROGRESS-archive.md)
 - 2026-10-15 (Hermes): Cory's architecture principle recorded (ADR 0002, ROADMAP Phase 1b): AI tasks go to Nanobot agents via MCP and run in the background; straightforward code stays in the app so the site stays fast. Live Ask is the one open point (user waits; keep a direct streamed call). Docs only.
