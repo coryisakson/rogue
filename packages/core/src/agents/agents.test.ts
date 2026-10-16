@@ -47,4 +47,12 @@ describe('agent jobs', () => {
     expect(agentMayActOn('scout', { kind: 'terms_judge', status: 'running' })).toBe(false);
     expect(agentMayActOn('terms-agent', { kind: 'scout_variants', status: 'running' })).toBe(false);
   });
+  it('gives scout_judge jobs only to the scout, with a time budget', () => {
+    expect(JOB_KINDS).toContain('scout_judge');
+    expect(JOB_AGENT.scout_judge).toBe('scout');
+    expect(JOB_MINUTES.scout_judge).toBe(25);
+    expect(agentMayActOn('scout', { kind: 'scout_judge', status: 'running' })).toBe(true);
+    expect(agentMayActOn('scout', { kind: 'scout_judge', status: 'queued' })).toBe(false);
+    expect(agentMayActOn('terms-agent', { kind: 'scout_judge', status: 'running' })).toBe(false);
+  });
 });
