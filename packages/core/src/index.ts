@@ -31,3 +31,4 @@ export * from './quality/index.js';
 export * from './agents/index.js';
 export * from './pagelabels.js';
 export * from './unanswered.js';
+export * from './qa-facts.js';
