@@ -53,6 +53,7 @@ export function isAggregateQuestion(q: string): boolean {
 export const CHAT_AGGREGATE_ADDENDUM = `
 This is a list or count question. The rulebook may never state the total. The 1-4 sentence limit does not apply to the list itself.
 - Read ALL excerpts and collect every distinct item that matches (for example each named role), without repeating one.
+- If any excerpt states the total outright (for example a components list like "7 Role Cards"), use that number and cross-check it against the names you found; the headings in the excerpts may cover only part of the set.
 - Give the count you found, then the list, citing the page for each item or group like (p.3).
 - State the count definitively ("There are N ...") when the excerpts show the whole list (for example a section that introduces all of them, or a complete set). Use "at least N found in the excerpts" ONLY when the list is visibly cut off or the excerpts clearly skip part of it.
 - Cite ONLY page numbers printed as (p.N) or (s.N) in the excerpts. Excerpt numbers like [3] are not pages. If an item appears on several pages, cite just one or two of those pages.

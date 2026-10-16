@@ -13,11 +13,11 @@ export async function askRules(game: string, question: string): Promise<ChatAnsw
   const t = Date.now();
   // List/count questions ("how many roles") need many passages, so look wider and add neighbouring chunks.
   const wide = isAggregateQuestion(q);
-  const hits: RuleHit[] = await searchRules(q, { game, limit: wide ? 8 : 5, snippet: 600, rerank: true });
+  const hits: RuleHit[] = await searchRules(q, { game, limit: wide ? 12 : 5, snippet: 600, rerank: true });
   if (!hits.length) return { answer: 'I could not find anything about this in the indexed rulebook for this game.', sources: [], ms: Date.now() - t };
   const ai = getAi(); if (!ai) throw new Error('AI is not configured');
   let excerpts = hits.map((h) => ({ page: h.page, text: h.snippet, section: h.section, printed: h.printed }));
-  if (wide) { const more = await expandWithNeighbors(hits.map((h) => h.chunk_id)); if (more.length) excerpts = more.slice(0, 16); }
+  if (wide) { const more = await expandWithNeighbors(hits.map((h) => h.chunk_id), 2); if (more.length) excerpts = more.slice(0, 30); }
   const r = await ai.chat({ temperature: 0, maxTokens: wide ? 4000 : 2500, messages: [{ role: 'system', content: wide ? CHAT_SYSTEM + CHAT_AGGREGATE_ADDENDUM : CHAT_SYSTEM }, { role: 'user', content: buildPrompt(q, excerpts) }] });
   const raw = r.text.trim();
   const bad = badCitations(raw, excerpts);
