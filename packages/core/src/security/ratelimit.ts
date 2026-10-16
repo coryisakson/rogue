@@ -54,7 +54,7 @@ export function isPublicPath(pathname: string): boolean {
   if (pathname === '/api/ask') return true; // rules chat JSON for the game-page thread: same-origin + sign-in checked in the handler
   if (/^\/games\/[a-z0-9-]+(\/setup|\/aid|\/ask|\/faq|\/facts)?\/?$/.test(pathname)) return true;
   if (pathname === '/admin' || pathname === '/admin/run' || pathname === '/admin/review' || pathname === '/admin/faq-decide' || pathname === '/admin/quality-decide' || /^\/admin\/(claims|backups|review-log|users|approvals|design|requests|faq|quality|extracts)\/?$/.test(pathname)) return true; // pages guard themselves: admin session, else 404
-  if (pathname === '/login' || pathname === '/logout' || pathname === '/rate' || pathname === '/rate-answer' || pathname === '/request-game' || pathname === '/account' || pathname === '/account/delete' || /^\/auth\/[a-z]+(\/callback)?\/?$/.test(pathname)) return true;
+  if (pathname === '/login' || pathname === '/logout' || pathname === '/rate' || pathname === '/rate-answer' || pathname === '/request-game' || pathname === '/account' || pathname === '/account/delete' || pathname === '/account/language' || /^\/auth\/[a-z]+(\/callback)?\/?$/.test(pathname)) return true;
   return false;
 }
 

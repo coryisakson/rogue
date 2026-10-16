@@ -5,7 +5,9 @@ const { title, bare = false } = Astro.props;
 const user = Astro.locals.user;
 import { isAdmin } from '../lib/admin';
 import { pickLocale, t } from '@rogue/core';
-const L = pickLocale(Astro.request.headers.get('accept-language'));
+// Resolved once per request by the middleware (profile > cookie > browser > en).
+const L = Astro.locals.locale ?? pickLocale(Astro.request.headers.get('accept-language'));
+import LangSwitch from './LangSwitch.astro';
 import '../styles/rogue.css';
 ---
 <html lang={L}>
@@ -26,9 +28,14 @@ import '../styles/rogue.css';
         </span>
       </header>
     )}
+    {bare && <div class="lang-bare"><LangSwitch locale={L} id="lang-b" /></div>}
     <slot />
-    {!bare && <footer class="site">Rogue v{VERSION} · {t(L, 'footer.preview')} ·&nbsp;<a href="/about">{t(L, 'footer.how')}</a></footer>}
+    {!bare && <footer class="site">Rogue v{VERSION} · {t(L, 'footer.preview')} ·&nbsp;<a href="/about">{t(L, 'footer.how')}</a> ·&nbsp;<LangSwitch locale={L} id="lang-f" /></footer>}
     <style is:global>
+      .lang-switch { display: inline-flex; gap: .3rem; align-items: center; margin: 0; }
+      .lang-switch select, .lang-switch button { font: inherit; font-size: .85rem; }
+      .lang-bare { text-align: right; padding: .3rem .6rem; font-family: system-ui; font-size: .85rem; }
+      @media print { .lang-bare { display: none; } }
       /* Busy feedback for submitted forms (see the script below). */
       form[aria-busy="true"] { cursor: progress; }
       form[aria-busy="true"] :is(button, input[type="submit"]):disabled { opacity: .65; cursor: progress; }

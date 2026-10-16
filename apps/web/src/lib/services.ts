@@ -1,7 +1,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import pg from 'pg';
-import { loadServices, migrate, OpenAiCompatibleProvider, LocalStorageProvider } from '@rogue/core';
+import { loadServices, migrate, OpenAiCompatibleProvider, LocalStorageProvider, type AiRole } from '@rogue/core';
 
 export const services = loadServices(process.env);
 
@@ -59,7 +59,21 @@ export const ipv4Fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
     req.end();
   })) as typeof fetch;
 
-export function getAi(): OpenAiCompatibleProvider | null {
+/** The default AI provider, or the one for a chat role (ROGUE_AI_<ROLE>_* override, else the default). */
+export function getAi(role?: AiRole): OpenAiCompatibleProvider | null {
+  if (role) {
+    const r = services.aiRoles[role];
+    if (!r.baseUrl) return null;
+    return new OpenAiCompatibleProvider({
+      baseUrl: r.baseUrl,
+      ...(r.apiKey ? { apiKey: r.apiKey } : {}),
+      defaultChatModel: r.model,
+      defaultEmbedModel: services.aiEmbedModel,
+      // An override (e.g. Anthropic's OpenAI-compatible endpoint) may reject reasoning_effort, so it is only sent to the default provider.
+      sendReasoning: !r.overridden,
+      fetchImpl: ipv4Fetch,
+    });
+  }
   if (!services.aiBaseUrl) return null;
   return new OpenAiCompatibleProvider({
     baseUrl: services.aiBaseUrl,
@@ -69,3 +83,6 @@ export function getAi(): OpenAiCompatibleProvider | null {
     fetchImpl: ipv4Fetch,
   });
 }
+
+/** Is a chat role served by its own endpoint (not the default)? */
+export const aiRoleOverridden = (role: AiRole): boolean => services.aiRoles[role].overridden;

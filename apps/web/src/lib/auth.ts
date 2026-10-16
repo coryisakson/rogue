@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PROVIDERS, randomToken, sha256hex, type ProviderCreds, type ProviderId } from '@rogue/core';
+import { PROVIDERS, isLocale, randomToken, sha256hex, type Locale, type ProviderCreds, type ProviderId } from '@rogue/core';
 import { ensureMigrated, getPool, services } from './services';
 import { claimDiscordRatings } from './discord-link';
 
-export interface SessionUser { id: number; name: string; avatar: string | null; provider: ProviderId }
+/** `language` is the profile language (users.language); null = not chosen, so cookie/browser decide. */
+export interface SessionUser { id: number; name: string; avatar: string | null; provider: ProviderId; language: Locale | null }
 export const SESSION_COOKIE = 'rogue_session';
 const SESSION_DAYS = 30;
 
@@ -106,9 +107,23 @@ export async function userFromRequest(req: Request): Promise<SessionUser | null>
   try {
     await ensureMigrated();
     const r = (await pool.query(
-      'SELECT u.id, u.display_name, u.avatar_url, u.provider FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at > now()', [sha256hex(token)])).rows[0];
-    return r ? { id: Number(r.id), name: r.display_name, avatar: r.avatar_url, provider: r.provider } : null;
+      'SELECT u.id, u.display_name, u.avatar_url, u.provider, u.language FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at > now()', [sha256hex(token)])).rows[0];
+    return r ? { id: Number(r.id), name: r.display_name, avatar: r.avatar_url, provider: r.provider, language: isLocale(r.language) ? r.language : null } : null;
   } catch { return null; }
+}
+
+/** The user's saved language, or null when they have not chosen one. */
+export async function getUserLanguage(userId: number): Promise<Locale | null> {
+  const pool = getPool(); if (!pool) return null;
+  await ensureMigrated();
+  const lang = (await pool.query('SELECT language FROM users WHERE id=$1', [userId])).rows[0]?.language;
+  return isLocale(lang) ? lang : null;
+}
+
+export async function setUserLanguage(userId: number, lang: Locale): Promise<void> {
+  const pool = getPool(); if (!pool) return;
+  await ensureMigrated();
+  await pool.query('UPDATE users SET language=$1 WHERE id=$2', [lang, userId]);
 }
 
 export async function endSession(req: Request): Promise<void> {

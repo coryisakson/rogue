@@ -1,4 +1,4 @@
-import { sectionHeadings, detectPageLabels, applyRanking, chunkText, orQuery, parseRanking, qualityWeight, rrf, sourceWeight } from '@rogue/core';
+import { sectionHeadings, detectPageLabels, applyRanking, chunkText, keywordMatchSql, keywordRankSql, orQuery, parseRanking, qualityWeight, rrf, sourceWeight } from '@rogue/core';
 import { agentsEnabled, enqueueJob } from './agent-jobs';
 import { loadSourcePages, pagesToText, scoreSource } from './page-text';
 import { ensureMigrated, getAi, getPool } from './services';
@@ -75,13 +75,26 @@ async function embedQuery(q: string): Promise<number[] | null> {
 }
 
 /** `printed` is the page number printed in the PDF (display only; `page` stays the physical page used by citations). */
-export interface RuleHit { chunk_id: string; game: string; slug: string; page: number; printed: number | null; section: string | null; snippet: string; source_title: string; source_url: string; publisher: string | null; availability: string; via: string }
+export interface RuleHit { chunk_id: string; game: string; slug: string; page: number; printed: number | null; section: string | null; snippet: string; source_title: string; source_url: string; publisher: string | null; availability: string; via: string; lang: string }
 
 /** Hybrid retrieval over whole rulebooks. Snippets are capped: the full private text is never returned. */
 /** Filled by searchRules when passed: per-stage time and the reranker's token use, for the chat's timing log and cost columns. */
 export interface SearchStats { embedMs: number; searchMs: number; rerankMs: number; promptTokens: number; completionTokens: number }
 
-export async function searchRules(q: string, opts: { game?: string; limit?: number; snippet?: number; rerank?: boolean; stats?: SearchStats } = {}): Promise<RuleHit[]> {
+/** Languages of a game's indexed rulebooks (chunks.lang, base tag), e.g. ['de', 'en']. A game can hold several editions/sources. */
+export async function gameRuleLangs(game: string): Promise<string[]> {
+  const pool = getPool(); if (!pool) return [];
+  await ensureMigrated();
+  return (await pool.query(
+    `SELECT DISTINCT lower(split_part(ch.lang, '-', 1)) lang FROM chunks ch JOIN sources s ON s.id=ch.source_id JOIN documents d ON d.source_id=s.id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id
+     WHERE g.slug=$1 ORDER BY 1`, [game])).rows.map((r) => r.lang as string).filter(Boolean);
+}
+
+/**
+ * `alt` are extra phrasings of the same question (translations into the rulebook languages): each is searched by keyword and
+ * vector like `q`, and all ranked lists are merged with rrf, so a German question still finds an English rulebook and vice versa.
+ */
+export async function searchRules(q: string, opts: { game?: string; limit?: number; snippet?: number; rerank?: boolean; stats?: SearchStats; alt?: string[] } = {}): Promise<RuleHit[]> {
   const stats = opts.stats;
   let t0 = Date.now();
   const pool = getPool(); if (!pool) return [];
@@ -90,24 +103,30 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   const snip = Math.min(opts.snippet ?? 400, 600);
   const game = opts.game ?? null;
   const base = `FROM chunks ch JOIN sources s ON s.id=ch.source_id JOIN documents d ON d.source_id=s.id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id`;
-  const oq = orQuery(q);
-  const kw = oq ? (await pool.query(
-    `SELECT ch.id::text id ${base}, to_tsquery('simple',$1) tq WHERE ch.tsv @@ tq AND ($2::text IS NULL OR g.slug=$2) ORDER BY ts_rank_cd(ch.tsv,tq) DESC LIMIT 30`, [oq, game])).rows.map((r) => r.id as string) : [];
-  let vec: string[] = [];
-  const tEmbed = Date.now();
-  const v = await embedQuery(q);
-  if (stats) stats.embedMs = Date.now() - tEmbed;
-  if (v) vec = (await pool.query(
-    `SELECT ch.id::text id ${base} WHERE ch.embedding IS NOT NULL AND ($2::text IS NULL OR g.slug=$2) ORDER BY ch.embedding <=> $1::vector LIMIT 30`, [`[${v.join(',')}]`, game])).rows.map((r) => r.id as string);
+  const queries = [...new Set([q, ...(opts.alt ?? [])].map((x) => x.trim()).filter(Boolean))];
+  const kwLists: string[][] = []; const vecLists: string[][] = [];
+  if (stats) stats.embedMs = 0;
+  for (const query of queries) {
+    // Each chunk is matched with its own language's config (chunks.tsv is built the same way, migration 0031).
+    const oq = orQuery(query);
+    kwLists.push(oq ? (await pool.query(
+      `SELECT ch.id::text id ${base} WHERE ${keywordMatchSql('$1')} AND ($2::text IS NULL OR g.slug=$2) ORDER BY ${keywordRankSql('$1')} DESC LIMIT 30`, [oq, game])).rows.map((r) => r.id as string) : []);
+    const tEmbed = Date.now();
+    const v = await embedQuery(query);
+    if (stats) stats.embedMs += Date.now() - tEmbed;
+    vecLists.push(v ? (await pool.query(
+      `SELECT ch.id::text id ${base} WHERE ch.embedding IS NOT NULL AND ($2::text IS NULL OR g.slug=$2) ORDER BY ch.embedding <=> $1::vector LIMIT 30`, [`[${v.join(',')}]`, game])).rows.map((r) => r.id as string) : []);
+  }
+  const kw = kwLists.flat(); const vec = vecLists.flat();
   // Authority ranking: official FAQ/errata and publisher sources lift above product pages and community text; garbled OCR text sinks.
   const cand = [...new Set([...kw, ...vec])];
   const wrows = cand.length ? (await pool.query(
     `SELECT ch.id::text id, d.kind, s.authority, ch.quality ${base} WHERE ch.id = ANY($1::bigint[])`, [cand])).rows : [];
   const weights = new Map(wrows.map((r) => [r.id as string, sourceWeight(r.kind, r.authority) * qualityWeight(r.quality as number | null)]));
-  let ids = rrf([kw, vec], 60, (id) => weights.get(id) ?? 1).slice(0, opts.rerank ? Math.max(limit, 10) : limit);
+  let ids = rrf([...kwLists, ...vecLists], 60, (id) => weights.get(id) ?? 1).slice(0, opts.rerank ? Math.max(limit, 10) : limit);
   if (!ids.length) return [];
   const rows = (await pool.query(
-    `SELECT ch.id::text chunk_id, g.name game, g.slug, ch.page, ch.printed_page printed, ch.locator section, left(ch.text, $2) snippet, s.title source_title, s.url source_url, s.publisher, s.availability ${base} WHERE ch.id = ANY($1::bigint[])`, [ids, snip])).rows;
+    `SELECT ch.id::text chunk_id, g.name game, g.slug, ch.page, ch.printed_page printed, ch.locator section, left(ch.text, $2) snippet, ch.lang, s.title source_title, s.url source_url, s.publisher, s.availability ${base} WHERE ch.id = ANY($1::bigint[])`, [ids, snip])).rows;
   const byId = new Map(rows.map((r) => [r.chunk_id as string, r]));
   if (stats) stats.searchMs = Date.now() - t0 - stats.embedMs;
   // Reranking only reorders; when the fused list already fits in `limit`, every candidate is kept anyway, so skip the LLM round trip.

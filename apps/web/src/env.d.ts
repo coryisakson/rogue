@@ -1,4 +1,4 @@
 /// <reference types="astro/client" />
 declare namespace App {
-  interface Locals { user: import('./lib/auth').SessionUser | null }
+  interface Locals { user: import('./lib/auth').SessionUser | null; locale: import('@rogue/core').Locale }
 }

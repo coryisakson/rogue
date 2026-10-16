@@ -1,10 +1,10 @@
 import { defineMiddleware } from 'astro:middleware';
-import { isChatPath, isCostlyPath, isPublicPath, RateLimiter, safeEqual } from '@rogue/core';
+import { LANG_COOKIE, isChatPath, isCostlyPath, isPublicPath, RateLimiter, resolveLocale, safeEqual } from '@rogue/core';
 import { startBackupScheduler } from './lib/backup-runner';
 import { startRecheckScheduler } from './lib/recheck-scheduler';
 import { startAgentWorker } from './lib/agent-jobs';
 import { adminToken } from './lib/admin-token';
-import { userFromRequest } from './lib/auth';
+import { cookieValue, userFromRequest } from './lib/auth';
 import { isAdmin } from './lib/admin';
 
 const chat = new RateLimiter(Number(process.env['ROGUE_CHAT_RATE_LIMIT'] ?? 8), 60_000);
@@ -33,6 +33,8 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
 
   ctx.locals.user = !pathname.startsWith('/_astro/') && ctx.request.headers.has('cookie') ? await userFromRequest(ctx.request) : null;
+  // One language per request: profile > cookie > Accept-Language > en. Pages, the chat and <html lang> all read locals.locale.
+  ctx.locals.locale = resolveLocale({ profile: ctx.locals.user?.language, cookie: cookieValue(ctx.request, LANG_COOKIE), acceptLanguage: ctx.request.headers.get('accept-language') });
   // Admin console pages: not signed in -> login; signed in but not an admin -> 404 (not advertised).
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
     if (!ctx.locals.user) return new Response(null, { status: 302, headers: { location: `/login?next=${encodeURIComponent(pathname)}`, 'cache-control': 'no-store' } });
@@ -44,6 +46,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   h.set('referrer-policy', 'strict-origin-when-cross-origin');
   h.set('x-frame-options', 'SAMEORIGIN');
   h.set('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+  if ((h.get('content-type') ?? '').includes('text/html')) h.set('content-language', ctx.locals.locale);
   if (!h.has('content-security-policy') && (h.get('content-type') ?? '').includes('text/html'))
     h.set('content-security-policy', "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'");
   return res;
