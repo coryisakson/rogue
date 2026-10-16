@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-16 (Hermes): 0.0.99: Azul added (migration 0032, German rulebook seed from spielen.de per Cory, R32). Needs ingest + index; English publisher PDF blocked (403), still to source.
 - 2026-10-16 (Hermes): 0.0.98: ask box clears on submit; questions queue and send one at a time so follow-ups see prior answers; clearing the thread cancels the queue.
 - 2026-10-16 (Hermes): 0.0.97: chat thread is page-memory only (no sessionStorage; reload/back clears it).
 - 2026-10-16 (Hermes): 0.0.96: chat is conversational (history, follow-up rewrite, 6 turns/4000 chars, 12-turn thread cap, 60/day per user, token columns, admin tokens line). Latency: reasoning_effort none on rerank/rewrite (measured 2-8s -> 0.3s), answer low. Verify live timings.
