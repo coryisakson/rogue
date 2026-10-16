@@ -1,13 +1,13 @@
 import { ensureMigrated, getPool } from './services';
 
-export interface Game { slug: string; name: string; publisher: string | null; year: number | null; min_players: number | null; max_players: number | null; bgg_id: number | null; claim_count: number }
+export interface Game { slug: string; name: string; publisher: string | null; year: number | null; min_players: number | null; max_players: number | null; bgg_id: number | null; card_size: string | null; claim_count: number }
 export interface Claim { id: string; topic: string; player_count: number | null; body: string; created_by: string; verified_at: string | null; locator: string | null; quote: string | null; source_title: string; source_url: string; publisher: string | null; availability: string; avg_stars: number | null; rating_count: number; my_stars: number | null; edition: string }
 
 export async function listGames(): Promise<Game[]> {
   const pool = getPool(); if (!pool) return [];
   await ensureMigrated();
   const r = await pool.query(
-    `SELECT g.slug, g.name, g.publisher, g.year, g.min_players, g.max_players, g.bgg_id,
+    `SELECT g.slug, g.name, g.publisher, g.year, g.min_players, g.max_players, g.bgg_id, g.card_size,
             (SELECT count(*) FROM claims c JOIN editions e ON e.id=c.edition_id WHERE e.game_id=g.id AND c.status='published')::int AS claim_count
      FROM games g ORDER BY claim_count DESC, g.name`,
   );
