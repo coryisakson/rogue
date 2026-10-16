@@ -89,6 +89,10 @@ describe('formatting', () => {
     expect(t.endsWith('…')).toBe(true);
   });
   it('formatSources merges and sorts pages', () => expect(formatSources(src)).toBe('**Sources:** Pandemic Rules (Z-Man) p.3, 5, 9'));
+  it('formatSources shows printed page numbers when they differ', () => {
+    const printed = [{ title: 'Pandemic Rules', pages: [5, 3], printed: { 3: 3, 5: 3 } }, { title: 'Pandemic Rules', pages: [9], printed: { 9: null } }];
+    expect(formatSources(printed)).toBe('**Sources:** Pandemic Rules p.3, 5 (printed 3), 9');
+  });
   it('formatSources says so when empty', () => expect(formatSources([])).toContain('No source'));
   it('withFooter keeps footer whole and stays within the limit', () => {
     const out = withFooter('a '.repeat(3000), 'FOOTER-CITES');

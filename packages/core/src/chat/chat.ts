@@ -1,16 +1,19 @@
 /** Pure helpers for rules chat. */
-/** `section` is set for web-page sources: they have no pages, so the excerpt is cited as (s.N) and shown by its heading. */
-export interface Excerpt { page: number; text: string; section?: string | null }
+import { formatPageCite } from '../pagelabels.js';
+
+/** `section` is set for web-page sources: they have no pages, so the excerpt is cited as (s.N) and shown by its heading.
+ *  `printed` is the page number printed in the PDF; display only, citations stay the physical p.N. */
+export interface Excerpt { page: number; text: string; section?: string | null; printed?: number | null }
 
 export const CHAT_SYSTEM = `You answer board game rules questions using ONLY the numbered rulebook excerpts provided.
 - Answer in the same language as the question, in 1-4 short sentences. Quote at most one short phrase.
-- After each rule you state, cite the page like (p.3). Excerpts labelled (s.N "heading") come from a web page: cite those like (s.2), never as a page.
+- After each rule you state, cite the page like (p.3). An excerpt labelled (p.7 (printed 5)) is cited as (p.7): always use the first number. Excerpts labelled (s.N "heading") come from a web page: cite those like (s.2), never as a page.
 - If the excerpts do not contain the answer, say so plainly and suggest checking the official rulebook. Never guess or use outside knowledge.
 - If excerpts disagree, say so and cite both. But a role's special ability that changes a general rule is an exception, not a disagreement: state the general rule first, then the exception.
 - Excerpts come from two-column PDFs, so words from neighbouring columns can run together. Use sense to separate them.`;
 
 export function buildPrompt(question: string, excerpts: Excerpt[]): string {
-  const ex = excerpts.map((e, i) => `[${i + 1}] (${e.section ? `s.${e.page} "${e.section}"` : `p.${e.page}`}) ${e.text.replace(/\s+/g, ' ').trim()}`).join('\n\n');
+  const ex = excerpts.map((e, i) => `[${i + 1}] (${e.section ? `s.${e.page} "${e.section}"` : formatPageCite(e.page, e.printed)}) ${e.text.replace(/\s+/g, ' ').trim()}`).join('\n\n');
   return `Rulebook excerpts:\n\n${ex}\n\nQuestion: ${question}`;
 }
 

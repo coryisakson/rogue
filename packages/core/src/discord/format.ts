@@ -1,8 +1,10 @@
 /** Formatting replies for Discord. Hard limit is 2000 characters per message; citations are never cut. */
+import { formatPageCite } from '../pagelabels.js';
 
 export const DISCORD_LIMIT = 2000;
 
-export interface CitedSource { title: string; publisher?: string | null; url?: string | null; pages?: number[] }
+/** `printed` maps a physical page to the number printed in the book, when known (display only). */
+export interface CitedSource { title: string; publisher?: string | null; url?: string | null; pages?: number[]; printed?: Record<number, number | null> }
 export interface SetupSectionView { title: string; lines: { text: string; page: string | null }[] }
 
 /** Cut `text` to at most `max` characters, ending with an ellipsis, preferring a word boundary. */
@@ -14,18 +16,21 @@ export function truncate(text: string, max: number): string {
   return (space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd() + '…';
 }
 
-/** Source footer: "Sources: Title (Publisher) p.3, 5". Always shown, so claims never go out uncited. */
+/** Source footer: "Sources: Title (Publisher) p.3, 5 (printed 3)". Always shown, so claims never go out uncited. */
 export function formatSources(sources: CitedSource[]): string {
   if (!sources.length) return '_No source found._';
-  const merged = new Map<string, CitedSource & { pages: number[] }>();
+  const merged = new Map<string, CitedSource & { pages: number[]; printed: Record<number, number | null> }>();
   for (const s of sources) {
     const key = `${s.title}|${s.publisher ?? ''}`;
-    const m = merged.get(key) ?? { ...s, pages: [] };
+    const m = merged.get(key) ?? { ...s, pages: [], printed: {} };
     for (const p of s.pages ?? []) if (!m.pages.includes(p)) m.pages.push(p);
+    Object.assign(m.printed, s.printed);
     merged.set(key, m);
   }
   const parts = [...merged.values()].map((s) => {
-    const pages = s.pages.length ? ` p.${[...s.pages].sort((a, b) => a - b).join(', ')}` : '';
+    // "p." once, then bare numbers: "p.3, 5 (printed 3)".
+    const cites = [...s.pages].sort((a, b) => a - b).map((p) => formatPageCite(p, s.printed[p]).replace(/^p\./, ''));
+    const pages = cites.length ? ` p.${cites.join(', ')}` : '';
     return `${s.title}${s.publisher ? ` (${s.publisher})` : ''}${pages}`;
   });
   return `**Sources:** ${parts.join('; ')}`;

@@ -9,6 +9,12 @@ describe('chat helpers', () => {
     expect(p).toContain('[2] (p.6) Hand limit 7.');
     expect(p.endsWith('Question: Hand limit?')).toBe(true);
   });
+  it('buildPrompt shows the printed page number, and the cite still reads the physical page', () => {
+    const printed = [{ page: 7, text: 'Hand limit 7.', printed: 5 }, { page: 8, text: 'Discard.', printed: 8 }];
+    expect(buildPrompt('q', printed)).toContain('[1] (p.7 (printed 5)) Hand limit 7.');
+    expect(buildPrompt('q', printed)).toContain('[2] (p.8) Discard.');
+    expect(badCitations('Seven cards (p.7).', printed)).toEqual([]);
+  });
   it('citedPages parses variants', () => {
     expect(citedPages('Seven (p.6) and also p. 2, p.2.')).toEqual([6, 2]);
     expect(citedPages('no cites')).toEqual([]);
