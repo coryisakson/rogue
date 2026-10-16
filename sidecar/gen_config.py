@@ -100,8 +100,9 @@ def build_config(spec: dict, key: str, workspace: str, env=os.environ) -> dict:
         }},
         "transcription": {"enabled": False},
         "gateway": {"host": "127.0.0.1", "heartbeat": {"enabled": False}},
+        # A whole-rulebook agent (librarian) needs hours; the spec may raise the 25-minute default.
         "api": {"host": "127.0.0.1", "port": int(spec["port"]),
-                "timeout": 1500.0, "apiKey": api_key(key, name)},
+                "timeout": float(spec.get("apiTimeout", 1500)), "apiKey": api_key(key, name)},
         "tools": {
             "web": {"enable": False},
             "exec": {"enable": False},
@@ -118,7 +119,7 @@ def build_config(spec: dict, key: str, workspace: str, env=os.environ) -> dict:
                 "type": "streamableHttp",
                 "url": f"{mcp_url}/{name}",
                 "headers": {"x-rogue-agent": f"{name}:{mcp_token(key, name)}"},
-                "toolTimeout": 60,
+                "toolTimeout": int(spec.get("toolTimeout", 60)),
                 "enabledTools": list(spec["tools"]),
             }},
         },

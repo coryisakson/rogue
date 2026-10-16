@@ -4,7 +4,7 @@ Container `cisakson/rogue-agents` (python:3.12-slim + pinned `nanobot-ai[api]==0
 (ADR 0002) next to `web` and `db` in the Olares pod. One `nanobot serve` per spec in `agents/*.md`, bound to 127.0.0.1.
 
 ## Layout
-- `agents/<name>.md`: frontmatter `{name, port, tools, maxToolIterations}`; body = agent instructions (written to the agent workspace `AGENTS.md`, which Nanobot injects into the system prompt; verified).
+- `agents/<name>.md`: frontmatter `{name, port, tools, maxToolIterations, apiTimeout?, toolTimeout?}` (seconds; defaults 1500 and 60); body = agent instructions (written to the agent workspace `AGENTS.md`, which Nanobot injects into the system prompt; verified).
 - `gen_config.py`: spec -> `/work/<name>/{config.json,workspace/AGENTS.md}` (idempotent). `run.py`: waits for the key file, generates, supervises (backoff restart, exit 1 if all give up, SIGTERM forwarded).
 - `VERSION` -> image tag; CI `.github/workflows/build-agents-image.yml`; chart value `agentsImageTag` must match.
 
@@ -12,8 +12,11 @@ Container `cisakson/rogue-agents` (python:3.12-slim + pinned `nanobot-ai[api]==0
 Agents see only the MCP server `rogue` at `${ROGUE_MCP_URL}/<agent>` (stateless streamable HTTP: POST JSON-RPC, 405 on GET) with header `x-rogue-agent: <name>:<token>`; `enabledTools` is the spec's `tools` list.
 - quality-curator (8901): get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job
 - scout (8902): get_job, preview_url, propose_text_variant, finish_job
+- librarian (8903): get_job, get_page_text, propose_claim, finish_job. Job kind `librarian_draft` (one rulebook source). propose_claim runs
+  the same gates as the in-process Librarian (verbatim quote, duplicate quote, verifier model) and publishes with a citation; counts
+  drafted/published/rejected and lastPage in `agent_jobs.result`. Budget: 400 tool iterations, API timeout 10800s, toolTimeout 180s.
 
-Web app calls `POST http://127.0.0.1:<port>/v1/chat/completions` with `Authorization: Bearer <api key>`, body `{messages:[{role:'user',content}], session_id:'job-<id>'}` (no `model`). `/health` is open. API timeout 1500s, MCP toolTimeout 60s.
+Web app calls `POST http://127.0.0.1:<port>/v1/chat/completions` with `Authorization: Bearer <api key>`, body `{messages:[{role:'user',content}], session_id:'job-<id>'}` (no `model`). `/health` is open. API timeout 1500s, MCP toolTimeout 60s, unless the spec raises them (the app waits `JOB_MINUTES` per job kind).
 
 ## Env
 `ROGUE_AI_BASE_URL` (Router, default in-cluster URL), `ROGUE_AI_CHAT_MODEL` (default `Olares/gemma4:e4b`), `ROGUE_MCP_URL` (default `http://127.0.0.1:4321/agent/mcp`), `ROGUE_AGENT_KEY_FILE` (default `/agent-share/agent-key`), `ROGUE_WORK_DIR` (`/work`), `ROGUE_KEY_WAIT_S` (600), `ROGUE_AGENTS_DIR`.

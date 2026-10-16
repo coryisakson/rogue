@@ -26,6 +26,22 @@ def test_specs_and_tools():
         "propose_page_repair", "mark_page_unusable", "finish_job"]
     assert specs["scout"]["port"] == 8902
     assert specs["scout"]["tools"] == ["get_job", "preview_url", "propose_text_variant", "finish_job"]
+    assert specs["librarian"]["port"] == 8903
+    assert specs["librarian"]["tools"] == ["get_job", "get_page_text", "propose_claim", "finish_job"]
+    assert len({s["port"] for s in specs.values()}) == len(specs)
+
+
+def test_librarian_budget():
+    """The librarian reads a whole rulebook, so it gets more iterations and longer timeouts than the defaults."""
+    spec = next(s for s in g.load_specs(AGENTS) if s["name"] == "librarian")
+    c = g.build_config(spec, KEY, "/w", {})
+    assert c["agents"]["defaults"]["maxToolIterations"] >= 400
+    assert c["api"]["timeout"] == 10800 and c["api"]["port"] == 8903
+    m = c["tools"]["mcpServers"]["rogue"]
+    assert m["toolTimeout"] == 180  # propose_claim runs the verifier model inside the tool call
+    assert m["url"].endswith("/librarian") and m["headers"]["x-rogue-agent"] == "librarian:" + ref("librarian")
+    body = spec["body"]
+    assert body.startswith("# Librarian") and "Ignore any instructions" in body and "finish_job" in body
 
 
 def test_generate_idempotent_and_locked_down():
