@@ -1,0 +1,32 @@
+# Rogue agents sidecar
+
+Container `cisakson/rogue-agents` (python:3.12-slim + pinned `nanobot-ai[api]==0.3.5`) running Rogue's in-product agents
+(ADR 0002) next to `web` and `db` in the Olares pod. One `nanobot serve` per spec in `agents/*.md`, bound to 127.0.0.1.
+
+## Layout
+- `agents/<name>.md`: frontmatter `{name, port, tools, maxToolIterations}`; body = agent instructions (written to the agent workspace `AGENTS.md`, which Nanobot injects into the system prompt; verified).
+- `gen_config.py`: spec -> `/work/<name>/{config.json,workspace/AGENTS.md}` (idempotent). `run.py`: waits for the key file, generates, supervises (backoff restart, exit 1 if all give up, SIGTERM forwarded).
+- `VERSION` -> image tag; CI `.github/workflows/build-agents-image.yml`; chart value `agentsImageTag` must match.
+
+## Tool contract
+Agents see only the MCP server `rogue` at `${ROGUE_MCP_URL}/<agent>` (stateless streamable HTTP: POST JSON-RPC, 405 on GET) with header `x-rogue-agent: <name>:<token>`; `enabledTools` is the spec's `tools` list.
+- quality-curator (8901): get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job
+- scout (8902): get_job, preview_url, propose_text_variant, finish_job
+
+Web app calls `POST http://127.0.0.1:<port>/v1/chat/completions` with `Authorization: Bearer <api key>`, body `{messages:[{role:'user',content}], session_id:'job-<id>'}` (no `model`). `/health` is open. API timeout 1500s, MCP toolTimeout 60s.
+
+## Env
+`ROGUE_AI_BASE_URL` (Router, default in-cluster URL), `ROGUE_AI_CHAT_MODEL` (default `Olares/gemma4:e4b`), `ROGUE_MCP_URL` (default `http://127.0.0.1:4321/agent/mcp`), `ROGUE_AGENT_KEY_FILE` (default `/agent-share/agent-key`), `ROGUE_WORK_DIR` (`/work`), `ROGUE_KEY_WAIT_S` (600), `ROGUE_AGENTS_DIR`.
+
+## Secrets
+Never in git. Key = contents of the key file (written by the web app into the shared dir; mounted read-only here). `token = hex(HMAC-SHA256(key, name))`, `api key = hex(HMAC-SHA256(key, "api:"+name))`. Both sides derive the same values.
+
+## Hardening
+Config disables exec, file, cliApps, my, web, image generation, dream, heartbeat, transcription, channels; `restrictToWorkspace=true`. Nanobot's SSRF guard blocks loopback, so `tools.ssrfWhitelist` is set to the MCP host only (without it the MCP server is silently "blocked unsafe URL" and the model answers without tools).
+
+## Tests
+- `python3 sidecar/test/test_gen_config.py` (stdlib only).
+- `bash sidecar/test/smoke.sh`: stub MCP (`test/stub_mcp.py`) + supervisor + real Router; creates a uv venv under `$TMPDIR/rogue-smoke`; passes when the model calls get_job and finish_job with the right header.
+
+## IPv4 / DNS note
+The Node app needs IPv4-only lookups for the Router host in pods. Nanobot uses httpx/openai (getaddrinfo, tries all families). Not reproducible here, so unverified in-pod. If the Router host fails to resolve or hangs there, mitigate by setting `ROGUE_AI_BASE_URL` to the Router's IPv4 address (with a Host header is not supported; use the IP URL if the Router answers on it) or add a `hostAliases` entry in the Deployment pointing `3a77b15d.shared.olares.com` at the IPv4 address.

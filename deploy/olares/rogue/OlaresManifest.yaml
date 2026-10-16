@@ -39,13 +39,13 @@ permission:
   appData: true
 spec:
   accelerator:
-  - limitedCpu: 1500m
+  - limitedCpu: 2500m
     limitedDisk: 20Gi
-    limitedMemory: 2Gi
+    limitedMemory: 3Gi
     mode: cpu
-    requiredCpu: 250m
+    requiredCpu: 300m
     requiredDisk: 50Mi
-    requiredMemory: 512Mi
+    requiredMemory: 768Mi
   hardware:
     cpu: {}
     gpu: {}

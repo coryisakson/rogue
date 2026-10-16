@@ -25,6 +25,10 @@ spec:
           value: eu
         - name: DATABASE_URL
           value: postgres://rogue:rogue-local@127.0.0.1:5432/rogue
+        - name: ROGUE_AGENT_SHARE_DIR
+          value: /app/agent-share
+        - name: ROGUE_AGENTS_URL
+          value: http://127.0.0.1   # agent ports 8901/8902 are a convention in app code
         - name: ROGUE_BACKUP_DIR
           value: /app/backups
         - name: ROGUE_DATA_DIR
@@ -81,6 +85,9 @@ spec:
         - name: app-data
           mountPath: /app/backups
           subPath: backups
+        - name: app-data
+          mountPath: /app/agent-share
+          subPath: agent-share
       - name: db
         image: docker.io/pgvector/pgvector:pg17
         imagePullPolicy: IfNotPresent
@@ -112,14 +119,44 @@ spec:
         - name: app-data
           mountPath: /var/lib/postgresql/data
           subPath: postgres
+      - name: agents
+        image: docker.io/cisakson/rogue-agents:{{ .Values.agentsImageTag }}
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ROGUE_AI_BASE_URL
+          value: '{{ .Values.rogueAiBaseUrl | default "" }}'
+        - name: ROGUE_AI_CHAT_MODEL
+          value: Olares/gemma4:e4b
+        - name: ROGUE_MCP_URL
+          value: http://127.0.0.1:4321/agent/mcp
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        resources:
+          limits:
+            cpu: "1"
+            memory: 768Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: agents-work
+          mountPath: /work
+        - name: app-data
+          mountPath: /agent-share
+          subPath: agent-share
+          readOnly: true   # the web app writes the key; agents only read it
       initContainers:
       - name: fix-perms
         image: docker.io/library/busybox:1.37
-        command: ["sh", "-c", "mkdir -p /d/postgres /d/files /d/backups && chown -R 999:999 /d/postgres && chown -R 1000:1000 /d/files /d/backups"]
+        command: ["sh", "-c", "mkdir -p /d/postgres /d/files /d/backups /d/agent-share && chown -R 999:999 /d/postgres && chown -R 1000:1000 /d/files /d/backups /d/agent-share"]
         volumeMounts:
         - name: app-data
           mountPath: /d
       volumes:
+      - name: agents-work
+        emptyDir:
+          sizeLimit: 256Mi
       - name: app-data
         hostPath:
           path: '{{ .Values.userspace.appData }}'

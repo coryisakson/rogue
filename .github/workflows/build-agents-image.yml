@@ -1,0 +1,35 @@
+name: Build and Push Agents Image
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sidecar/**'
+      - '.github/workflows/build-agents-image.yml'
+  workflow_dispatch:
+env:
+  IMAGE_NAME: cisakson/rogue-agents
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit-test config derivation
+        run: python3 sidecar/test/test_gen_config.py
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - id: meta
+        run: echo "version=$(tr -d '[:space:]' < sidecar/VERSION)" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v5
+        with:
+          context: sidecar
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
