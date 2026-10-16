@@ -25,3 +25,4 @@ export * from './faq.js';
 export * from './scout/index.js';
 export * from './intake/index.js';
 export * from './terms/index.js';
+export * from './quality/index.js';
