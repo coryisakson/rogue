@@ -3,7 +3,10 @@
 # Usage: scripts/new-worker.sh <slug>
 set -euo pipefail; SLUG="${1:?slug}"; cd "$(dirname "$0")/.."
 WT="../rogue-wt-$SLUG"; git worktree add -b "cc/$SLUG" "$WT" main >/dev/null
-ln -s "$PWD/node_modules" "$WT/node_modules" 2>/dev/null || true   # workers can run check without a fresh install
+# Share the main install but point @rogue/* at THIS worktree (a plain symlink made type checks see main'"'"'s old code).
+mkdir -p "$WT/node_modules/@rogue"
+for f in "$PWD"/node_modules/* "$PWD"/node_modules/.bin; do n=$(basename "$f"); [ "$n" = "@rogue" ] || ln -s "$f" "$WT/node_modules/$n" 2>/dev/null || true; done
+ln -s ../../packages/core "$WT/node_modules/@rogue/core"; ln -s ../../apps/web "$WT/node_modules/@rogue/web"
 cat > "$WT/TASK.md" <<T
 # Task: $SLUG
 ## Goal (one sentence)
