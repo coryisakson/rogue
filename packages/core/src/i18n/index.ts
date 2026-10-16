@@ -32,12 +32,13 @@ export function localeOf(tag: string | null | undefined): Locale | null {
   return isLocale(base) ? base : null;
 }
 
-export type Vars = Record<string, string | number>;
+/** Placeholder values; null/undefined print as nothing (like JSX), a placeholder not passed at all stays visible. */
+export type Vars = Record<string, string | number | null | undefined>;
 
 /** Look up a message and fill its {placeholders}. English is a last-resort fallback only (the test keeps it unused). */
 export function t(locale: Locale, key: MessageKey, vars?: Vars): string {
   const msg = DICTIONARIES[locale]?.[key] ?? en[key];
-  return vars ? msg.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m)) : msg;
+  return vars ? msg.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name] ?? '') : m)) : msg;
 }
 
 /** The given keys as a plain object, for client scripts (rendered into a data-i18n JSON attribute). */

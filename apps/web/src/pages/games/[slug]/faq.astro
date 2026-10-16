@@ -2,25 +2,26 @@
 import Base from '../../../layouts/Base.astro';
 import { getGame } from '../../../lib/kb';
 import { publicFaq } from '../../../lib/faq';
-import { helpfulLabel } from '@rogue/core';
+import { formatNumber, t } from '@rogue/core';
+const L = Astro.locals.locale;
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
 let items: Awaited<ReturnType<typeof publicFaq>> = [];
 try { items = await publicFaq(slug!); } catch (e) { console.warn('[faq]', (e as Error).message); }
 ---
-<Base title={`${game.name} FAQ`}>
+<Base title={t(L, 'faq.title', { game: game.name })}>
   <main>
-    <h1>{game.name}: frequently asked questions</h1>
-    <p><a href={`/games/${slug}`}>← {game.name} facts</a> · <a href={`/games/${slug}/ask`}>Ask your own question</a></p>
-    <p style="opacity:.8"><small>Questions players asked the rules assistant that most voters found helpful. Answers are AI-written from the publisher's rulebook and can be wrong; check the page cited.</small></p>
-    {items.length === 0 && <div class="card">No FAQ yet. A question appears here after at least 3 players have rated its answer and most found it helpful.</div>}
+    <h1>{t(L, 'faq.h1', { game: game.name })}</h1>
+    <p><a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a> · <a href={`/games/${slug}/ask`}>{t(L, 'faq.askOwn')}</a></p>
+    <p style="opacity:.8"><small>{t(L, 'faq.note')}</small></p>
+    {items.length === 0 && <div class="card">{t(L, 'faq.empty')}</div>}
     <div style="display:grid;gap:.8rem">
       {items.map((f) => (
         <div class="card">
           <h3 style="margin:0 0 .4rem">{f.question}</h3>
           <p style="margin:.2rem 0">{f.answer}</p>
-          <small><span class="pill">{helpfulLabel(f.up, f.total)}</span> {f.sources && f.sources.length > 0 && <>· Sources: {f.sources.slice(0, 3).map((s, i) => <>{i > 0 && ', '}<a href={s.url}>{s.section ?? `p.${s.page}`}</a></>)}</>}</small>
+          <small><span class="pill">{t(L, 'faq.helpful', { up: formatNumber(L, f.up), total: formatNumber(L, f.total) })}</span> {f.sources && f.sources.length > 0 && <>· {t(L, 'common.sources')} {f.sources.slice(0, 3).map((s, i) => <>{i > 0 && ', '}<a href={s.url}>{s.section ?? `p.${s.page}`}</a></>)}</>}</small>
         </div>
       ))}
     </div>

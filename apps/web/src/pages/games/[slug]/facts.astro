@@ -1,8 +1,9 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
-import { ratingLabel } from '@rogue/core';
+import { formatNumber, ratingLabel, t } from '@rogue/core';
 import { isAdmin } from '../../../lib/admin';
+const L = Astro.locals.locale;
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
@@ -15,26 +16,26 @@ const q = admin ? Astro.url.searchParams.get('facts') : null;
 const rest = claims.filter((c) => c.topic !== 'companion');
 const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase())) : rest;
 ---
-<Base title={`Fact base: ${game.name}`}>
+<Base title={t(L, 'facts.title', { game: game.name })}>
   <main>
-    <h1>Fact base: {game.name}</h1>
-    <p><a href={`/games/${slug}`}>← {game.name}</a></p>
-    <p style="opacity:.8"><small>The cited facts behind our answers and one-pagers ({rest.length}). Each one names its source and page.</small></p>
-    {admin && <form method="get" style="margin:.6rem 0"><input name="facts" value={q ?? ''} placeholder="Admin: filter facts…" style="padding:.4rem;width:min(20rem,80%)" /> <button class="btn" style="border:0">Filter</button></form>}
-    {rest.length === 0 && <div class="card"><b>No cited facts yet.</b> We have not ingested an official source for this game.</div>}
+    <h1>{t(L, 'facts.title', { game: game.name })}</h1>
+    <p><a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a></p>
+    <p style="opacity:.8"><small>{t(L, 'facts.note', { n: formatNumber(L, rest.length) })}</small></p>
+    {admin && <form method="get" style="margin:.6rem 0"><input name="facts" value={q ?? ''} placeholder={t(L, 'facts.filterPlaceholder')} style="padding:.4rem;width:min(20rem,80%)" /> <button class="btn" style="border:0">{t(L, 'facts.filter')}</button></form>}
+    {rest.length === 0 && <div class="card"><b>{t(L, 'facts.emptyTitle')}</b> {t(L, 'facts.emptyBody')}</div>}
     <div style="display:grid;gap:.8rem">
       {shown.map((c) => (
         <div class="card" id={`c${c.id}`}>
-          <span class="pill">{c.topic.replace('_', ' ')}</span>{c.player_count && <span class="pill warn">{c.player_count} players</span>}
+          <span class="pill">{c.topic.replace('_', ' ')}</span>{c.player_count && <span class="pill warn">{t(L, 'facts.players', { n: c.player_count })}</span>}
           <p style="margin:.4rem 0">{c.body}</p>
-          <small>Source: <a href={c.source_url}>{c.source_title}</a> ({c.publisher}) · {c.locator}
-          {c.availability !== 'available' && <span class="pill bad">source no longer available</span>}
-          · {c.verified_at ? <span class="pill">Human-reviewed</span> : <span class="pill">AI-verified</span>}</small>
+          <small>{t(L, 'facts.source')} <a href={c.source_url}>{c.source_title}</a> ({c.publisher}) · {c.locator}
+          {c.availability !== 'available' && <span class="pill bad">{t(L, 'facts.unavailable')}</span>}
+          · {c.verified_at ? <span class="pill">{t(L, 'facts.human')}</span> : <span class="pill">{t(L, 'facts.ai')}</span>}</small>
           {c.quote && <blockquote style="margin:.4rem 0 0;opacity:.8;font-size:.9rem">“{c.quote}”</blockquote>}
           <form method="post" action="/rate" style="margin:.5rem 0 0;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap">
             <input type="hidden" name="claim" value={c.id} /><input type="hidden" name="next" value={here} />
-            <small>{user ? 'Rate this fact:' : <a href={`/login?next=${encodeURIComponent(here)}`}>Sign in to rate</a>}</small>
-            {user && [1, 2, 3, 4, 5].map((n) => <button type="submit" name="stars" value={n} title={`${n} star${n > 1 ? 's' : ''}`} style={`background:none;border:0;cursor:pointer;font-size:1.2rem;padding:0 .1rem;color:${(c.my_stars ?? 0) >= n ? '#d9a441' : '#0004'}`}>★</button>)}
+            <small>{user ? t(L, 'facts.rate') : <a href={`/login?next=${encodeURIComponent(here)}`}>{t(L, 'facts.signInToRate')}</a>}</small>
+            {user && [1, 2, 3, 4, 5].map((n) => <button type="submit" name="stars" value={n} title={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} style={`background:none;border:0;cursor:pointer;font-size:1.2rem;padding:0 .1rem;color:${(c.my_stars ?? 0) >= n ? '#d9a441' : '#0004'}`}>★</button>)}
             {ratingLabel(c.avg_stars, c.rating_count) && <small>· {ratingLabel(c.avg_stars, c.rating_count)}</small>}
           </form>
         </div>

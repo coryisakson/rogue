@@ -1,7 +1,8 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
-import { buildSheet } from '@rogue/core';
+import { buildSheet, t } from '@rogue/core';
+const L = Astro.locals.locale;
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
@@ -11,9 +12,9 @@ const setup = claims.filter((c) => c.topic === 'goal' || c.topic === 'lose' || c
 const variants = claims.filter((c) => c.topic === 'player_count_variant' && c.player_count != null).sort((a, b) => (a.player_count ?? 0) - (b.player_count ?? 0));
 const sheet = buildSheet(claims);
 const srcs = [...new Map(claims.map((c) => [c.source_url, c])).values()];
-if (!claims.length) return new Response('No cited setup facts for this game yet.', { status: 404 });
+if (!claims.length) return new Response(t(L, 'sheet.none'), { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 ---
-<Base title={`${game.name} setup`} bare>
+<Base title={t(L, 'sheet.title', { game: game.name })} bare>
   <style is:global>
     body { background:#ccc; }
     .sheet { background:#fff; color:#111; width:5.5in; min-height:8.5in; margin:1rem auto; padding:.3in; font-family: 'Helvetica Neue', Arial, sans-serif; font-size:8.6pt; line-height:1.28; box-shadow:0 2px 12px #0006; }
@@ -30,25 +31,25 @@ if (!claims.length) return new Response('No cited setup facts for this game yet.
     @media print { body { background:#fff; } .toolbar { display:none; } .sheet { margin:0; box-shadow:none; width:5.5in; height:8.5in; overflow:hidden; page-break-after:avoid; } }
   </style>
   <div class="toolbar">
-    <a href={`/games/${slug}`}>← {game.name}</a>
-    Players: {[2,3,4].map((n) => <a href={`?players=${n}`} style={players===n?'font-weight:bold':''}>{n}</a>)} <a href="?">all</a>
-    <button onclick="window.print()">Print (half-letter, 1 page)</button>
+    <a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a>
+    {t(L, 'sheet.players')} {[2,3,4].map((n) => <a href={`?players=${n}`} style={players===n?'font-weight:bold':''}>{n}</a>)} <a href="?">{t(L, 'sheet.all')}</a>
+    <button onclick="window.print()">{t(L, 'sheet.print')}</button>
   </div>
   <div class="sheet">
-    <h1>{game.name} · Setup</h1>
-    <div class="sub">{game.publisher} · {game.min_players}–{game.max_players} players · edition: {claims[0]?.edition}</div>
+    <h1>{t(L, 'sheet.heading', { game: game.name })}</h1>
+    <div class="sub">{game.publisher} · {t(L, 'common.players', { min: game.min_players, max: game.max_players })} · {t(L, 'common.edition', { edition: claims[0]?.edition ?? '' })}</div>
     {variants.length > 0 && (<>
-      <h2>Changes by player count</h2>
-      <table class="pc"><tr><th>Players</th><th>What changes</th></tr>
+      <h2>{t(L, 'sheet.byPlayers')}</h2>
+      <table class="pc"><tr><th>{t(L, 'sheet.thPlayers')}</th><th>{t(L, 'sheet.thChanges')}</th></tr>
         {variants.map((v) => <tr class={players === v.player_count ? 'on' : ''}><td>{v.player_count}</td><td style="text-align:left">{v.body}{v.locator && <sup> [{v.locator}]</sup>}</td></tr>)}
       </table>
     </>)}
-    {variants.length === 0 && (<p class="none"><em>No player-count changes recorded for this game.</em></p>)}
+    {variants.length === 0 && (<p class="none"><em>{t(L, 'sheet.noVariants')}</em></p>)}
     {sheet.sections.filter((sec) => sec.lines.length).map((sec) => (<>
       <h2>{sec.title}</h2>
       <ol>{sec.lines.map((l) => <li>{l.text}{l.page && <sup> [{l.page}]</sup>}</li>)}</ol>
     </>))}
-    <div class="foot">Sources: {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. Written by AI from the publisher's rulebook, each line quote-checked against the cited page; the rulebook is authoritative. Not affiliated with the publisher. Rogue v0 · open source.</div>
+    <div class="foot">{t(L, 'common.sources')} {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. {t(L, 'sheet.foot')}</div>
   </div>
   <script is:inline>
     // Fit check: shrink the text until the sheet fits one half-letter page, so print never clips the end.

@@ -1,26 +1,28 @@
 ---
 import Base from '../layouts/Base.astro';
 import { listGames } from '../lib/kb';
+import { formatNumber, t } from '@rogue/core';
+const L = Astro.locals.locale;
 const games = await listGames();
 const ready = games.filter((g) => g.claim_count > 0);
 ---
-<Base title="Rules, cited">
+<Base title={t(L, 'home.title')}>
   <main>
-    <h1 style="font-size:2.4rem;margin-bottom:.2rem">Setup it fast. Rules, cited.</h1>
-    <p style="max-width:42rem">Rogue is an open, rights-aware tabletop knowledge base. Every statement points back to the publisher's own rulebook, and each game gets a one-page setup sheet you can print.</p>
-    <h2>Ready now</h2>
+    <h1 style="font-size:2.4rem;margin-bottom:.2rem">{t(L, 'home.h1')}</h1>
+    <p style="max-width:42rem">{t(L, 'home.intro')}</p>
+    <h2>{t(L, 'home.ready')}</h2>
     <div class="grid">
       {ready.map((g) => (
         <div class="card">
           <h3 style="margin:.1rem 0"><a href={`/games/${g.slug}`}>{g.name}</a></h3>
           <div>{g.publisher} · {g.year}</div>
-          <div>{g.min_players}–{g.max_players} players</div>
-          <p><span class="pill ok">{g.claim_count} cited facts</span></p>
-          <a class="btn" href={`/games/${g.slug}/setup`}>Setup one-pager</a>
+          <div>{t(L, 'common.players', { min: g.min_players, max: g.max_players })}</div>
+          <p><span class="pill ok">{t(L, 'home.facts', { n: formatNumber(L, g.claim_count) })}</span></p>
+          <a class="btn" href={`/games/${g.slug}/setup`}>{t(L, 'game.setup')}</a>
         </div>
       ))}
     </div>
-    <h2>Coming soon</h2>
+    <h2>{t(L, 'home.soon')}</h2>
     <p>{games.filter((g) => g.claim_count === 0).map((g) => g.name).join(' · ')}</p>
   </main>
 </Base>
