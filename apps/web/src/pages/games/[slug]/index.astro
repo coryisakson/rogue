@@ -1,32 +1,91 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
-import { ratingLabel } from '@rogue/core';
-import { isAdmin } from '../../../lib/admin';
+import { askRules, gameSources, type ChatAnswer } from '../../../lib/chat';
+import { recordAsk } from '../../../lib/unanswered';
+import { groupCitations, pageList } from '@rogue/core';
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
 const user = Astro.locals.user;
-const claims = await getClaims(slug!, user ? { userId: user.id } : {});
-const here = Astro.url.pathname + Astro.url.search;
-const sources = [...new Map(claims.map((c) => [c.source_url, c])).values()];
-// Players get one answers-first box (cited answers); the raw fact list is an admin tool (Cory 2026-10-15).
-const admin = isAdmin(user);
-const q = admin ? Astro.url.searchParams.get('facts') : null;
-const links = claims.filter((c) => c.topic === 'companion');
-const rest = claims.filter((c) => c.topic !== 'companion');
-const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase())) : rest;
+// The game page is a chat (Cory 2026-10-16). The fact list lives on /games/<slug>/facts; here we only need companion links and documents.
+const links = await getClaims(slug!, { topic: 'companion' });
+const sources = await gameSources(slug!);
+// Without JavaScript the ask box is a plain GET form: ?q= renders that one answer here.
+const q = (Astro.url.searchParams.get('q') ?? '').trim();
+const voted = Astro.url.searchParams.get('voted');
+const nextUrl = `/games/${slug}?q=${encodeURIComponent(q)}`;
+let res: ChatAnswer | null = null; let err = '';
+if (user && q.length >= 3) {
+  try { res = await askRules(slug!, q); } catch (e) { err = 'The rules assistant is busy or offline. Please try again in a minute.'; console.warn('[ask]', (e as Error).message); }
+  // The page reloads after a vote; that is not a new ask, so it is not counted again.
+  if (!voted) recordAsk(slug!, q, 'web', res ?? { error: err });
+}
+const docs = res ? groupCitations(res.sources) : [];
+const loginUrl = `/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`;
+const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.name} board game rules`)}`;
 ---
 <Base title={game.name}>
+  <style>
+    .thread { display: grid; gap: .8rem; margin: 1rem 0; max-width: 46rem }
+    .turn { display: grid; gap: .4rem }
+    .q-bubble { justify-self: end; max-width: 85%; background: #cdbf9b; color: #222; padding: .55rem .85rem; border-radius: 14px 14px 2px 14px; white-space: pre-line }
+    .a-bubble { max-width: 92%; margin: 0; border-radius: 14px 14px 14px 2px }
+    .a-text { font-size: 1.05rem; margin-top: 0; white-space: pre-line }
+    .a-docs { margin: .5rem 0 0; padding-left: 1.1rem }
+    .a-docs blockquote { margin: .3rem 0 0; opacity: .8; font-size: .9rem }
+    .vote { margin-top: .8rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap }
+  </style>
   <main>
     <h1>{game.name}</h1>
     <p>{game.publisher} · {game.year} · {game.min_players}–{game.max_players} players {game.bgg_id && <>· <a href={`https://boardgamegeek.com/boardgame/${game.bgg_id}`}>BoardGameGeek ↗</a></>}</p>
-    <form method="get" action={`/games/${slug}/ask`} style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap">
-      <input name="q" placeholder={`Ask anything about ${game.name}…`} maxlength="300" required style="padding:.7rem .9rem;font-size:1.05rem;flex:1;min-width:14rem;max-width:40rem;border-radius:8px;border:0" />
-      <button class="btn" type="submit" style="border:0;cursor:pointer">Ask</button>
-    </form>
+
+    <div class="thread" id="thread" aria-live="polite">
+      {(res || err) && (
+        <div class="turn" data-answer-id={res?.id ?? ''}>
+          <div class="q-bubble">{q}</div>
+          {err ? <div class="card a-bubble"><b>{err}</b></div> : res && (
+            <div class="card a-bubble" id="answer">
+              <p class="a-text">{res.answer}</p>
+              {res.warning && <p><span class="pill bad">check</span> {res.warning}</p>}
+              <small><span class="pill warn">AI answer from the publisher rulebook, can be wrong</span></small>
+              {docs.length > 0 && (
+                <ul class="a-docs">
+                  {docs.map((d) => (
+                    <li><small><a href={d.url}>{d.title}</a>{d.publisher && ` (${d.publisher})`}{d.pages.length > 0 && ` · ${pageList(d.pages)}`}</small>
+                      {d.quote && <details><summary><small>Quote</small></summary><blockquote>“{d.quote}…”</blockquote></details>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {res.id && (
+                <form method="post" action="/rate-answer" class="vote" data-vote>
+                  <input type="hidden" name="answer" value={res.id} />
+                  <input type="hidden" name="next" value={nextUrl} />
+                  <small>Was this helpful?</small>
+                  <button class="btn" name="vote" value="up" type="submit" style="border:0;cursor:pointer">👍 Helpful</button>
+                  <button class="btn" name="vote" value="down" type="submit" style="border:0;cursor:pointer">👎 Not helpful</button>
+                  {voted && <small>Thanks, vote saved.</small>}
+                </form>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    {!user ? (
+      <div class="card" style="max-width:28rem"><p style="margin-top:0"><b>Sign in to ask the rules assistant.</b> It uses AI compute, so it is for signed-in players. Setup sheets stay open to everyone.</p><a class="btn" href={loginUrl}>Sign in</a></div>
+    ) : (
+      <form id="ask-form" method="get" action={`/games/${slug}`} data-game={slug} style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap;max-width:46rem">
+        <input name="q" placeholder={`Ask anything about ${game.name}…`} maxlength="300" minlength="3" required autocomplete="off" style="padding:.7rem .9rem;font-size:1.05rem;flex:1;min-width:14rem;border-radius:8px;border:0" />
+        <button class="btn" type="submit" style="border:0;cursor:pointer">Ask</button>
+        <button class="btn" type="button" id="chat-clear" hidden style="border:0;cursor:pointer;background:#cdbf9b">New conversation</button>
+      </form>
+    )}
     <p><small style="opacity:.8">Every answer cites the publisher's rulebook page.</small></p>
-    <p><a class="btn" href={`/games/${slug}/setup`}>Setup one-pager</a> <a class="btn" href={`/games/${slug}/aid`}>Player aid</a><a class="btn" href={`/games/${slug}/faq`} style="background:#cdbf9b">Common questions</a></p>
+
+    <p><a class="btn" href={`/games/${slug}/setup`}>Setup one-pager</a> <a class="btn" href={`/games/${slug}/aid`}>Player aid</a> <a class="btn" href={`/games/${slug}/faq`} style="background:#cdbf9b">Common questions</a></p>
     {links.length > 0 && (
       <div class="card" id="links">
         <h2 style="margin-top:0">Companion app and links</h2>
@@ -39,30 +98,139 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
         </ul>
       </div>
     )}
-    {claims.length === 0 && <div class="card"><b>No cited facts yet.</b> We have not ingested an official source for this game. If you are the publisher, you can <a href="/about#publishers">contact us</a> to authorise one.</div>}
-    {admin && <details open={Boolean(q)}>
-    <form method="get" style="margin:.6rem 0"><input name="facts" value={q ?? ''} placeholder="Admin: filter facts…" style="padding:.4rem;width:min(20rem,80%)" /> <button class="btn" style="border:0">Filter</button></form><summary style="cursor:pointer;margin:.6rem 0"><b>Fact base ({rest.length})</b> <small style="opacity:.7">the cited facts behind our answers and one-pagers; admin view</small></summary>
-    <div style="display:grid;gap:.8rem">
-      {shown.map((c) => (
-        <div class="card" id={`c${c.id}`}>
-          <span class="pill">{c.topic.replace('_', ' ')}</span>{c.player_count && <span class="pill warn">{c.player_count} players</span>}
-          <p style="margin:.4rem 0">{c.body}</p>
-          <small>Source: <a href={c.source_url}>{c.source_title}</a> ({c.publisher}) · {c.locator}
-          {c.availability !== 'available' && <span class="pill bad">source no longer available</span>}
-          · {c.verified_at ? <span class="pill">Human-reviewed</span> : <span class="pill">AI-verified</span>}</small>
-          {c.quote && <blockquote style="margin:.4rem 0 0;opacity:.8;font-size:.9rem">“{c.quote}”</blockquote>}
-          <form method="post" action="/rate" style="margin:.5rem 0 0;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap">
-            <input type="hidden" name="claim" value={c.id} /><input type="hidden" name="next" value={here} />
-            <small>{user ? 'Rate this fact:' : <a href={`/login?next=${encodeURIComponent(here)}`}>Sign in to rate</a>}</small>
-            {user && [1, 2, 3, 4, 5].map((n) => <button type="submit" name="stars" value={n} title={`${n} star${n > 1 ? 's' : ''}`} style={`background:none;border:0;cursor:pointer;font-size:1.2rem;padding:0 .1rem;color:${(c.my_stars ?? 0) >= n ? '#d9a441' : '#0004'}`}>★</button>)}
-            {ratingLabel(c.avg_stars, c.rating_count) && <small>· {ratingLabel(c.avg_stars, c.rating_count)}</small>}
-          </form>
-        </div>
-      ))}
+    <div class="card" id="community">
+      <h2 style="margin-top:0">More community discussion</h2>
+      <ul>
+        {game.bgg_id && <li><a href={`https://boardgamegeek.com/boardgame/${game.bgg_id}/forums`} rel="noopener nofollow">BoardGameGeek forums ↗</a></li>}
+        <li><a href={reddit} rel="noopener nofollow">Search Reddit for rules discussion ↗</a></li>
+      </ul>
+      <p style="opacity:.8;margin-bottom:0"><small>We do not read or copy these sites; links only.</small></p>
     </div>
-    </details>}
-    <h2>Sources</h2>
-    <ul>{sources.map((s) => <li><a href={s.source_url}>{s.source_title}</a> · {s.publisher} · edition: {s.edition} · {s.availability === 'available' ? 'available' : 'no longer available'}</li>)}</ul>
-    <p style="opacity:.7"><small>We link to the publisher's file and quote only short passages. We do not host rulebooks.</small></p>
+    {sources.length === 0 && <div class="card"><b>No sources yet.</b> We have not ingested an official source for this game. If you are the publisher, you can <a href="/about#publishers">contact us</a> to authorise one.</div>}
+    {sources.length > 0 && <>
+      <h2>Sources</h2>
+      <ul>{sources.map((s) => <li><a href={s.url}>{s.title ?? s.url}</a>{s.publisher && ` · ${s.publisher}`} · edition: {s.edition}{s.availability !== 'available' && ' · no longer available'}</li>)}</ul>
+    </>}
+    <p style="opacity:.7"><small>We link to the publisher's file and quote only short passages. We do not host rulebooks. Rules chat needs a free sign-in (GitHub, Google or Discord).</small></p>
+    <p style="opacity:.6"><small><a href={`/games/${slug}/facts`}>Browse the fact base</a></small></p>
   </main>
+  <script is:inline>
+    // Chat thread: asks go to /api/ask and answers are appended here, so earlier turns stay on screen.
+    // The last turns are kept in sessionStorage (this tab only; nothing new is stored on the server).
+    // Without JavaScript none of this runs and the form does a plain GET ?q= instead.
+    (() => {
+      const form = document.getElementById('ask-form');
+      const thread = document.getElementById('thread');
+      if (!form || !thread) return;
+      const game = form.dataset.game;
+      const KEY = `rogue-chat:${game}`;
+      const MAX_TURNS = 10;
+      const clearBtn = document.getElementById('chat-clear');
+      const input = form.querySelector('input[name="q"]');
+
+      const load = () => { try { return JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch { return []; } };
+      const save = (turns) => { try { sessionStorage.setItem(KEY, JSON.stringify(turns.slice(-MAX_TURNS))); } catch { /* storage full or blocked: thread just won't survive a reload */ } };
+
+      // Small DOM builder; text always goes in via textContent, never as HTML.
+      function el(tag, props = {}, ...kids) {
+        const n = document.createElement(tag);
+        for (const [k, v] of Object.entries(props)) {
+          if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v; else n.setAttribute(k, v);
+        }
+        for (const k of kids) if (k) n.append(k);
+        return n;
+      }
+      const safeUrl = (u) => (/^https?:\/\//.test(u) ? u : '#');
+
+      function answerCard(t) {
+        if (t.error) return el('div', { class: 'card a-bubble' }, el('b', { text: t.error }), t.signIn ? el('p', {}, el('a', { class: 'btn', href: `/login?next=${encodeURIComponent(location.pathname)}`, text: 'Sign in' })) : null);
+        const card = el('div', { class: 'card a-bubble' }, el('p', { class: 'a-text', text: t.answer }));
+        if (t.warning) card.append(el('p', {}, el('span', { class: 'pill bad', text: 'check' }), ` ${t.warning}`));
+        card.append(el('small', {}, el('span', { class: 'pill warn', text: 'AI answer from the publisher rulebook, can be wrong' })));
+        if (t.docs && t.docs.length) {
+          const ul = el('ul', { class: 'a-docs' });
+          for (const d of t.docs) {
+            const line = el('small', {}, el('a', { href: safeUrl(d.url), text: d.title }), d.publisher ? ` (${d.publisher})` : '', d.cite ? ` · ${d.cite}` : '');
+            const quote = d.quote ? el('details', {}, el('summary', {}, el('small', { text: 'Quote' })), el('blockquote', { text: `“${d.quote}…”` })) : null;
+            ul.append(el('li', {}, line, quote));
+          }
+          card.append(ul);
+        }
+        if (t.id) {
+          const vote = el('form', { method: 'post', action: '/rate-answer', class: 'vote', 'data-vote': '' },
+            el('input', { type: 'hidden', name: 'answer', value: String(t.id) }),
+            el('input', { type: 'hidden', name: 'next', value: `/games/${game}?q=${encodeURIComponent(t.q)}` }),
+            el('small', { text: 'Was this helpful?' }),
+            el('button', { class: 'btn', name: 'vote', value: 'up', type: 'submit', style: 'border:0;cursor:pointer', text: '👍 Helpful' }),
+            el('button', { class: 'btn', name: 'vote', value: 'down', type: 'submit', style: 'border:0;cursor:pointer', text: '👎 Not helpful' }));
+          card.append(vote);
+        }
+        return card;
+      }
+
+      function addTurn(t) {
+        const turn = el('div', { class: 'turn', 'data-answer-id': t.id ? String(t.id) : '' }, el('div', { class: 'q-bubble', text: t.q }));
+        turn.append(t.pending ? el('div', { class: 'card a-bubble', text: 'Looking it up in the rulebook…' }) : answerCard(t));
+        thread.append(turn);
+        if (clearBtn) clearBtn.hidden = false;
+        return turn;
+      }
+
+      // Earlier turns go above a server-rendered answer (?q=), skipping it if it is the same answer.
+      const serverTurn = thread.querySelector('.turn');
+      const serverId = serverTurn ? serverTurn.dataset.answerId : '';
+      for (const t of load()) {
+        if (serverId && String(t.id) === serverId) continue;
+        const n = addTurn(t);
+        if (serverTurn) thread.insertBefore(n, serverTurn);
+      }
+      if (serverTurn && clearBtn) clearBtn.hidden = false;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault(); // we handle it; Base.astro's busy guard skips prevented submits, so set it ourselves
+        const q = input.value.trim();
+        if (q.length < 3 || form.getAttribute('aria-busy') === 'true') return;
+        window.RogueBusy && window.RogueBusy.set(form, e.submitter);
+        const turn = addTurn({ q, pending: true });
+        turn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        let t;
+        try {
+          const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ game, q }) });
+          const body = await r.json().catch(() => ({}));
+          t = r.ok ? { q, id: body.id, answer: body.answer, warning: body.warning, docs: body.docs } : { q, error: body.error || 'Something went wrong. Please try again.', signIn: r.status === 401 };
+        } catch {
+          t = { q, error: 'Could not reach the rules assistant. Check your connection and try again.' };
+        }
+        turn.replaceWith(addTurn(t));
+        if (!t.error) { save([...load(), t]); input.value = ''; }
+        window.RogueBusy && window.RogueBusy.clear(form);
+        input.focus();
+      });
+
+      // Votes are sent in the background so the thread is not reloaded (rate-answer answers with a redirect).
+      thread.addEventListener('submit', async (e) => {
+        const vote = e.target;
+        if (!(vote instanceof HTMLFormElement) || !('vote' in vote.dataset)) return;
+        e.preventDefault();
+        const data = new FormData(vote, e.submitter);
+        for (const b of vote.querySelectorAll('button')) b.disabled = true;
+        let msg = 'Thanks, vote saved.';
+        try {
+          const r = await fetch(vote.action, { method: 'POST', body: data, redirect: 'manual' });
+          if (r.type !== 'opaqueredirect' && !r.ok) msg = r.status === 429 ? 'Too many votes, slow down.' : 'Could not save the vote.';
+        } catch { msg = 'Could not save the vote.'; }
+        for (const s of vote.querySelectorAll('[data-vote-msg]')) s.remove();
+        vote.append(el('small', { 'data-vote-msg': '', text: msg }));
+        for (const b of vote.querySelectorAll('button')) b.disabled = false;
+      });
+
+      if (clearBtn) clearBtn.addEventListener('click', () => {
+        sessionStorage.removeItem(KEY);
+        thread.replaceChildren();
+        clearBtn.hidden = true;
+        if (location.search) history.replaceState(null, '', location.pathname);
+        input.focus();
+      });
+    })();
+  </script>
 </Base>
