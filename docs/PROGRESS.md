@@ -1,6 +1,7 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
 
+- 2026-10-16 (Hermes): Re-indexed Pandemic on 0.0.84 (5 sources, 174 chunks, all embedded). Spot searches (outbreak, epidemic, setup) return clean rules text, no map-label noise seen. Only 3 queries checked; no eval run.
 - 2026-10-16 (Hermes): 0.0.84: noise filter (index/noise.ts) drops map labels, symbol lines and repeated headers/footers from page text before chunking; raw text kept for quotes/printed pages. 267 tests pass. Needs re-index to take effect; not tried on real Pandemic text yet.
 - 2026-10-16 (Hermes): 0.0.83: all forms get busy state + double-submit guard (Base.astro). Unanswered asks (web+Discord; refusal/no sources/error/empty) join the admin improvement queue with Resolve/Dismiss (migration 0028, deduped). English-only refusal detection; MCP asks not recorded. Not yet checked in browser.
 - 2026-10-16 (Hermes): Cory added two items to Next (button click feedback + double-click guard; unanswered asks join the poor-rating improvement queue) and backlogged an Answer Improvement Agent. Docs only.
