@@ -1,12 +1,12 @@
 # Handoff (rewritten 2026-10-16). Keep this file under 3 KB; history lives in docs/archive/.
 
-Live: https://rogue.cisakson.olares.com, version 0.0.81 deploying. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
+Live: https://rogue.cisakson.olares.com, version 0.0.82 deploying. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
 Rulebook: AGENTS.md. Product principle: AI tasks -> Nanobot agents over MCP in background; plain code stays in app (ADR 0002).
 
 ## Next (ordered; do the first unfinished one)
 1. OCR/page-text quality work UNPAUSED (Cory 2026-10-16). Still paused: Ask evals/tuning and other KB quality checks until Nanobot can take them over. CODE quality is NOT paused: workers keep tests, types and scripts/qcheck.sh green.
 2. DONE: Nanobot sidecar + Librarian (0.0.78) + Terms Agent (0.0.79) + Scout page judgement (0.0.80). FAQ Curator shipped (0.0.81, faq_curate). Librarian yield is low (1 of 5 drafted on StS); tuning counts as content quality = paused.
-3. Q&A become facts, one-pager quality gate, printed-page detection, frontier judge (needs APPROVALS entry).
+3. Printed pages shipped 0.0.82: re-index Pandemic and StS (POST /api/admin/index-rules?game=) and check printed_page. Then Q&A become facts, one-pager quality gate, frontier judge (needs APPROVALS entry).
 
 ## Unverified live
 FAQ Curator: POST /api/admin/faq-curate?game=pandemic, poll ?job=. Terms Agent auto-approve and scout_judge on a fresh request; Scout publisher-first run (0.0.66).

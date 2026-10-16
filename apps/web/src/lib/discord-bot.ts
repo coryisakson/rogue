@@ -51,10 +51,10 @@ async function buildSetupReply(game: string, players: number | null): Promise<st
 async function buildAskReply(game: string, question: string): Promise<string> {
   if (!(await getGame(game))) return formatError(`I don't know a game called \`${game}\`.`);
   const r = await askRules(game, question);
-  const byTitle = new Map<string, CitedSource & { pages: number[] }>();
+  const byTitle = new Map<string, CitedSource & { pages: number[]; printed: Record<number, number | null> }>();
   for (const s of r.sources) {
-    const e = byTitle.get(s.title) ?? { title: s.title, publisher: s.publisher, url: s.url, pages: [] };
-    e.pages.push(s.page); byTitle.set(s.title, e);
+    const e = byTitle.get(s.title) ?? { title: s.title, publisher: s.publisher, url: s.url, pages: [], printed: {} };
+    e.pages.push(s.page); e.printed[s.page] = s.printed; byTitle.set(s.title, e);
   }
   return formatAnswer(question, r.answer, [...byTitle.values()], r.warning);
 }

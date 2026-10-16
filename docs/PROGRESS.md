@@ -1,6 +1,7 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
 
+- 2026-10-16 (Hermes): Printed page numbers (0.0.82, migration 0027). pagelabels.ts finds the header/footer number by a consistent offset (60% agreement, else none); chunks.printed_page set at index time for PDFs; Ask list, prompts and Discord footer show 'p.7 (printed 5)'. Stored locators stay physical. Re-index needed per game; not yet tested on real rulebooks.
 - 2026-10-16 (Hermes): FAQ Curator runs as Nanobot job faq_curate (0.0.81, sidecar 0.5.0, port 8905, migration 0026). Merges duplicate Q&A into canonical cited answers; gate rejects invented citations/numbers and hidden questions; raw tally stays as fallback. POST /api/admin/faq-curate?game=. Not yet tested live.
 - 2026-10-16 (Hermes): Scout page judgement runs as Nanobot job scout_judge (0.0.80, sidecar 0.4.0, migration 0025). Agent proposes picks via propose_source; core gate checks candidate/host/robots/terms; report written async, deterministic fallback when agents off. Not yet tested live.
 - 2026-10-16 (Hermes): Terms Agent judgement runs as Nanobot job terms_judge (0.0.79, sidecar 0.3.0, migration 0024). Verbatim-quote gate; restricted from either side wins; deterministic fallback when agents off. Not yet tested live on a fresh request.
