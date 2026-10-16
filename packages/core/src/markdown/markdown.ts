@@ -30,38 +30,41 @@ function cells(row: string): string[] {
 }
 
 function renderTable(rows: string[]): string {
-  const hasHeader = rows.length > 1 && TABLE_RULE.test(rows[1]);
-  const head = hasHeader ? `<thead><tr>${cells(rows[0]).map((c) => `<th>${renderInline(c)}</th>`).join('')}</tr></thead>` : '';
+  const hasHeader = rows.length > 1 && TABLE_RULE.test(rows[1] ?? '');
+  const head = hasHeader ? `<thead><tr>${cells(rows[0] ?? '').map((c) => `<th>${renderInline(c)}</th>`).join('')}</tr></thead>` : '';
   const body = (hasHeader ? rows.slice(2) : rows).filter((r) => !TABLE_RULE.test(r));
   return `<table>${head}<tbody>${body.map((r) => `<tr>${cells(r).map((c) => `<td>${renderInline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 
+const startsParagraphBreak = (line: string) => !line.trim() || HEADING.test(line) || TABLE_ROW.test(line) || BULLET.test(line) || NUMBERED.test(line);
+
 /** Render markdown to HTML. Blocks: headings, bullet/numbered lists, pipe tables, paragraphs (single newlines become <br>). */
 export function renderMarkdown(md: string): string {
   const lines = md.replace(/\r\n?/g, '\n').split('\n');
+  const at = (j: number): string => lines[j] ?? '';
   const out: string[] = [];
   let i = 0;
   while (i < lines.length) {
-    const line = lines[i];
+    const line = at(i);
     if (!line.trim()) { i++; continue; }
     const h = HEADING.exec(line);
-    if (h) { out.push(`<h${h[1].length}>${renderInline(h[2])}</h${h[1].length}>`); i++; continue; }
+    if (h) { const lvl = (h[1] ?? '#').length; out.push(`<h${lvl}>${renderInline(h[2] ?? '')}</h${lvl}>`); i++; continue; }
     if (TABLE_ROW.test(line)) {
       const rows: string[] = [];
-      while (i < lines.length && TABLE_ROW.test(lines[i])) rows.push(lines[i++]);
+      while (i < lines.length && TABLE_ROW.test(at(i))) rows.push(at(i++));
       out.push(renderTable(rows));
       continue;
     }
     const list = BULLET.test(line) ? { re: BULLET, tag: 'ul' } : NUMBERED.test(line) ? { re: NUMBERED, tag: 'ol' } : null;
     if (list) {
       const items: string[] = [];
-      while (i < lines.length && list.re.test(lines[i])) items.push(`<li>${renderInline(list.re.exec(lines[i++])![1])}</li>`);
+      while (i < lines.length && list.re.test(at(i))) items.push(`<li>${renderInline(list.re.exec(at(i++))?.[1] ?? '')}</li>`);
       out.push(`<${list.tag}>${items.join('')}</${list.tag}>`);
       continue;
     }
     // Paragraph: runs until a blank line or the start of another block.
     const para: string[] = [];
-    while (i < lines.length && lines[i].trim() && !HEADING.test(lines[i]) && !TABLE_ROW.test(lines[i]) && !BULLET.test(lines[i]) && !NUMBERED.test(lines[i])) para.push(renderInline(lines[i++].trim()));
+    while (i < lines.length && !startsParagraphBreak(at(i))) para.push(renderInline(at(i++).trim()));
     out.push(`<p>${para.join('<br>')}</p>`);
   }
   return out.join('\n');
