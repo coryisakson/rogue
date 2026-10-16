@@ -11,12 +11,42 @@ export function splitPages(text: string): Map<number, string> {
   return pages;
 }
 
+const CAPS_LINE = /^[A-Z][A-Z' -]{2,}$/;
+
+/**
+ * Two-column PDFs print neighbouring all-caps headings on consecutive lines ("CONTINGENCY\nPLANNER\nDISPATCHER"), which reads
+ * like one name. Split such a run into names: the longest word group that the page later calls "the <Name>" is one heading
+ * (so "Contingency Planner" and "Dispatcher" separate). Each heading goes on its own line. Game-agnostic, no name lists.
+ */
+export function splitJoinedHeadings(body: string): string {
+  const lines = body.split('\n');
+  const lower = body.toLowerCase();
+  const out: string[] = [];
+  for (let i = 0; i < lines.length;) {
+    let j = i;
+    while (j < lines.length && CAPS_LINE.test((lines[j] ?? '').trim())) j++;
+    if (j - i < 2) { out.push(lines[i] ?? ''); i++; continue; }
+    const words = lines.slice(i, j).join(' ').trim().split(/\s+/);
+    for (let k = 0; k < words.length;) {
+      let take = 1;
+      for (let len = words.length - k; len > 1; len--) {
+        if (lower.includes('the ' + words.slice(k, k + len).join(' ').toLowerCase())) { take = len; break; }
+      }
+      out.push(words.slice(k, k + take).join(' '));
+      k += take;
+    }
+    i = j;
+  }
+  return out.join('\n');
+}
+
 export function chunkText(text: string, opts: { target?: number; overlap?: number } = {}): Chunk[] {
   const target = opts.target ?? 900;
   const overlap = opts.overlap ?? 150;
   const out: Chunk[] = [];
   let ord = 0;
-  for (const [page, body] of splitPages(text)) {
+  for (const [page, rawBody] of splitPages(text)) {
+    const body = splitJoinedHeadings(rawBody);
     if (body.length < 20) continue;
     let start = 0;
     while (start < body.length) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chunkText, orQuery, rrf, sectionHeadings, splitPages } from './chunker.js';
+import { chunkText, splitJoinedHeadings, orQuery, rrf, sectionHeadings, splitPages } from './chunker.js';
 
 const sample = `\n\n=== page 1 ===\n${'Alpha rule sentence. '.repeat(120)}\n\n=== page 2 ===\nShort page two text here, long enough.\n\n=== page 3 ===\n  `;
 
@@ -43,5 +43,19 @@ describe('sectionHeadings', () => {
   it('reads the first line after each marker', () => {
     const m = sectionHeadings("\n\n=== page 1 ===\nIntro\nbody\n\n=== page 2 ===\nWhat's in the box\n7 Role Cards");
     expect(m.get(1)).toBe('Intro'); expect(m.get(2)).toBe("What's in the box");
+  });
+});
+
+describe('splitJoinedHeadings', () => {
+  it('separates neighbouring two-line headings using "the <Name>" in the text', () => {
+    const body = 'CONTINGENCY PLANNER\nThe Contingency Planner may take a card.\nCONTINGENCY\nPLANNER\nDISPATCHER\nThe Dispatcher may move pawns.\nQUARANTINE\nSPECIALIST\nThe Quarantine Specialist stops cubes.';
+    const out = splitJoinedHeadings(body).split('\n');
+    expect(out).toContain('CONTINGENCY PLANNER');
+    expect(out).toContain('DISPATCHER');
+    expect(out).toContain('QUARANTINE SPECIALIST');
+    expect(out).not.toContain('CONTINGENCY PLANNER DISPATCHER');
+  });
+  it('leaves single caps lines and normal text alone', () => {
+    expect(splitJoinedHeadings('ROLES\nEach player has a role.')).toBe('ROLES\nEach player has a role.');
   });
 });
