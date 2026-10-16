@@ -15,7 +15,7 @@ export const GET: APIRoute = async ({ url }) => {
   for (const item of set.questions.slice(from, from + n)) {
     try {
       const a = await askRules(set.game, item.q);
-      rows.push({ q: item.q, kind: item.kind ?? 'fact', expected: item.expected, ...scoreAskAnswer(item, a), answer: a.answer.slice(0, 700), pages: a.sources.map((s) => s.page), ms: a.ms });
+      rows.push({ q: item.q, kind: item.kind ?? 'fact', expected: item.expected, ...scoreAskAnswer(item, a), answer: a.answer.slice(0, 700), warning: a.warning, pages: a.sources.map((s) => s.page), ms: a.ms });
     } catch (e) { rows.push({ q: item.q, pass: false, reasons: [(e as Error).message] }); }
   }
   return Response.json({ game: set.game, from, total: set.questions.length, passed: rows.filter((r) => r.pass).length, rows }, { headers: { 'cache-control': 'no-store' } });
