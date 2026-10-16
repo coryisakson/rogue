@@ -1,4 +1,4 @@
-import { AGENT_NAMES, AGENT_PORTS, agentApiKey, type AgentName } from '@rogue/core';
+import { AGENT_NAMES, AGENT_PORTS, JOB_AGENT, JOB_MINUTES, agentApiKey, agentMayActOn, type AgentName, type JobKind } from '@rogue/core';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,8 +11,7 @@ import { ensureMigrated, getPool, ipv4Fetch } from './services';
  * The row's status is the source of truth: queued -> running -> done | needs_human | failed. One job runs at a time because the
  * local model serves one request at a time. Agents act only through the propose-only tools in agent-tools.ts.
  */
-export type JobKind = 'quality_curate' | 'scout_variants';
-export const JOB_AGENT: Record<JobKind, AgentName> = { quality_curate: 'quality-curator', scout_variants: 'scout' };
+export { JOB_AGENT, type JobKind };
 
 const shareDir = () => process.env['ROGUE_AGENT_SHARE_DIR'] ?? '';
 const agentsUrl = () => (process.env['ROGUE_AGENTS_URL'] ?? '').trim().replace(/\/+$/, '');
@@ -48,13 +47,41 @@ export interface JobRow { id: number; kind: JobKind; source_id: number; status: 
 export async function runningJob(agent: AgentName, jobId: number): Promise<JobRow | null> {
   const pool = getPool(); if (!pool) return null;
   const r = (await pool.query("SELECT id, kind, source_id, status, attempts FROM agent_jobs WHERE id=$1 AND status='running'", [jobId])).rows[0];
-  if (!r || JOB_AGENT[r.kind as JobKind] !== agent) return null;
+  if (!agentMayActOn(agent, r)) return null;
   return { id: Number(r.id), kind: r.kind, source_id: Number(r.source_id), status: r.status, attempts: r.attempts };
 }
 
 /** Count a page change on a running job so the source is re-indexed afterwards. */
 export async function bumpChanged(jobId: number): Promise<void> {
   await getPool()?.query("UPDATE agent_jobs SET result = jsonb_set(result, '{changedPages}', to_jsonb(COALESCE((result->>'changedPages')::int,0)+1)) WHERE id=$1", [jobId]);
+}
+
+/** Add to number counters in a running job's result (progress the admin and the add-game pipeline can read). */
+export async function bumpCounts(jobId: number, counts: Record<string, number>, set: Record<string, unknown> = {}): Promise<void> {
+  const pool = getPool(); if (!pool) return;
+  const keys = Object.keys(counts);
+  if (keys.length === 0 && Object.keys(set).length === 0) return;
+  // result || {k: coalesce(result.k,0)+n, ...} || set, built in SQL so concurrent tool calls cannot lose an increment.
+  const parts = keys.map((_, i) => `jsonb_build_object($${2 * i + 3}::text, COALESCE((result->>$${2 * i + 3})::int, 0) + $${2 * i + 4}::int)`);
+  const params: unknown[] = [jobId, JSON.stringify(set)];
+  keys.forEach((k) => params.push(k, Math.trunc(counts[k] ?? 0)));
+  await pool.query(`UPDATE agent_jobs SET result = result${parts.map((p) => ` || ${p}`).join('')} || $2::jsonb WHERE id=$1 AND status='running'`, params);
+}
+
+export interface JobState { id: number; kind: JobKind; source_id: number; status: string; summary: string | null; error: string | null; result: Record<string, unknown>; created_at: string; finished_at: string | null }
+
+/** One job by id, for progress displays. */
+export async function getJob(jobId: number): Promise<JobState | null> {
+  const r = (await getPool()?.query('SELECT id, kind, source_id, status, summary, error, result, created_at, finished_at FROM agent_jobs WHERE id=$1', [jobId]))?.rows[0];
+  return r ? { ...r, id: Number(r.id), source_id: Number(r.source_id) } : null;
+}
+
+/** Queue a job, or return the one already open for this kind and source. */
+export async function enqueueOrOpenJob(kind: JobKind, sourceId: number): Promise<number | null> {
+  const id = await enqueueJob(kind, sourceId);
+  if (id !== null) return id;
+  const r = (await getPool()?.query("SELECT id FROM agent_jobs WHERE kind=$1 AND source_id=$2 AND status IN ('queued','running') ORDER BY id DESC LIMIT 1", [kind, sourceId]))?.rows[0];
+  return r ? Number(r.id) : null;
 }
 
 export async function finishJob(jobId: number, status: 'done' | 'needs_human', summary: string, result: Record<string, unknown> = {}): Promise<void> {
@@ -69,7 +96,7 @@ async function callAgent(agent: AgentName, jobId: number, kind: JobKind): Promis
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${agentApiKey(key, agent)}` },
     body: JSON.stringify({ session_id: `job-${jobId}-${Date.now()}`, messages: [{ role: 'user', content: `Job ${jobId} (${kind}). Start by calling get_job with job_id ${jobId}, follow your instructions, and end with finish_job.` }] }),
-    signal: AbortSignal.timeout(25 * 60_000),
+    signal: AbortSignal.timeout(JOB_MINUTES[kind] * 60_000),
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`agent answered HTTP ${res.status}: ${text.slice(0, 200)}`);
@@ -84,8 +111,10 @@ export async function runNextJob(): Promise<boolean> {
   let job: { id: number; kind: JobKind; attempts: number } | undefined;
   try {
     await ensureMigrated();
-    // A job stuck in 'running' (restart mid-run) is released after 40 minutes.
-    await pool.query("UPDATE agent_jobs SET status='queued', error='released after restart or timeout' WHERE status='running' AND started_at < now() - interval '40 minutes'");
+    // A job stuck in 'running' (restart mid-run) is released 15 minutes after its time budget.
+    for (const [kind, minutes] of Object.entries(JOB_MINUTES)) {
+      await pool.query("UPDATE agent_jobs SET status='queued', error='released after restart or timeout' WHERE status='running' AND kind=$1 AND started_at < now() - ($2 || ' minutes')::interval", [kind, String(minutes + 15)]);
+    }
     job = (await pool.query("UPDATE agent_jobs SET status='running', started_at=now(), attempts=attempts+1 WHERE id=(SELECT id FROM agent_jobs WHERE status='queued' AND not_before <= now() ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id, kind, attempts")).rows[0];
     if (!job) return false;
     const agent = JOB_AGENT[job.kind];

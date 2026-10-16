@@ -5,7 +5,8 @@ import {
 } from '@rogue/core';
 import { allSeeds } from './dynamic-sources';
 import { ingestGame } from './ingest';
-import { librarianStatus, runLibrarian } from './librarian-run';
+import { librarianStatus, queueLibrarianJob, runLibrarian, waitForLibrarianJob } from './librarian-run';
+import { agentsEnabled } from './agent-jobs';
 import { alertOperator } from './notify';
 import { indexSource } from './rules-index';
 import { termsAgentForRequest } from './terms-agent';
@@ -142,6 +143,17 @@ export async function runPipeline(id: number, slug: string): Promise<void> {
     if (!ok) { await setProgress(id, `ingest failed: ${results[0]?.detail ?? 'unknown'}`); await alertOperator(`Game ${slug}: ingest failed (${results[0]?.detail}).`); return; }
     await setProgress(id, `indexing ${ok.pages ?? '?'} pages`);
     const idx = await indexSource(ok.sourceId!);
+    if (agentsEnabled()) {
+      // ADR 0002: the Nanobot Librarian drafts in the background; this pipeline only watches the job.
+      const start = await queueLibrarianJob(slug);
+      if ('error' in start) { await setProgress(id, `Librarian error: ${start.error}`); return; }
+      await setProgress(id, `Librarian agent queued (${idx.chunks} chunks indexed)`);
+      const j = await waitForLibrarianJob(start.jobId, (text) => setProgress(id, text));
+      const published = Number(j?.result['published'] ?? 0);
+      if (j?.status === 'done' || j?.status === 'needs_human') await alertOperator(`Game ${slug} is ready: ${published} cited facts published${j.status === 'needs_human' ? ' (the Librarian asked for a person; see /admin/quality)' : ''}.`);
+      else if (j?.status === 'failed') await alertOperator(`Game ${slug}: Librarian job #${j.id} failed (${j.error ?? 'unknown'}).`);
+      return;
+    }
     for (let i = 0; i < 60 && librarianStatus()?.running; i++) { await setProgress(id, 'waiting for the Librarian (busy with another game)'); await new Promise((r) => setTimeout(r, 10_000)); }
     await setProgress(id, `Librarian drafting claims (${idx.chunks} chunks indexed)`);
     await runLibrarian(slug);
