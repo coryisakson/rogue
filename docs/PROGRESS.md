@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-16 (Hermes): 0.0.89: fix MinerU upload (FormData unsupported by ipv4Fetch -> hand-built multipart Buffer). 0.0.88 forced re-ingest silently fell back to the text layer (ocrErrors in audit). Eval baseline on old index: Pandemic 6/10, StS 8/10. Next: re-ingest + re-index + rerun evals.
 - 2026-10-16 (Hermes): 0.0.88: MinerU HTML tables (merged cells; no server option exists) are rebuilt as markdown tables client-side. Ask evals/KB checks re-enabled by Cory (AGENTS.md, HANDOFF). Next: force re-ingest + re-index Pandemic and StS, run evals vs baseline 6/10 and 7/10.
 - 2026-10-16 (Hermes): 0.0.88: one-pager shows explicit 'No player-count changes recorded' instead of an empty gap when a game has no variants (first part of the quality gate). Check green. Print-fit check and card-size player aids still open.
 - 2026-10-16 (Hermes): 0.0.86: MinerU OCR provider (ROGUE_OCR_PROVIDER=mineru; tier=advanced, ocr_mode=ocr/ForceOCR, all pages). MinerU chart 0.0.4 now runs api-server (entrance mineruapi) plus webui. Offline run vs old chunks: Pandemic noise lines 53/814 -> 6/195, role headings now separate. Needs re-index to take effect.

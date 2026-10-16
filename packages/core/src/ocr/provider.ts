@@ -263,18 +263,24 @@ export class MineruOcrProvider implements OcrProvider {
         output_formats: 'structured_content',
         wait_timeout: String(Math.min(3600, Math.max(1, Math.floor(this.timeoutMs / 1000)))),
       });
-      const form = new FormData();
-      form.append('files', new Blob([pdf as BlobPart], { type: 'application/pdf' }), 'document.pdf');
+      // Multipart built by hand as a Buffer: apps/web passes ipv4Fetch (node:http), which cannot send a FormData body.
+      const boundary = `----rogue${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`;
+      const payload = Buffer.concat([
+        Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="document.pdf"\r\nContent-Type: application/pdf\r\n\r\n`),
+        Buffer.from(pdf),
+        Buffer.from(`\r\n--${boundary}--\r\n`),
+      ]);
       const base = this.opts.baseUrl.replace(/\/+$/, '');
-      const headers: Record<string, string> = this.opts.apiKey ? { authorization: `Bearer ${this.opts.apiKey}` } : {};
-      let res = await this.doFetch(`${base}/v1/file_parse?${q}`, { method: 'POST', headers, body: form, signal: ctl.signal });
+      const auth: Record<string, string> = this.opts.apiKey ? { authorization: `Bearer ${this.opts.apiKey}` } : {};
+      const headers = { ...auth, 'content-type': `multipart/form-data; boundary=${boundary}`, 'content-length': String(payload.length) };
+      let res = await this.doFetch(`${base}/v1/file_parse?${q}`, { method: 'POST', headers, body: payload as unknown as BodyInit, signal: ctl.signal });
       // 202 = the wait budget ran out but the job continues: poll its result instead of resubmitting.
       if (res.status === 202) {
         const taskId = ((await res.json()) as { task_id?: string }).task_id;
         if (!taskId) throw new Error('mineru answered 202 without task_id');
         for (;;) {
           await new Promise((r) => setTimeout(r, 5000));
-          res = await this.doFetch(`${base}/v1/tasks/${taskId}/result`, { headers, signal: ctl.signal });
+          res = await this.doFetch(`${base}/v1/tasks/${taskId}/result`, { headers: auth, signal: ctl.signal });
           if (res.status !== 202) break;
         }
       }

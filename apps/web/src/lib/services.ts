@@ -55,7 +55,7 @@ export const ipv4Fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
       },
     );
     req.on('error', reject);
-    if (init?.body) req.write(init.body as string);
+    if (init?.body) req.write(init.body as string | Uint8Array);
     req.end();
   })) as typeof fetch;
 

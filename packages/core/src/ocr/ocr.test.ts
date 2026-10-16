@@ -121,7 +121,8 @@ describe('MineruOcrProvider', () => {
   });
   it('sends tier=advanced and ocr_mode=ocr once, serves every page from the cache', async () => {
     const urls: string[] = [];
-    const f = (async (u: string) => { urls.push(String(u)); return new Response(JSON.stringify({ files: [{ status: 'completed', content: { structured_content: sc } }] }), { status: 200 }); }) as unknown as typeof fetch;
+    const sent: Buffer[] = [];
+    const f = (async (u: string, init?: { body?: Buffer }) => { urls.push(String(u)); if (init?.body) sent.push(init.body); return new Response(JSON.stringify({ files: [{ status: 'completed', content: { structured_content: sc } }] }), { status: 200 }); }) as unknown as typeof fetch;
     const p = new MineruOcrProvider({ baseUrl: 'http://m:8000/', fetchImpl: f });
     const doc = new Uint8Array([1, 2, 3]);
     expect(await p.recognizePage({ pdf: doc, pageNumber: 2 })).toContain('Actions & Effects');
@@ -130,6 +131,8 @@ describe('MineruOcrProvider', () => {
     expect(urls[0]).toMatch(/^http:\/\/m:8000\/v1\/file_parse\?/);
     expect(urls[0]).toContain('tier=advanced');
     expect(urls[0]).toContain('ocr_mode=ocr');
+    expect(sent[0]).toBeInstanceOf(Buffer);
+    expect(String(sent[0]!.subarray(0, 120))).toContain('name="files"');
   });
   it('polls the task when the wait budget runs out (202)', async () => {
     let n = 0;
