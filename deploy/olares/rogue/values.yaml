@@ -9,7 +9,12 @@ rogueAiBaseUrl: "http://3a77b15d.shared.olares.com/v1"
 # Web search for game intake and the Scout: a SearXNG root URL (JSON API). Empty = search off; requests then go to an admin for manual research.
 rogueSearchBaseUrl: "http://84a93c3c.cisakson.olares.local"
 # OCR: set to your PaddleOCR service root to use it (empty = built-in tesseract command)
-rogueOcrBaseUrl: "http://43279715.shared.olares.com"
+# MinerU API (mineru-kit api-server, entrance mineruapi). Previous engine: PaddleOCR-VL at http://43279715.shared.olares.com (set rogueOcrProvider: http to go back).
+rogueOcrProvider: "mineru"
+rogueOcrAllPages: "1"
+rogueMineruTier: "advanced"
+rogueMineruOcrMode: "ocr"
+rogueOcrBaseUrl: "http://75f353a31.cisakson.olares.local"
 rogueOcrApiKey: ""
 
 # Discord bot (public identifiers only; the bot token is never stored in the app). Empty = bot route returns 404.

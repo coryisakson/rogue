@@ -108,3 +108,40 @@ describe('HttpOcrProvider (PaddleOCR serving API)', () => {
     expect(fromEnv({ ROGUE_OCR_PROVIDER: 'http' })).toBeInstanceOf(Noop);
   });
 });
+
+import { MineruOcrProvider, parseMineruStructured } from './provider.js';
+const sc = { pages: [
+  { page_idx: 0, blocks: [{ type: 'header', content: 'HDR' }, { type: 'paragraph_title', level: 2, content: 'Setup' }, { type: 'text', content: 'Shuffle the deck.' }, { type: 'image', content: 'a picture of cubes' }, { type: 'page_number', content: '1' }] },
+  { page_idx: 1, blocks: [{ type: 'table', content: '| a | b |\n| --- | --- |\n| Actions &amp; Effects | 14 |' }] },
+] };
+describe('MineruOcrProvider', () => {
+  it('flattens structured content per page, skipping furniture', () => {
+    expect(parseMineruStructured(sc)).toEqual(['## Setup\n\nShuffle the deck.', '| a | b |\n| --- | --- |\n| Actions & Effects | 14 |']);
+    expect(() => parseMineruStructured({})).toThrow();
+  });
+  it('sends tier=advanced and ocr_mode=ocr once, serves every page from the cache', async () => {
+    const urls: string[] = [];
+    const f = (async (u: string) => { urls.push(String(u)); return new Response(JSON.stringify({ files: [{ status: 'completed', content: { structured_content: sc } }] }), { status: 200 }); }) as unknown as typeof fetch;
+    const p = new MineruOcrProvider({ baseUrl: 'http://m:8000/', fetchImpl: f });
+    const doc = new Uint8Array([1, 2, 3]);
+    expect(await p.recognizePage({ pdf: doc, pageNumber: 2 })).toContain('Actions & Effects');
+    expect(await p.recognizePage({ pdf: doc, pageNumber: 1 })).toContain('Shuffle the deck.');
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toMatch(/^http:\/\/m:8000\/v1\/file_parse\?/);
+    expect(urls[0]).toContain('tier=advanced');
+    expect(urls[0]).toContain('ocr_mode=ocr');
+  });
+  it('polls the task when the wait budget runs out (202)', async () => {
+    let n = 0;
+    const f = (async () => (n++ === 0 ? new Response(JSON.stringify({ task_id: 'job_1' }), { status: 202 }) : new Response(JSON.stringify({ files: [{ content: { structured_content: sc } }] }), { status: 200 }))) as unknown as typeof fetch;
+    const p = new MineruOcrProvider({ baseUrl: 'http://m', fetchImpl: f, timeoutMs: 60000 });
+    const t = p.recognizePage({ pdf: new Uint8Array([9]), pageNumber: 2 });
+    await expect(t).resolves.toContain('Actions & Effects');
+  }, 15000);
+  it('turns an HTML table into plain cell text', () => {
+    const r = parseMineruStructured({ pages: [{ blocks: [{ type: 'table', content: '<table><tr><td>Roll</td><td>Die</td></tr></table>' }] }] });
+    expect(r[0]).toContain('Roll');
+    expect(r[0]).not.toContain('<');
+  });
+  it('env selects mineru', () => { expect(fromEnv({ ROGUE_OCR_PROVIDER: 'mineru', ROGUE_OCR_BASE_URL: 'http://m' })).toBeInstanceOf(MineruOcrProvider); });
+});

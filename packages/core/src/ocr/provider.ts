@@ -155,8 +155,116 @@ export function parsePaddleOcrResponse(body: unknown): string[] {
   });
 }
 
+export interface MineruOcrOptions {
+  /** Service root of the MinerU API server (mineru-kit api-server), e.g. http://mineru-api.<ns>.svc:8000 */
+  baseUrl: string;
+  apiKey?: string | undefined;
+  /** MinerU parsing tier. Default 'advanced' (the public name of the xhigh hybrid effort). */
+  tier?: string | undefined;
+  /** MinerU ocr_mode. Default 'ocr' = ForceOCR: ignore the PDF text layer and read the rendered page. */
+  ocrMode?: string | undefined;
+  timeoutMs?: number | undefined;
+  maxInputBytes?: number | undefined;
+  fetchImpl?: typeof fetch | undefined;
+}
+
+/** Block types that are page furniture or pictures, not rules text. */
+const MINERU_SKIP_TYPES = new Set(['header', 'footer', 'page_number', 'image', 'chart']);
+
+const decodeEntities = (t: string) => t.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
 /**
- * Choose the OCR engine from env. ROGUE_OCR_PROVIDER = none | command | http. When unset: http if ROGUE_OCR_BASE_URL is set,
+ * One text string per page from MinerU structured_content, as the server really returns it (verified live, mineru 4.0.12):
+ * { pages: [{ page_idx, blocks: [{ type, content: string, ... }] }] }. Titles become markdown headings; tables stay as markdown tables.
+ * Throws on anything else, so a schema change is a loud failure and not a silent empty page.
+ */
+export function parseMineruStructured(sc: unknown): string[] {
+  const pages = (sc as { pages?: unknown } | null)?.pages;
+  if (!Array.isArray(pages)) throw new Error('unexpected mineru response (no structured_content.pages)');
+  return pages.map((pg) => {
+    const blocks = (pg as { blocks?: unknown })?.blocks;
+    if (!Array.isArray(blocks)) return '';
+    const out: string[] = [];
+    for (const b of blocks as Array<{ type?: string; content?: unknown; level?: number }>) {
+      if (!b || (b.type && MINERU_SKIP_TYPES.has(b.type))) continue;
+      if (typeof b.content !== 'string') continue;
+      // Some tables come back as HTML rather than markdown: keep the cell text only.
+      const raw = b.type === 'table' && b.content.includes('<table') ? b.content.replace(/<\/(td|th)>/g, ' | ').replace(/<\/tr>/g, '\n').replace(/<[^>]+>/g, '') : b.content;
+      const text = decodeEntities(raw).replace(/[ \t]+\n/g, '\n').trim();
+      if (!text) continue;
+      out.push(b.type === 'paragraph_title' || b.type === 'doc_title' ? `${'#'.repeat(Math.min(Math.max(b.level ?? 1, 1), 6))} ${text}` : text);
+    }
+    return out.join('\n\n');
+  });
+}
+
+/**
+ * OCR through a MinerU API server: POST /v1/file_parse (multipart) with tier=advanced and ocr_mode=ocr by default (ForceOCR),
+ * output_formats=structured_content. The whole PDF is sent once; per-page text is cached for that PDF like the Paddle provider.
+ */
+export class MineruOcrProvider implements OcrProvider {
+  readonly name = 'mineru';
+  private readonly timeoutMs: number;
+  private readonly maxInputBytes: number;
+  private readonly doFetch: typeof fetch;
+  private readonly cache = new WeakMap<Uint8Array, Promise<string[]>>();
+
+  constructor(private readonly opts: MineruOcrOptions) {
+    this.timeoutMs = opts.timeoutMs ?? 1_800_000;
+    this.maxInputBytes = opts.maxInputBytes ?? 100 * 1024 * 1024;
+    this.doFetch = opts.fetchImpl ?? fetch;
+  }
+
+  async recognizePage(req: OcrRequest): Promise<string> {
+    if (req.pdf.byteLength > this.maxInputBytes) throw new Error(`ocr input too large (${req.pdf.byteLength} bytes)`);
+    if (!Number.isInteger(req.pageNumber) || req.pageNumber < 1) throw new Error('invalid page number');
+    let job = this.cache.get(req.pdf);
+    if (!job) {
+      job = this.fetchAllPages(req.pdf);
+      this.cache.set(req.pdf, job);
+      job.catch(() => this.cache.delete(req.pdf));
+    }
+    return ((await job)[req.pageNumber - 1] ?? '').trim();
+  }
+
+  private async fetchAllPages(pdf: Uint8Array): Promise<string[]> {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), this.timeoutMs);
+    try {
+      const q = new URLSearchParams({
+        tier: this.opts.tier || 'advanced',
+        ocr_mode: this.opts.ocrMode || 'ocr',
+        output_formats: 'structured_content',
+        wait_timeout: String(Math.min(3600, Math.max(1, Math.floor(this.timeoutMs / 1000)))),
+      });
+      const form = new FormData();
+      form.append('files', new Blob([pdf as BlobPart], { type: 'application/pdf' }), 'document.pdf');
+      const base = this.opts.baseUrl.replace(/\/+$/, '');
+      const headers: Record<string, string> = this.opts.apiKey ? { authorization: `Bearer ${this.opts.apiKey}` } : {};
+      let res = await this.doFetch(`${base}/v1/file_parse?${q}`, { method: 'POST', headers, body: form, signal: ctl.signal });
+      // 202 = the wait budget ran out but the job continues: poll its result instead of resubmitting.
+      if (res.status === 202) {
+        const taskId = ((await res.json()) as { task_id?: string }).task_id;
+        if (!taskId) throw new Error('mineru answered 202 without task_id');
+        for (;;) {
+          await new Promise((r) => setTimeout(r, 5000));
+          res = await this.doFetch(`${base}/v1/tasks/${taskId}/result`, { headers, signal: ctl.signal });
+          if (res.status !== 202) break;
+        }
+      }
+      if (!res.ok) throw new Error(`mineru answered HTTP ${res.status}`);
+      const body = (await res.json()) as { files?: Array<{ status?: string; error?: unknown; content?: { structured_content?: unknown } }> };
+      const file = body.files?.[0];
+      if (!file?.content?.structured_content) throw new Error(`mineru returned no structured_content (${file?.status ?? 'no file'})`);
+      return parseMineruStructured(file.content.structured_content);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/**
+ * Choose the OCR engine from env. ROGUE_OCR_PROVIDER = none | command | http | mineru. When unset: http if ROGUE_OCR_BASE_URL is set,
  * else command if ROGUE_OCR_COMMAND is set, else none. The key never goes in the image; set it as an app secret/env.
  */
 export function ocrProviderFromEnv(env: Record<string, string | undefined> = process.env, fetchImpl?: typeof fetch): OcrProvider {
@@ -164,6 +272,10 @@ export function ocrProviderFromEnv(env: Record<string, string | undefined> = pro
   const command = env.ROGUE_OCR_COMMAND?.trim();
   const baseUrl = env.ROGUE_OCR_BASE_URL?.trim();
   const kind = (env.ROGUE_OCR_PROVIDER?.trim().toLowerCase() || (baseUrl ? 'http' : command ? 'command' : 'none'));
+  if (kind === 'mineru') {
+    if (!baseUrl) return new NoopOcrProvider();
+    return new MineruOcrProvider({ baseUrl, apiKey: env.ROGUE_OCR_API_KEY || undefined, tier: env.ROGUE_MINERU_TIER || undefined, ocrMode: env.ROGUE_MINERU_OCR_MODE || undefined, timeoutMs: num(env.ROGUE_OCR_TIMEOUT_MS), maxInputBytes: num(env.ROGUE_OCR_MAX_INPUT_BYTES), fetchImpl });
+  }
   if (kind === 'http') {
     if (!baseUrl) return new NoopOcrProvider();
     return new HttpOcrProvider({ baseUrl, apiKey: env.ROGUE_OCR_API_KEY || undefined, timeoutMs: num(env.ROGUE_OCR_TIMEOUT_MS), maxInputBytes: num(env.ROGUE_OCR_MAX_INPUT_BYTES), fetchImpl });

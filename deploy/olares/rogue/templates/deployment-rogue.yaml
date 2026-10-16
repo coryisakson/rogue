@@ -41,6 +41,14 @@ spec:
           value: '{{ .Values.rogueAiBaseUrl | default "" }}'
         - name: ROGUE_SEARCH_BASE_URL
           value: '{{ .Values.rogueSearchBaseUrl | default "" }}'
+        - name: ROGUE_OCR_PROVIDER
+          value: '{{ .Values.rogueOcrProvider | default "" }}'
+        - name: ROGUE_OCR_ALL_PAGES
+          value: '{{ .Values.rogueOcrAllPages | default "" }}'
+        - name: ROGUE_MINERU_TIER
+          value: '{{ .Values.rogueMineruTier | default "advanced" }}'
+        - name: ROGUE_MINERU_OCR_MODE
+          value: '{{ .Values.rogueMineruOcrMode | default "ocr" }}'
         - name: ROGUE_OCR_BASE_URL
           value: '{{ .Values.rogueOcrBaseUrl | default "" }}'
         - name: ROGUE_DISCORD_APP_ID
