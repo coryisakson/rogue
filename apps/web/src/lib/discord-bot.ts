@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { RateLimiter, buildSheet, ratingComponents, formatAnswer, formatError, formatSetup, type CitedSource, type ParsedInteraction } from '@rogue/core';
 import { askRules } from './chat';
+import { recordAsk } from './unanswered';
 import { getClaims, getGame } from './kb';
 import { hashDiscordUser } from './discord-link';
 import { ensureMigrated, getPool, ipv4Fetch } from './services';
@@ -51,6 +52,7 @@ async function buildSetupReply(game: string, players: number | null): Promise<st
 async function buildAskReply(game: string, question: string): Promise<string> {
   if (!(await getGame(game))) return formatError(`I don't know a game called \`${game}\`.`);
   const r = await askRules(game, question);
+  recordAsk(game, question, 'discord', r);
   const byTitle = new Map<string, CitedSource & { pages: number[]; printed: Record<number, number | null> }>();
   for (const s of r.sources) {
     const e = byTitle.get(s.title) ?? { title: s.title, publisher: s.publisher, url: s.url, pages: [], printed: {} };
@@ -80,6 +82,7 @@ export async function runDiscordCommand(cmd: Extract<ParsedInteraction, { kind: 
     if (cmd.kind === 'ask') components = ratingComponents(cmd.game);
   } catch (e) {
     console.warn('[discord] command failed', e instanceof Error ? e.message : 'error');
+    if (cmd.kind === 'ask') recordAsk(cmd.game, cmd.question, 'discord', { error: e });
     content = formatError('Something went wrong on my side. Please try again in a minute.');
   }
   await sendFollowUp(appId, cmd.token, content, components).catch((e) => console.warn('[discord] follow-up error', e instanceof Error ? e.message : 'error'));
