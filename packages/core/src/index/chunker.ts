@@ -2,6 +2,8 @@
  * Split extracted rulebook text (pages marked "=== page N ===") into overlapping, page-cited chunks for retrieval.
  * Chunks never cross pages so every chunk has an exact citation. Language-agnostic: splits on whitespace and sentence-ish breaks only.
  */
+import { filterPagesNoise } from './noise.js';
+
 export interface Chunk { page: number; ord: number; text: string }
 
 export function splitPages(text: string): Map<number, string> {
@@ -45,8 +47,9 @@ export function chunkText(text: string, opts: { target?: number; overlap?: numbe
   const overlap = opts.overlap ?? 150;
   const out: Chunk[] = [];
   let ord = 0;
-  for (const [page, rawBody] of splitPages(text)) {
-    const body = splitJoinedHeadings(rawBody);
+  // Layout debris (map labels, card icons, repeated headers/footers) is dropped first so chunks hold rules prose.
+  for (const [page, clean] of filterPagesNoise(splitPages(text))) {
+    const body = splitJoinedHeadings(clean.text);
     if (body.length < 20) continue;
     let start = 0;
     while (start < body.length) {
