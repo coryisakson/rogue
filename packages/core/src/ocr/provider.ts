@@ -173,6 +173,32 @@ const MINERU_SKIP_TYPES = new Set(['header', 'footer', 'page_number', 'image', '
 
 const decodeEntities = (t: string) => t.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 
+/** Rebuild an HTML table (colspan/rowspan allowed) as a GFM markdown table. Merged cells are repeated so every row has the same width. */
+export function htmlTableToMarkdown(html: string): string {
+  const grid: string[][] = [];
+  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) ?? [];
+  rows.forEach((tr, r) => {
+    grid[r] ??= [];
+    let c = 0;
+    for (const m of tr.matchAll(/<t[dh]([^>]*)>([\s\S]*?)<\/t[dh]>/gi)) {
+      while (grid[r]![c] !== undefined) c++;
+      const attrs = m[1] ?? '';
+      const span = (name: string) => Math.max(1, Math.min(50, Number(new RegExp(`${name}\\s*=\\s*["']?(\\d+)`, 'i').exec(attrs)?.[1] ?? 1)));
+      const text = (m[2] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(/\|/g, '/').trim();
+      for (let dr = 0; dr < span('rowspan'); dr++) {
+        grid[r + dr] ??= [];
+        for (let dc = 0; dc < span('colspan'); dc++) grid[r + dr]![c + dc] = text;
+      }
+      c += span('colspan');
+    }
+  });
+  const width = Math.max(0, ...grid.map((row) => row.length));
+  const lines = grid.filter((row) => row).map((row) => `| ${Array.from({ length: width }, (_, i) => row[i] ?? '').join(' | ')} |`);
+  if (!lines.length) return '';
+  lines.splice(1, 0, `| ${Array.from({ length: width }, () => '---').join(' | ')} |`);
+  return lines.join('\n');
+}
+
 /**
  * One text string per page from MinerU structured_content, as the server really returns it (verified live, mineru 4.0.12):
  * { pages: [{ page_idx, blocks: [{ type, content: string, ... }] }] }. Titles become markdown headings; tables stay as markdown tables.
@@ -188,8 +214,8 @@ export function parseMineruStructured(sc: unknown): string[] {
     for (const b of blocks as Array<{ type?: string; content?: unknown; level?: number }>) {
       if (!b || (b.type && MINERU_SKIP_TYPES.has(b.type))) continue;
       if (typeof b.content !== 'string') continue;
-      // Some tables come back as HTML rather than markdown: keep the cell text only.
-      const raw = b.type === 'table' && b.content.includes('<table') ? b.content.replace(/<\/(td|th)>/g, ' | ').replace(/<\/tr>/g, '\n').replace(/<[^>]+>/g, '') : b.content;
+      // MinerU keeps tables with merged cells as HTML (it has no option to change that): rebuild them as a markdown table.
+      const raw = b.type === 'table' && b.content.includes('<table') ? htmlTableToMarkdown(b.content) : b.content;
       const text = decodeEntities(raw).replace(/[ \t]+\n/g, '\n').trim();
       if (!text) continue;
       out.push(b.type === 'paragraph_title' || b.type === 'doc_title' ? `${'#'.repeat(Math.min(Math.max(b.level ?? 1, 1), 6))} ${text}` : text);

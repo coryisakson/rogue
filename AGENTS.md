@@ -65,5 +65,5 @@ The manual find-and-retrieve work done while building Rogue (search, read publis
 - Read files with `grep -n` + a line range, not whole. Do not re-read a file you just edited.
 - Anything that touches 3 or more files, or a self-contained subsystem, goes to a worker: `scripts/new-worker.sh <slug>`, fill TASK.md, `scripts/run-worker.sh <slug>` (background), then `scripts/merge-branch.sh cc/<slug>`. The orchestrator reads only the worker's short report and `git diff --stat`, never the full diff unless something looks wrong.
 
-## Paused: content-quality validation (Cory 2026-10-16)
-OCR/page-text quality work is UNPAUSED (Cory 2026-10-16). Do not build or run Ask evals or KB quality checks until the Nanobot agents run and can take it over. Code quality is not paused: tests, strict types and `scripts/qcheck.sh` CHECK OK still apply to every change.
+## Content-quality validation (Cory 2026-10-16)
+OCR/page-text quality work AND Ask evals / KB quality checks are ENABLED again (Cory re-enabled them after the MinerU OCR switch, 0.0.87). Code quality always applies: tests, strict types and `scripts/qcheck.sh` CHECK OK for every change.

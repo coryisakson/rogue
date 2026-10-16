@@ -109,7 +109,7 @@ describe('HttpOcrProvider (PaddleOCR serving API)', () => {
   });
 });
 
-import { MineruOcrProvider, parseMineruStructured } from './provider.js';
+import { MineruOcrProvider, htmlTableToMarkdown, parseMineruStructured } from './provider.js';
 const sc = { pages: [
   { page_idx: 0, blocks: [{ type: 'header', content: 'HDR' }, { type: 'paragraph_title', level: 2, content: 'Setup' }, { type: 'text', content: 'Shuffle the deck.' }, { type: 'image', content: 'a picture of cubes' }, { type: 'page_number', content: '1' }] },
   { page_idx: 1, blocks: [{ type: 'table', content: '| a | b |\n| --- | --- |\n| Actions &amp; Effects | 14 |' }] },
@@ -138,9 +138,10 @@ describe('MineruOcrProvider', () => {
     const t = p.recognizePage({ pdf: new Uint8Array([9]), pageNumber: 2 });
     await expect(t).resolves.toContain('Actions & Effects');
   }, 15000);
-  it('turns an HTML table into plain cell text', () => {
-    const r = parseMineruStructured({ pages: [{ blocks: [{ type: 'table', content: '<table><tr><td>Roll</td><td>Die</td></tr></table>' }] }] });
-    expect(r[0]).toContain('Roll');
+  it('rebuilds an HTML table with merged cells as a markdown table', () => {
+    const html = '<table><tr><td colspan="2">Roll the Die</td></tr><tr><td rowspan="2">Upgrade</td><td>A | B</td></tr><tr><td>C</td></tr></table>';
+    expect(htmlTableToMarkdown(html)).toBe('| Roll the Die | Roll the Die |\n| --- | --- |\n| Upgrade | A / B |\n| Upgrade | C |');
+    const r = parseMineruStructured({ pages: [{ blocks: [{ type: 'table', content: html }] }] });
     expect(r[0]).not.toContain('<');
   });
   it('env selects mineru', () => { expect(fromEnv({ ROGUE_OCR_PROVIDER: 'mineru', ROGUE_OCR_BASE_URL: 'http://m' })).toBeInstanceOf(MineruOcrProvider); });
