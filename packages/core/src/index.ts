@@ -26,3 +26,4 @@ export * from './scout/index.js';
 export * from './intake/index.js';
 export * from './terms/index.js';
 export * from './quality/index.js';
+export * from './agents/index.js';

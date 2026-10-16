@@ -1,5 +1,7 @@
-import { sectionHeadings, applyRanking, chunkText, orQuery, parseRanking, rrf, sourceWeight } from '@rogue/core';
-import { ensureMigrated, getAi, getPool, storage } from './services';
+import { sectionHeadings, applyRanking, chunkText, orQuery, parseRanking, qualityWeight, rrf, sourceWeight } from '@rogue/core';
+import { agentsEnabled, enqueueJob } from './agent-jobs';
+import { loadSourcePages, pagesToText, scoreSource } from './page-text';
+import { ensureMigrated, getAi, getPool } from './services';
 
 /** Chunk a source's extracted text and (best effort) embed it. Re-running replaces the source's chunks. */
 const running = new Set<number>();
@@ -16,11 +18,13 @@ async function indexSourceInner(sourceId: number): Promise<{ chunks: number; emb
   await ensureMigrated();
   const s = (await pool.query('SELECT text_path, language, content_type FROM sources WHERE id=$1', [sourceId])).rows[0];
   if (!s?.text_path) throw new Error('source has no extracted text (taken down or not ingested)');
-  const raw = await storage.get(s.text_path); if (!raw) throw new Error('text file missing');
-  const fullText = new TextDecoder().decode(raw);
+  // Effective text: accepted page repairs laid over the extraction, pages an agent judged unreadable left out.
+  const sp = await loadSourcePages(sourceId); if (!sp) throw new Error('text file missing');
+  const fullText = pagesToText(sp.pages);
   const chunks = chunkText(fullText);
-  // Web pages have sections, not pages: remember each section's heading so citations can name it.
-  const headings = /html/i.test(String(s.content_type ?? '')) ? sectionHeadings(fullText) : null;
+  const ct = String(s.content_type ?? '');
+  // Web pages have sections, not pages: remember each section's heading so citations can name it. Plain text sections are numbered.
+  const headings = /html/i.test(ct) ? sectionHeadings(fullText) : /text\/plain/i.test(ct) ? new Map([...sp.pages.keys()].map((n) => [n, `section ${n}`])) : null;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -29,6 +33,9 @@ async function indexSourceInner(sourceId: number): Promise<{ chunks: number; emb
     for (const c of chunks) await client.query('INSERT INTO chunks(source_id,page,ord,text,lang,locator) VALUES ($1,$2,$3,$4,$5,$6)', [sourceId, c.page, c.ord, c.text, s.language ?? 'en', headings?.get(c.page) ?? null]);
     await client.query('COMMIT');
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+  const quality = await scoreSource(sourceId).catch(() => null); // page text quality; stamps chunks.quality for retrieval weighting
+  // Weak pages go to the Quality Curator agent (background job; nothing waits on it). A no-op when agents are off.
+  if (quality && quality.open > 0 && agentsEnabled()) await enqueueJob('quality_curate', sourceId).catch(() => {});
 
   let embedded = 0; let model: string | null = null; let note: string | undefined;
   const ai = getAi();
@@ -47,7 +54,7 @@ async function indexSourceInner(sourceId: number): Promise<{ chunks: number; emb
       }
     } catch (e) { note = `embedding stopped: ${(e as Error).message}; keyword search still works`; }
   }
-  await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['indexer', 'index_source', { sourceId, chunks: chunks.length, embedded, model, note }]);
+  await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['indexer', 'index_source', { sourceId, chunks: chunks.length, embedded, model, note, quality }]);
   return { chunks: chunks.length, embedded, model, ...(note ? { note } : {}) };
 }
 
@@ -82,11 +89,11 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   const v = await embedQuery(q);
   if (v) vec = (await pool.query(
     `SELECT ch.id::text id ${base} WHERE ch.embedding IS NOT NULL AND ($2::text IS NULL OR g.slug=$2) ORDER BY ch.embedding <=> $1::vector LIMIT 30`, [`[${v.join(',')}]`, game])).rows.map((r) => r.id as string);
-  // Authority ranking: official FAQ/errata and publisher sources lift above product pages and community text.
+  // Authority ranking: official FAQ/errata and publisher sources lift above product pages and community text; garbled OCR text sinks.
   const cand = [...new Set([...kw, ...vec])];
   const wrows = cand.length ? (await pool.query(
-    `SELECT ch.id::text id, d.kind, s.authority ${base} WHERE ch.id = ANY($1::bigint[])`, [cand])).rows : [];
-  const weights = new Map(wrows.map((r) => [r.id as string, sourceWeight(r.kind, r.authority)]));
+    `SELECT ch.id::text id, d.kind, s.authority, ch.quality ${base} WHERE ch.id = ANY($1::bigint[])`, [cand])).rows : [];
+  const weights = new Map(wrows.map((r) => [r.id as string, sourceWeight(r.kind, r.authority) * qualityWeight(r.quality as number | null)]));
   let ids = rrf([kw, vec], 60, (id) => weights.get(id) ?? 1).slice(0, opts.rerank ? Math.max(limit, 10) : limit);
   if (!ids.length) return [];
   const rows = (await pool.query(

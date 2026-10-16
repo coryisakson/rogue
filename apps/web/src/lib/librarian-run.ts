@@ -1,5 +1,6 @@
-import { DRAFT_SYSTEM, VERIFY_SYSTEM, parseDrafts, parseVerdict, quoteOnPage, splitPages } from '@rogue/core';
-import { ensureMigrated, getAi, getPool, storage } from './services';
+import { DRAFT_SYSTEM, VERIFY_SYSTEM, parseDrafts, parseVerdict, quoteOnPage } from '@rogue/core';
+import { ensureMigrated, getAi, getPool } from './services';
+import { loadSourcePages } from './page-text';
 
 export interface LibrarianStatus { running: boolean; game: string; page: number; pages: number; drafted: number; published: number; rejected: { reason: string; body: string }[]; startedAt: string; finishedAt?: string; error?: string }
 let status: LibrarianStatus | null = null;
@@ -18,11 +19,12 @@ export async function runLibrarian(gameSlug: string): Promise<void> {
     if (!pool || !ai) throw new Error('database or AI not configured');
     await ensureMigrated();
     const doc = (await pool.query(
-      `SELECT d.id doc_id, d.edition_id, s.text_path FROM documents d JOIN sources s ON s.id=d.source_id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id
+      `SELECT d.id doc_id, d.edition_id, s.id source_id, s.text_path FROM documents d JOIN sources s ON s.id=d.source_id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id
        WHERE g.slug=$1 AND d.kind='rulebook' AND s.text_path IS NOT NULL AND s.availability='available' ORDER BY d.id LIMIT 1`, [gameSlug])).rows[0];
     if (!doc) throw new Error('no ingested, available rulebook for this game');
-    const raw = await storage.get(doc.text_path); if (!raw) throw new Error('text file missing');
-    const pages = splitPages(new TextDecoder().decode(raw));
+    // Effective text: repaired pages in, unreadable pages out (quality curation), so claims are not drafted from OCR noise.
+    const sp = await loadSourcePages(Number(doc.source_id)); if (!sp) throw new Error('text file missing');
+    const pages = sp.pages;
     status.pages = pages.size;
     const known = new Set<string>((await pool.query('SELECT lower(c.quote) q FROM citations c JOIN claims cl ON cl.id=c.claim_id WHERE cl.edition_id=$1', [doc.edition_id])).rows.map((r: { q: string }) => r.q));
 

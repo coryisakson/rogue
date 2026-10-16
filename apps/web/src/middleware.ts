@@ -2,6 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { isChatPath, isCostlyPath, isPublicPath, RateLimiter, safeEqual } from '@rogue/core';
 import { startBackupScheduler } from './lib/backup-runner';
 import { startRecheckScheduler } from './lib/recheck-scheduler';
+import { startAgentWorker } from './lib/agent-jobs';
 import { adminToken } from './lib/admin-token';
 import { userFromRequest } from './lib/auth';
 import { isAdmin } from './lib/admin';
@@ -18,6 +19,7 @@ const deny = (status: number, msg: string, extra: Record<string, string> = {}) =
 export const onRequest = defineMiddleware(async (ctx, next) => {
   startBackupScheduler();
   startRecheckScheduler();
+  startAgentWorker();
   const { pathname } = new URL(ctx.request.url);
 
   if (!isPublicPath(pathname)) {

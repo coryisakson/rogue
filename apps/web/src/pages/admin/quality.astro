@@ -1,0 +1,60 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { getPool, ensureMigrated } from '../../lib/services';
+import { agentsEnabled } from '../../lib/agent-jobs';
+await ensureMigrated();
+const pool = getPool();
+const q = async (sql: string) => (pool ? (await pool.query(sql)).rows : []);
+const sources = await q(`SELECT s.id, s.title, s.content_type, count(*)::int pages,
+    count(*) FILTER (WHERE pq.verdict='ok')::int ok, count(*) FILTER (WHERE pq.verdict IN ('suspect','garbled'))::int weak,
+    count(*) FILTER (WHERE pq.state='repaired')::int repaired, count(*) FILTER (WHERE pq.state='unusable')::int unusable,
+    count(*) FILTER (WHERE pq.state='reviewed')::int reviewed, round(avg(pq.score)::numeric,2) avg
+  FROM page_quality pq JOIN sources s ON s.id=pq.source_id GROUP BY s.id ORDER BY avg(pq.score)`);
+const jobs = await q(`SELECT j.id, j.kind, j.status, j.summary, j.error, j.attempts, to_char(j.finished_at,'YYYY-MM-DD HH24:MI') fin, s.title FROM agent_jobs j JOIN sources s ON s.id=j.source_id ORDER BY (j.status='needs_human') DESC, j.id DESC LIMIT 25`);
+const variants = await q(`SELECT v.id, v.url, v.status, v.coverage, v.reason, v.proposed_by, s.title FROM text_variants v JOIN sources s ON s.id=v.source_id ORDER BY (v.status='needs_human') DESC, v.id DESC LIMIT 25`);
+const waiting = variants.filter((v) => v.status === 'needs_human');
+---
+<Admin title="Text quality">
+  <p>Agents curate the text that gets indexed. Pages are scored by code; the <b>Quality Curator</b> repairs or re-reads weak pages and the <b>Scout</b> looks for a text version of each PDF rulebook. You only need to act on the yellow items. Agents are {agentsEnabled() ? 'on' : 'off (ROGUE_AGENTS_URL is not set or ROGUE_AGENTS=0)'}.</p>
+
+  {waiting.length > 0 && <div class="card" style="border:2px solid #cdbf9b">
+    <h3 style="margin-top:0">Text versions waiting for your decision ({waiting.length})</h3>
+    {waiting.map((v) => (
+      <form method="post" action="/admin/quality-decide" style="margin:.6rem 0">
+        <b>{v.title}</b><br /><a href={v.url}>{v.url}</a><br /><small>{v.reason}</small><br />
+        <input type="hidden" name="id" value={v.id} />
+        <label><input type="checkbox" name="terms" value="1" /> I read this site's terms</label>
+        <button class="btn" name="action" value="approve" style="border:0;background:#cdbf9b">Use this text version</button>
+        <button class="btn" name="action" value="reject" style="border:0;background:#b5544a">Reject</button>
+      </form>
+    ))}
+  </div>}
+
+  <h3>Sources</h3>
+  {sources.length === 0 && <div class="card">No scored sources yet. Scoring runs when a source is indexed.</div>}
+  <div style="display:grid;gap:.5rem">
+    {sources.map((s) => (
+      <div class="card">
+        <b>{s.title}</b> <span class="pill">{String(s.content_type).split(';')[0]}</span>
+        <div><small>{s.pages} pages · average score {s.avg} · {s.ok} clean · {s.weak} weak · {s.repaired} repaired · {s.reviewed} reviewed, kept · {s.unusable} left out</small></div>
+      </div>
+    ))}
+  </div>
+
+  <h3>Agent jobs</h3>
+  <div style="display:grid;gap:.4rem">
+    {jobs.map((j) => (
+      <div class="card">
+        <span class={`pill ${j.status === 'needs_human' || j.status === 'failed' ? 'bad' : ''}`}>{j.status}</span> #{j.id} {j.kind === 'quality_curate' ? 'Quality Curator' : 'Scout (text versions)'} · {j.title} <small>{j.fin ?? ''}</small>
+        {j.summary && <div><small>{j.summary}</small></div>}
+        {j.error && <div><small>Error: {j.error}</small></div>}
+      </div>
+    ))}
+    {jobs.length === 0 && <div class="card">No jobs yet.</div>}
+  </div>
+
+  <h3>Text versions found</h3>
+  {variants.filter((v) => v.status !== 'needs_human').map((v) => (
+    <div class="card"><span class={`pill ${v.status === 'rejected' ? 'bad' : ''}`}>{v.status}</span> {v.title}: <a href={v.url}>{v.url}</a><br /><small>{v.reason}</small></div>
+  ))}
+</Admin>

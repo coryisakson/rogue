@@ -19,5 +19,13 @@ export async function allSeeds(): Promise<SourceSeed[]> {
     gameSlug: r.slug, url: r.rulebook_url, title: `${r.name} Rulebook`, publisher: r.publisher, language: r.language, kind: 'rulebook',
     editionLabel: `${r.publisher} rulebook (user-submitted, admin-approved ${r.day})`, foundOn: r.found_on ?? r.rulebook_url,
   }));
-  return [...SEEDS, ...dynamic.filter((d) => !SEEDS.some((s) => s.url === d.url))];
+  // Accepted text versions of rulebooks (found by the Scout agent): same game and edition as the PDF they mirror.
+  const variants = (await pool.query(
+    `SELECT g.slug, tv.url, s.publisher, s.language, e.label FROM text_variants tv JOIN sources s ON s.id=tv.source_id
+     JOIN documents d ON d.source_id=s.id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id WHERE tv.status='accepted'`)).rows;
+  const vseeds: SourceSeed[] = variants.map((v) => ({
+    gameSlug: v.slug, url: v.url, title: `${v.slug} rules (text version)`, publisher: v.publisher ?? '', language: v.language ?? 'en', kind: 'rulebook' as const, editionLabel: v.label, foundOn: v.url,
+  }));
+  const all = [...SEEDS, ...dynamic, ...vseeds];
+  return all.filter((x, i) => all.findIndex((y) => y.url === x.url) === i);
 }

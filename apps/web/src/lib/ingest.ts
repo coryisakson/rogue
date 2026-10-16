@@ -1,4 +1,4 @@
-import { RightsGatedFetcher, FetchDenied, htmlAdapter, selectAdapter, qrClaimBody, type SourceAdapter } from '@rogue/core';
+import { RightsGatedFetcher, FetchDenied, htmlAdapter, textAdapter, selectAdapter, qrClaimBody, type SourceAdapter } from '@rogue/core';
 import { pdfAdapter } from './pdf-adapter';
 import { ensureMigrated, getPool, storage } from './services';
 import { allSeeds, syncApprovedHosts } from './dynamic-sources';
@@ -15,7 +15,7 @@ export interface IngestResult {
 }
 
 // Adapters are chosen by the response content-type; add new formats here.
-const ADAPTERS: SourceAdapter[] = [pdfAdapter, htmlAdapter];
+const ADAPTERS: SourceAdapter[] = [pdfAdapter, htmlAdapter, textAdapter];
 
 const inflight = new Set<string>();
 const fetcher = new RightsGatedFetcher({ allowedHosts: ALLOWED_HOSTS, minDelayMs: 2000 });

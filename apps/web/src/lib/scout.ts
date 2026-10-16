@@ -15,7 +15,7 @@ export interface ScoutReport {
 }
 
 /** Public https host, no internal names, and every resolved address is public (same guard as the add-game flow). */
-async function safeUrl(raw: string): Promise<URL | null> {
+export async function safeUrl(raw: string): Promise<URL | null> {
   let u: URL;
   try { u = new URL(raw); } catch { return null; }
   if (hostProblem(u)) return null;
@@ -79,4 +79,24 @@ export async function scoutRequest(id: number): Promise<ScoutReport | null> {
   await pool.query('UPDATE game_requests SET scout=$2 WHERE id=$1', [id, report]);
   await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['scout', 'game_request_scouted', { id, page: r.found_on, candidates: report.candidates.length, termsFlags: report.termsFlags.length }]);
   return report;
+}
+
+/**
+ * Read a candidate text version of a rulebook (HTML or plain text) through the robots-gated fetcher: public https only, 2 MB cap.
+ * Returns plain text with headings kept as lines. Reading is allowed for any public host; INGESTING needs an approved host (ingest.ts).
+ */
+export async function readTextDoc(url: string): Promise<{ text: string; finalUrl: string; kind: 'html' | 'text'; title: string } | { note: string }> {
+  const u = await safeUrl(url);
+  if (!u) return { note: `${url} was refused (not a public https address).` };
+  try {
+    const doc = await new RightsGatedFetcher({ allowedHosts: [u.host], maxBytes: 2_000_000, minDelayMs: 1000 }).fetch(url);
+    const ct = doc.contentType.toLowerCase();
+    const raw = new TextDecoder().decode(doc.bytes);
+    if (ct.includes('text/plain')) return { text: raw, finalUrl: doc.finalUrl, kind: 'text', title: '' };
+    if (!ct.includes('html')) return { note: `${url} is ${doc.contentType}; only web pages and plain text are text versions.` };
+    const ex = extractHtmlSections(raw);
+    return { text: ex.sections.map((s) => `${s.heading}\n${s.body}`).join('\n\n'), finalUrl: doc.finalUrl, kind: 'html', title: ex.title };
+  } catch (e) {
+    return { note: `${url}: ${e instanceof Error ? e.message : 'failed'}` };
+  }
 }
