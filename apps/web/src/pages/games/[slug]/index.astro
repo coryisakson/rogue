@@ -26,7 +26,7 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
       <button class="btn" type="submit" style="border:0;cursor:pointer">Ask</button>
     </form>
     <p><small style="opacity:.8">Every answer cites the publisher's rulebook page.</small></p>
-    <p><a class="btn" href={`/games/${slug}/setup`}>Setup one-pager</a> <a class="btn" href={`/games/${slug}/faq`} style="background:#cdbf9b">Common questions</a></p>
+    <p><a class="btn" href={`/games/${slug}/setup`}>Setup one-pager</a> <a class="btn" href={`/games/${slug}/aid`}>Player aid</a><a class="btn" href={`/games/${slug}/faq`} style="background:#cdbf9b">Common questions</a></p>
     {links.length > 0 && (
       <div class="card" id="links">
         <h2 style="margin-top:0">Companion app and links</h2>

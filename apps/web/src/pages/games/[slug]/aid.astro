@@ -1,0 +1,72 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { getGame, getClaims } from '../../../lib/kb';
+import { buildAid, CARD_SIZES, nUp, resolveCardSize } from '@rogue/core';
+const { slug } = Astro.params;
+const game = await getGame(slug!);
+if (!game) return new Response('Not found', { status: 404 });
+const claims = await getClaims(slug!);
+const size = resolveCardSize(Astro.url.searchParams.get('size'), game.card_size);
+const aid = buildAid(claims, size.key, `${game.name} · Player aid`);
+const shown = new Set(aid.sections.flatMap((s) => s.lines.map((l) => l.id)));
+if (!shown.size) return new Response('No cited turn facts for this game yet.', { status: 404 });
+// Only sources behind lines on the card: no claim without its source.
+const srcs = [...new Map(claims.filter((c) => shown.has(c.id)).map((c) => [c.source_url, c])).values()];
+// The cut-out sheet only makes sense for card stock sizes; page sizes print one per sheet.
+const sheet = size.card && Astro.url.searchParams.get('sheet') === '1';
+const grid = nUp(size);
+const copies = sheet ? grid.count : 1;
+const pageCss = sheet ? '@page { size: 8.5in 11in; margin: 0; }' : `@page { size: ${size.width} ${size.height}; margin: 0; }`;
+const link = (s: string, sh: boolean) => `?size=${s}${sh ? '&sheet=1' : ''}`;
+---
+<Base title={`${game.name} player aid`} bare>
+  <style is:global>
+    body { background:#ccc; }
+    .aid { background:#fff; color:#111; box-sizing:border-box; padding:.12in; overflow:hidden; font-family: 'Helvetica Neue', Arial, sans-serif; line-height:1.25; display:flex; flex-direction:column; }
+    .aid h1 { font-size:1.45em; margin:0; border-bottom:1.5px solid #111; padding-bottom:1.5pt; }
+    .aid h2 { font-size:1.05em; margin:3pt 0 1pt; text-transform:uppercase; letter-spacing:.05em; }
+    .aid ul { margin:0 0 0 1.1em; padding:0; } .aid li { margin-bottom:1.2pt; }
+    .aid sup { font-size:.75em; color:#444; }
+    .aid .foot { margin-top:auto; font-size:.72em; color:#444; border-top:1px solid #999; padding-top:1.5pt; }
+    .single .aid { margin:1rem auto; box-shadow:0 2px 12px #0006; }
+    .tiles { background:#fff; width:8.5in; height:11in; margin:1rem auto; box-sizing:border-box; padding:.25in; display:grid; align-content:start; justify-content:center; box-shadow:0 2px 12px #0006; }
+    .tiles .aid { outline:.5px dashed #888; } /* thin cut lines */
+    .toolbar { text-align:center; padding:.6rem; font-family:system-ui; }
+    .toolbar a, .toolbar button { margin:0 .3rem; }
+    @media print { body { background:#fff; } .toolbar { display:none; } .single .aid, .tiles { margin:0; box-shadow:none; } }
+  </style>
+  <style is:inline set:html={pageCss}></style>
+  <div class="toolbar">
+    <a href={`/games/${slug}`}>← {game.name}</a>
+    Size: {Object.values(CARD_SIZES).map((s) => <a href={link(s.key, sheet && s.card)} style={s.key === size.key ? 'font-weight:bold' : ''} title={s.label}>{s.key}</a>)}
+    {size.card && (sheet ? <a href={link(size.key, false)}>one card</a> : <a href={link(size.key, true)}>cut-out sheet ({grid.count} per letter page)</a>)}
+    <button onclick="window.print()">Print ({sheet ? `letter, ${grid.count} cards` : size.label})</button>
+  </div>
+  <div class={sheet ? 'tiles' : 'single'} style={sheet ? `grid-template-columns:repeat(${grid.cols}, ${size.width});grid-auto-rows:${size.height}` : ''}>
+    {Array.from({ length: copies }, () => (
+      <div class="aid" style={`width:${size.width};height:${size.height};font-size:${size.fontPt}pt`}>
+        <h1>{aid.title}</h1>
+        {aid.sections.filter((sec) => sec.lines.length).map((sec) => (<>
+          <h2>{sec.title}</h2>
+          <ul>{sec.lines.map((l) => <li>{l.text}{l.page && <sup> [{l.page}]</sup>}</li>)}</ul>
+        </>))}
+        <div class="foot">
+          {aid.omitted > 0 && <>{aid.omitted} more rule{aid.omitted === 1 ? '' : 's'} not shown; see the rulebook. </>}
+          Sources: {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. AI summary of the publisher's rulebook, each line cited; the rulebook is authoritative. Not affiliated with the publisher. Rogue · open source.
+        </div>
+      </div>
+    ))}
+  </div>
+  <script is:inline>
+    // Fit check: shrink the text until the first card fits its height, then apply that size to every copy,
+    // so print never clips the end. Copies are identical, so one measurement serves all.
+    (function () {
+      var cards = document.querySelectorAll('.aid'); if (!cards.length) return;
+      var first = cards[0], pt = parseFloat(first.style.fontSize), min = pt * 0.75, limit = first.clientHeight;
+      while (first.scrollHeight > limit + 1 && pt > min) { pt -= 0.1; first.style.fontSize = pt.toFixed(1) + 'pt'; }
+      for (var i = 0; i < cards.length; i++) cards[i].style.fontSize = pt.toFixed(1) + 'pt';
+      first.dataset.fit = first.scrollHeight > limit + 1 ? 'overflow' : 'ok';
+      first.dataset.fontPt = pt.toFixed(1);
+    })();
+  </script>
+</Base>

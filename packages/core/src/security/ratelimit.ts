@@ -30,7 +30,7 @@ export function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith('/_astro/')) return true;
   if (/^\/agent\/mcp\/[a-z-]+$/.test(pathname)) return true; // Nanobot sidecar: verified by the x-rogue-agent header in the handler, else 404
   if (pathname === '/discord/interactions') return true; // Ed25519-verified in the handler; 404 unless Discord env is set
-  if (/^\/games\/[a-z0-9-]+(\/setup|\/ask|\/faq)?\/?$/.test(pathname)) return true;
+  if (/^\/games\/[a-z0-9-]+(\/setup|\/aid|\/ask|\/faq)?\/?$/.test(pathname)) return true;
   if (pathname === '/admin' || pathname === '/admin/run' || pathname === '/admin/review' || pathname === '/admin/faq-decide' || pathname === '/admin/quality-decide' || /^\/admin\/(claims|backups|review-log|users|approvals|design|requests|faq|quality)\/?$/.test(pathname)) return true; // pages guard themselves: admin session, else 404
   if (pathname === '/login' || pathname === '/logout' || pathname === '/rate' || pathname === '/rate-answer' || pathname === '/request-game' || pathname === '/account' || pathname === '/account/delete' || /^\/auth\/[a-z]+(\/callback)?\/?$/.test(pathname)) return true;
   return false;
