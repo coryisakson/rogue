@@ -1,4 +1,7 @@
-import { extractHtmlSections, extractLinks, findTermsLink, judgeTerms, registrableDomain, termsSiteCandidates, TERMS_GUESSES, type TermsJudgement } from '@rogue/core';
+import {
+  decideTermsWithAgent, extractHtmlSections, extractLinks, findTermsLink, judgeTerms, registrableDomain, screenSentenceAnswers, sentencesToJudge, termsSiteCandidates, TERMS_GUESSES,
+  type SentenceAnswer, type TermsJudgement, type TermsSentence,
+} from '@rogue/core';
 import { readPage } from './scout';
 import { getPool } from './services';
 
@@ -7,6 +10,8 @@ export interface TermsCheck extends TermsJudgement {
   site: string | null;      // the publisher site whose terms were read
   termsUrl: string | null;
   tried: string[];          // plain-language log of every page looked at, for the admin when a human is needed
+  toJudge?: TermsSentence[]; // bot/AI sentences of an 'unclear' page, for the Nanobot terms agent
+  agent?: { jobId: number; status: string; answers: SentenceAnswer[]; judgedAt?: string }; // set once the agent job is queued / finished
 }
 
 const MAX_READS = 14; // politeness cap per request
@@ -51,7 +56,8 @@ export async function runTermsAgent(rulebookUrl: string, foundOn: string | null)
       if ('note' in t) { tried.push(`${u}: ${t.note.replace(u, '').trim() || 'not available'}`); continue; }
       const j = judgeTerms(t.text);
       tried.push(`${u}: read ${t.text.length} characters, ${j.verdict}`);
-      const cand = done({ ...j, site: site.origin, termsUrl: t.finalUrl });
+      const toJudge = sentencesToJudge(t.text, j);
+      const cand = done({ ...j, site: site.origin, termsUrl: t.finalUrl, ...(toJudge.length ? { toJudge } : {}) });
       if (j.verdict !== 'unclear' || !best || t.text.length > 1200) { best = cand; }
       if (j.verdict !== 'unclear' || t.text.length >= 1200) return { ...best, tried }; // real text read: decide on it
     }
@@ -68,4 +74,27 @@ export async function termsAgentForRequest(id: number): Promise<TermsCheck | nul
   await pool.query('UPDATE game_requests SET terms_check=$2 WHERE id=$1', [id, check]);
   await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['terms-agent', 'game_request_terms_checked', { id, site: check.site, termsUrl: check.termsUrl, verdict: check.verdict, flags: check.flags.length }]);
   return check;
+}
+
+/** Note on the request that the Nanobot terms agent has the flagged sentences (the admin page shows the reasons). */
+export async function markTermsQueued(id: number, check: TermsCheck, jobId: number): Promise<void> {
+  const queued: TermsCheck = { ...check, reasons: [...check.reasons, `Sent to the terms agent (job #${jobId}) to read the flagged lines.`], agent: { jobId, status: 'queued', answers: [] } };
+  await getPool()?.query('UPDATE game_requests SET terms_check=$2 WHERE id=$1', [id, queued]);
+}
+
+/**
+ * After the terms agent's job ended: the code gates in core turn its labels into the verdict (the model never sets it).
+ * A job that failed or asked for a human leaves the request 'unclear'. Returns the stored check.
+ */
+export async function applyAgentJudgement(id: number, job: { id: number; status: string; result: Record<string, unknown> }): Promise<TermsCheck | null> {
+  const pool = getPool(); if (!pool) return null;
+  const check = (await pool.query('SELECT terms_check FROM game_requests WHERE id=$1', [id])).rows[0]?.terms_check as TermsCheck | undefined;
+  if (!check?.toJudge?.length) return check ?? null;
+  const { answers } = screenSentenceAnswers(check.toJudge, job.result['answers']);
+  const code: TermsJudgement = { verdict: 'unclear', flags: check.flags, reasons: check.reasons };
+  const d = decideTermsWithAgent(code, check.toJudge, answers, job.status !== 'done');
+  const next: TermsCheck = { ...check, ...d, agent: { jobId: job.id, status: job.status, answers, judgedAt: new Date().toISOString() } };
+  await pool.query('UPDATE game_requests SET terms_check=$2 WHERE id=$1', [id, next]);
+  await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['agent:terms-agent', 'game_request_terms_judged', { id, job: job.id, jobStatus: job.status, verdict: d.verdict, answers: answers.map((a) => `${a.n}:${a.meaning}`) }]);
+  return next;
 }

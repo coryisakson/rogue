@@ -6,10 +6,10 @@ import {
 import { allSeeds } from './dynamic-sources';
 import { ingestGame } from './ingest';
 import { librarianStatus, queueLibrarianJob, runLibrarian, waitForLibrarianJob } from './librarian-run';
-import { agentsEnabled } from './agent-jobs';
+import { agentsEnabled, enqueueRequestJob } from './agent-jobs';
 import { alertOperator } from './notify';
 import { indexSource } from './rules-index';
-import { termsAgentForRequest } from './terms-agent';
+import { applyAgentJudgement, markTermsQueued, termsAgentForRequest, type TermsCheck } from './terms-agent';
 import { ensureMigrated, getPool } from './services';
 
 const MAX_OPEN_PER_USER = 5;
@@ -86,15 +86,37 @@ export async function runChecks(id: number): Promise<void> {
     // Terms Agent: reads the PUBLISHER's terms (not the CDN's). Only when rights pass and the terms are clearly fine
     // does the source approve itself (Cory 2026-10-15: admins see exceptions only). The game itself was admin-approved earlier.
     const terms = report.verdict === 'blocked' ? null : await termsAgentForRequest(id).catch(() => null);
-    if (report.verdict === 'pass' && terms?.verdict === 'clear' && autoApproveEnabled()) {
-      const a = await approveRequest(id, null, true, 'terms-agent');
-      if (a.ok) return;
+    // Unclear because of bot/AI sentences: the Nanobot terms agent reads them first (ADR 0002); the job's end settles the request.
+    if (terms?.toJudge?.length && agentsEnabled()) {
+      const jobId = await enqueueRequestJob('terms_judge', id);
+      if (jobId !== null) { await markTermsQueued(id, terms, jobId); return; }
     }
-    const why = terms ? `Terms Agent: ${terms.verdict}${terms.verdict === 'clear' ? '' : ' - needs you'}` : 'terms not read';
-    await alertOperator(`Game request #${id}: ${r.name} (${r.publisher}). Rights check: ${report.verdict}. ${why}. Review at /admin/requests.`);
+    await settleRequest(id, terms);
   } catch (e) {
     console.warn('[add-game] checks failed', e instanceof Error ? e.message : 'error');
   }
+}
+
+/**
+ * The terms verdict is final: approve by itself when rights pass and the terms are clear, otherwise tell the operator.
+ * Does nothing when an admin already decided the request in the meantime.
+ */
+async function settleRequest(id: number, terms: TermsCheck | null): Promise<void> {
+  const r = (await getPool()?.query("SELECT name, publisher, report FROM game_requests WHERE id=$1 AND status='checked'", [id]))?.rows[0];
+  if (!r) return;
+  const verdict = r.report?.verdict ?? 'unknown';
+  if (verdict === 'pass' && terms?.verdict === 'clear' && autoApproveEnabled()) {
+    const a = await approveRequest(id, null, true, 'terms-agent');
+    if (a.ok) return;
+  }
+  const why = terms ? `Terms Agent: ${terms.verdict}${terms.verdict === 'clear' ? '' : ' - needs you'}` : 'terms not read';
+  await alertOperator(`Game request #${id}: ${r.name} (${r.publisher}). Rights check: ${verdict}. ${why}. Review at /admin/requests.`);
+}
+
+/** Called by the agent worker when a terms_judge job ended (done, needs_human or failed). */
+export async function afterTermsJudged(requestId: number, job: { id: number; status: string; result: Record<string, unknown> }): Promise<void> {
+  const terms = await applyAgentJudgement(requestId, job);
+  await settleRequest(requestId, terms);
 }
 
 export async function rejectRequest(id: number, adminId: number, reason: string): Promise<boolean> {

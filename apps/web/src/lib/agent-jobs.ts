@@ -41,14 +41,23 @@ export async function enqueueJob(kind: JobKind, sourceId: number): Promise<numbe
   return r.rowCount ? Number(r.rows[0].id) : null;
 }
 
-export interface JobRow { id: number; kind: JobKind; source_id: number; status: string; attempts: number }
+/** Queue a job on a game request (terms_judge) unless one is already open for it. */
+export async function enqueueRequestJob(kind: JobKind, requestId: number): Promise<number | null> {
+  const pool = getPool(); if (!pool) return null;
+  await ensureMigrated();
+  const r = await pool.query("INSERT INTO agent_jobs(kind, request_id) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id", [kind, requestId]);
+  return r.rowCount ? Number(r.rows[0].id) : null;
+}
+
+/** source_id is 0 for jobs on a game request; request_id is null for jobs on a source. */
+export interface JobRow { id: number; kind: JobKind; source_id: number; request_id: number | null; status: string; attempts: number }
 
 /** Jobs a tool call may act on: this agent's kind, currently running. */
 export async function runningJob(agent: AgentName, jobId: number): Promise<JobRow | null> {
   const pool = getPool(); if (!pool) return null;
-  const r = (await pool.query("SELECT id, kind, source_id, status, attempts FROM agent_jobs WHERE id=$1 AND status='running'", [jobId])).rows[0];
+  const r = (await pool.query("SELECT id, kind, source_id, request_id, status, attempts FROM agent_jobs WHERE id=$1 AND status='running'", [jobId])).rows[0];
   if (!agentMayActOn(agent, r)) return null;
-  return { id: Number(r.id), kind: r.kind, source_id: Number(r.source_id), status: r.status, attempts: r.attempts };
+  return { id: Number(r.id), kind: r.kind, source_id: Number(r.source_id ?? 0), request_id: r.request_id === null ? null : Number(r.request_id), status: r.status, attempts: r.attempts };
 }
 
 /** Count a page change on a running job so the source is re-indexed afterwards. */
@@ -128,6 +137,8 @@ export async function runNextJob(): Promise<boolean> {
       const giveUp = job.attempts >= (unreachable ? 8 : 2);
       await pool.query("UPDATE agent_jobs SET status=$2, error=$3, not_before=now() + ($4 || ' minutes')::interval, finished_at=CASE WHEN $2='failed' THEN now() END WHERE id=$1 AND status='running'", [job.id, giveUp ? 'failed' : 'queued', msg.slice(0, 500), unreachable ? '10' : '3']);
       await audit(`agent:${agent}`, 'job_error', { id: job.id, error: msg.slice(0, 300) });
+      // A failed terms job must still reach a human, or the game request would wait forever.
+      if (giveUp && job.kind === 'terms_judge') await afterJob(job.kind, Number(job.id)).catch((e) => console.warn('[agents] afterJob failed:', (e as Error).message));
       return true;
     }
     // The agent finished talking. If it never called finish_job, the work it did is kept but a human is told.
@@ -145,10 +156,20 @@ export async function runNextJob(): Promise<boolean> {
   } finally { busy = false; }
 }
 
-/** After a quality job changed page text, rebuild that source's chunks so search sees the better text. */
+/**
+ * After a quality job changed page text, rebuild that source's chunks so search sees the better text.
+ * After a terms job, code turns the agent's labels into the verdict and settles the game request.
+ */
 async function afterJob(kind: JobKind, jobId: number): Promise<void> {
-  if (kind !== 'quality_curate') return;
   const pool = getPool(); if (!pool) return;
+  if (kind === 'terms_judge') {
+    const j = (await pool.query('SELECT id, status, request_id, result FROM agent_jobs WHERE id=$1', [jobId])).rows[0];
+    if (!j?.request_id) return;
+    const { afterTermsJudged } = await import('./add-game'); // add-game imports this module; load it lazily
+    await afterTermsJudged(Number(j.request_id), { id: Number(j.id), status: j.status, result: j.result ?? {} });
+    return;
+  }
+  if (kind !== 'quality_curate') return;
   const j = (await pool.query('SELECT source_id, result FROM agent_jobs WHERE id=$1', [jobId])).rows[0];
   if (!j || !(Number(j.result?.changedPages) > 0)) return;
   const { indexSource } = await import('./rules-index');
