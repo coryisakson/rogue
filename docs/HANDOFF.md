@@ -4,7 +4,7 @@ Live: https://rogue.cisakson.olares.com, version 0.0.81 deploying. Repo /opt/dat
 Rulebook: AGENTS.md. Product principle: AI tasks -> Nanobot agents over MCP in background; plain code stays in app (ADR 0002).
 
 ## Next (ordered; do the first unfinished one)
-1. PAUSED (Cory 2026-10-16): content-quality validation, i.e. Ask evals/tuning, KB quality checks and OCR/page-text quality work. Resume only once Nanobot runs and can take it over. CODE quality is NOT paused: workers keep tests, types and scripts/qcheck.sh green.
+1. OCR/page-text quality work UNPAUSED (Cory 2026-10-16). Still paused: Ask evals/tuning and other KB quality checks until Nanobot can take them over. CODE quality is NOT paused: workers keep tests, types and scripts/qcheck.sh green.
 2. DONE: Nanobot sidecar + Librarian (0.0.78) + Terms Agent (0.0.79) + Scout page judgement (0.0.80). FAQ Curator shipped (0.0.81, faq_curate). Librarian yield is low (1 of 5 drafted on StS); tuning counts as content quality = paused.
 3. Q&A become facts, one-pager quality gate, printed-page detection, frontier judge (needs APPROVALS entry).
 
