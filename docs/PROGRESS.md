@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-16 (Hermes): 0.0.94: card-size player aids at /games/<slug>/aid (poker/mini/tarot/page/letter, ?sheet=1 cut-out tiling, fit script, cited footer); games.card_size (0029, unset). Reddit/BGG ruled out (R29/R30). Needs real print test; Scout publisher FAQ run next.
 - 2026-10-16 (Hermes): 0.0.93: one-pager fit gate. Live sheets overflowed half-letter (Pandemic 877px vs 816, StS 833) and print clipped the end; now a fit script shrinks text until it fits. Player-count table shows the variant text (StS cells were empty). Per Cory: MVP work now, answer polishing paused.
 - 2026-10-16 (Hermes): 0.0.92: evals fixed: 'how many roles' mustNot matched page cite p.8 (answer was correct, 7 roles on 0.0.91); StS Retain/Daze now mayAbstain (rulebook silent). Open: StS 'what carries over between acts' retrieval.
 - 2026-10-16 (Hermes): 0.0.91: count/list questions retrieve 12 hits, neighbours radius 2, cap 30; prompt prefers a stated total (7 Role Cards). Eval on 0.0.90 was Pandemic 8/10, StS 7/10 (weights changed nothing). Re-run on 0.0.91 pending.
