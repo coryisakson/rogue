@@ -1,4 +1,4 @@
-import { sectionHeadings, applyRanking, chunkText, orQuery, parseRanking, qualityWeight, rrf, sourceWeight } from '@rogue/core';
+import { sectionHeadings, detectPageLabels, applyRanking, chunkText, orQuery, parseRanking, qualityWeight, rrf, sourceWeight } from '@rogue/core';
 import { agentsEnabled, enqueueJob } from './agent-jobs';
 import { loadSourcePages, pagesToText, scoreSource } from './page-text';
 import { ensureMigrated, getAi, getPool } from './services';
@@ -25,12 +25,14 @@ async function indexSourceInner(sourceId: number): Promise<{ chunks: number; emb
   const ct = String(s.content_type ?? '');
   // Web pages have sections, not pages: remember each section's heading so citations can name it. Plain text sections are numbered.
   const headings = /html/i.test(ct) ? sectionHeadings(fullText) : /text\/plain/i.test(ct) ? new Map([...sp.pages.keys()].map((n) => [n, `section ${n}`])) : null;
+  // PDFs only: the page number printed in the footer, so citations can say "p.7 (printed 5)". Missing pages count as blank.
+  const printed = headings ? null : detectPageLabels(Array.from({ length: Math.max(0, ...sp.pages.keys()) }, (_, i) => sp.pages.get(i + 1) ?? '')).labels;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock($1)', [sourceId]);
     await client.query('DELETE FROM chunks WHERE source_id=$1', [sourceId]);
-    for (const c of chunks) await client.query('INSERT INTO chunks(source_id,page,ord,text,lang,locator) VALUES ($1,$2,$3,$4,$5,$6)', [sourceId, c.page, c.ord, c.text, s.language ?? 'en', headings?.get(c.page) ?? null]);
+    for (const c of chunks) await client.query('INSERT INTO chunks(source_id,page,ord,text,lang,locator,printed_page) VALUES ($1,$2,$3,$4,$5,$6,$7)', [sourceId, c.page, c.ord, c.text, s.language ?? 'en', headings?.get(c.page) ?? null, printed?.[c.page - 1] ?? null]);
     await client.query('COMMIT');
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
   const quality = await scoreSource(sourceId).catch(() => null); // page text quality; stamps chunks.quality for retrieval weighting
@@ -72,7 +74,8 @@ async function embedQuery(q: string): Promise<number[] | null> {
   return null;
 }
 
-export interface RuleHit { chunk_id: string; game: string; slug: string; page: number; section: string | null; snippet: string; source_title: string; source_url: string; publisher: string | null; availability: string; via: string }
+/** `printed` is the page number printed in the PDF (display only; `page` stays the physical page used by citations). */
+export interface RuleHit { chunk_id: string; game: string; slug: string; page: number; printed: number | null; section: string | null; snippet: string; source_title: string; source_url: string; publisher: string | null; availability: string; via: string }
 
 /** Hybrid retrieval over whole rulebooks. Snippets are capped: the full private text is never returned. */
 export async function searchRules(q: string, opts: { game?: string; limit?: number; snippet?: number; rerank?: boolean } = {}): Promise<RuleHit[]> {
@@ -97,7 +100,7 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   let ids = rrf([kw, vec], 60, (id) => weights.get(id) ?? 1).slice(0, opts.rerank ? Math.max(limit, 10) : limit);
   if (!ids.length) return [];
   const rows = (await pool.query(
-    `SELECT ch.id::text chunk_id, g.name game, g.slug, ch.page, ch.locator section, left(ch.text, $2) snippet, s.title source_title, s.url source_url, s.publisher, s.availability ${base} WHERE ch.id = ANY($1::bigint[])`, [ids, snip])).rows;
+    `SELECT ch.id::text chunk_id, g.name game, g.slug, ch.page, ch.printed_page printed, ch.locator section, left(ch.text, $2) snippet, s.title source_title, s.url source_url, s.publisher, s.availability ${base} WHERE ch.id = ANY($1::bigint[])`, [ids, snip])).rows;
   const byId = new Map(rows.map((r) => [r.chunk_id as string, r]));
   if (opts.rerank && ids.length > 1) ids = (await rerank(q, ids.filter((id) => byId.has(id)), byId)).slice(0, limit);
   return ids.filter((id) => byId.has(id)).map((id) => ({ ...byId.get(id), via: kw.includes(id) && vec.includes(id) ? 'keyword+semantic' : kw.includes(id) ? 'keyword' : 'semantic' }));
@@ -132,10 +135,10 @@ async function rerank(q: string, ids: string[], byId: Map<string, { snippet: str
 
 /** Excerpts for the chat model: each hit plus its neighbouring chunks (a list often runs across a chunk boundary).
  *  Sent to the model only; the answer shows short capped quotes, never this text. */
-export async function expandWithNeighbors(chunkIds: string[], radius = 1): Promise<{ page: number; text: string; section: string | null }[]> {
+export async function expandWithNeighbors(chunkIds: string[], radius = 1): Promise<{ page: number; text: string; section: string | null; printed: number | null }[]> {
   const pool = getPool(); if (!pool || !chunkIds.length) return [];
   const rows = (await pool.query(
-    `SELECT DISTINCT n.source_id, n.ord, n.page, n.locator, n.text FROM chunks c JOIN chunks n ON n.source_id=c.source_id AND n.ord BETWEEN c.ord-$2 AND c.ord+$2
+    `SELECT DISTINCT n.source_id, n.ord, n.page, n.locator, n.printed_page, n.text FROM chunks c JOIN chunks n ON n.source_id=c.source_id AND n.ord BETWEEN c.ord-$2 AND c.ord+$2
      WHERE c.id = ANY($1::bigint[]) ORDER BY n.source_id, n.ord`, [chunkIds, radius])).rows;
-  return rows.map((r) => ({ page: Number(r.page), text: String(r.text), section: (r.locator as string | null) ?? null }));
+  return rows.map((r) => ({ page: Number(r.page), text: String(r.text), section: (r.locator as string | null) ?? null, printed: r.printed_page == null ? null : Number(r.printed_page) }));
 }

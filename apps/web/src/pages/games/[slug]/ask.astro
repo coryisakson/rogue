@@ -2,6 +2,7 @@
 import Base from '../../../layouts/Base.astro';
 import { getGame } from '../../../lib/kb';
 import { askRules } from '../../../lib/chat';
+import { formatPageCite } from '@rogue/core';
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
@@ -42,7 +43,7 @@ if (user && q.length >= 3) { try { res = await askRules(slug!, q); } catch (e) {
       <h2>Sources</h2>
       <div style="display:grid;gap:.6rem">
         {res.sources.map((s) => (
-          <div class="card"><small><a href={s.url}>{s.title}</a> ({s.publisher}) · {s.section ?? `p.${s.page}`}</small><blockquote style="margin:.3rem 0 0;opacity:.8;font-size:.9rem">“{s.quote}…”</blockquote></div>
+          <div class="card"><small><a href={s.url}>{s.title}</a> ({s.publisher}) · {s.section ?? formatPageCite(s.page, s.printed)}</small><blockquote style="margin:.3rem 0 0;opacity:.8;font-size:.9rem">“{s.quote}…”</blockquote></div>
         ))}
       </div>
     )}
