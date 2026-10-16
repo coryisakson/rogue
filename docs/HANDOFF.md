@@ -1,11 +1,11 @@
 # Handoff (rewritten 2026-10-16). Keep this file under 3 KB; history lives in docs/archive/.
 
-Live: https://rogue.cisakson.olares.com, version 0.0.69 deployed (0.0.70 shipped per PROGRESS; confirm with /healthz). Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
+Live: https://rogue.cisakson.olares.com, version 0.0.78 deployed. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
 Rulebook: AGENTS.md. Product principle: AI tasks -> Nanobot agents over MCP in background; plain code stays in app (ADR 0002).
 
 ## Next (ordered; do the first unfinished one)
 1. PAUSED (Cory 2026-10-16): content-quality validation, i.e. Ask evals/tuning, KB quality checks and OCR/page-text quality work. Resume only once Nanobot runs and can take it over. CODE quality is NOT paused: workers keep tests, types and scripts/qcheck.sh green.
-2. Nanobot sidecar (Python container in pod; risky tools off; propose-only MCP tools; job state in DB); migrate Librarian first. Self-contained -> worker.
+2. DONE: Nanobot sidecar + Librarian agent (0.0.78). Next agents: Terms Agent judgement, Scout page judgement, Curator (ROADMAP Phase 1b). Librarian yield is low (1 of 5 drafted on StS); tuning counts as content quality = paused.
 3. Q&A become facts, FAQ Curator, one-pager quality gate, printed-page detection, frontier judge (needs APPROVALS entry).
 
 ## Unverified live
