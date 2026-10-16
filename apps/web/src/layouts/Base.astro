@@ -28,5 +28,63 @@ import '../styles/rogue.css';
     )}
     <slot />
     {!bare && <footer class="site">Rogue v{VERSION} · {t(L, 'footer.preview')} ·&nbsp;<a href="/about">{t(L, 'footer.how')}</a></footer>}
+    <style is:global>
+      /* Busy feedback for submitted forms (see the script below). */
+      form[aria-busy="true"] { cursor: progress; }
+      form[aria-busy="true"] :is(button, input[type="submit"]):disabled { opacity: .65; cursor: progress; }
+      button[aria-busy="true"]::after { content: ""; display: inline-block; width: .8em; height: .8em; margin-left: .4em; vertical-align: -.1em;
+        border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: rogue-spin .7s linear infinite; }
+      @keyframes rogue-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { button[aria-busy="true"]::after { animation: none; border-right-color: currentColor; opacity: .5; } }
+    </style>
+    <script is:inline>
+      // Every form submit shows it was clicked and cannot be sent twice.
+      // One delegated listener covers all pages, so pages need no code of their own.
+      // A disabled submit button drops its name/value from the request, so the clicked
+      // button's name/value is copied into a hidden input before the buttons are disabled.
+      (() => {
+        const BUTTONS = 'button, input[type="submit"]';
+
+        function setBusy(form, submitter) {
+          form.setAttribute('aria-busy', 'true');
+          if (submitter && submitter.name) {
+            const copy = document.createElement('input');
+            copy.type = 'hidden';
+            copy.name = submitter.name;
+            copy.value = submitter.value;
+            copy.dataset.busyCopy = '';
+            form.append(copy);
+          }
+          if (submitter) submitter.setAttribute('aria-busy', 'true');
+          for (const b of form.querySelectorAll(BUTTONS)) {
+            if (b.disabled) continue; // leave buttons that were already disabled alone
+            b.disabled = true;
+            b.dataset.busyDisabled = '';
+          }
+        }
+
+        function clearBusy(form) {
+          form.removeAttribute('aria-busy');
+          for (const c of form.querySelectorAll('[data-busy-copy]')) c.remove();
+          for (const b of form.querySelectorAll('[data-busy-disabled]')) { b.disabled = false; delete b.dataset.busyDisabled; }
+          for (const b of form.querySelectorAll('[aria-busy="true"]')) b.removeAttribute('aria-busy');
+        }
+
+        document.addEventListener('submit', (e) => {
+          const form = e.target;
+          if (!(form instanceof HTMLFormElement) || e.defaultPrevented || 'noBusy' in form.dataset) return;
+          if (form.getAttribute('aria-busy') === 'true') { e.preventDefault(); return; } // second click
+          setBusy(form, e.submitter);
+        });
+
+        // Back button: the browser may restore the page with the busy state frozen in place.
+        window.addEventListener('pageshow', () => {
+          for (const f of document.querySelectorAll('form[aria-busy="true"]')) clearBusy(f);
+        });
+
+        // For future fetch()-based forms: call RogueBusy.clear(form) when the request fails or returns.
+        window.RogueBusy = { set: setBusy, clear: clearBusy };
+      })();
+    </script>
   </body>
 </html>
