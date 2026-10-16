@@ -78,7 +78,12 @@ async function embedQuery(q: string): Promise<number[] | null> {
 export interface RuleHit { chunk_id: string; game: string; slug: string; page: number; printed: number | null; section: string | null; snippet: string; source_title: string; source_url: string; publisher: string | null; availability: string; via: string }
 
 /** Hybrid retrieval over whole rulebooks. Snippets are capped: the full private text is never returned. */
-export async function searchRules(q: string, opts: { game?: string; limit?: number; snippet?: number; rerank?: boolean } = {}): Promise<RuleHit[]> {
+/** Filled by searchRules when passed: per-stage time and the reranker's token use, for the chat's timing log and cost columns. */
+export interface SearchStats { embedMs: number; searchMs: number; rerankMs: number; promptTokens: number; completionTokens: number }
+
+export async function searchRules(q: string, opts: { game?: string; limit?: number; snippet?: number; rerank?: boolean; stats?: SearchStats } = {}): Promise<RuleHit[]> {
+  const stats = opts.stats;
+  let t0 = Date.now();
   const pool = getPool(); if (!pool) return [];
   await ensureMigrated();
   const limit = Math.min(opts.limit ?? 6, 20);
@@ -89,7 +94,9 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   const kw = oq ? (await pool.query(
     `SELECT ch.id::text id ${base}, to_tsquery('simple',$1) tq WHERE ch.tsv @@ tq AND ($2::text IS NULL OR g.slug=$2) ORDER BY ts_rank_cd(ch.tsv,tq) DESC LIMIT 30`, [oq, game])).rows.map((r) => r.id as string) : [];
   let vec: string[] = [];
+  const tEmbed = Date.now();
   const v = await embedQuery(q);
+  if (stats) stats.embedMs = Date.now() - tEmbed;
   if (v) vec = (await pool.query(
     `SELECT ch.id::text id ${base} WHERE ch.embedding IS NOT NULL AND ($2::text IS NULL OR g.slug=$2) ORDER BY ch.embedding <=> $1::vector LIMIT 30`, [`[${v.join(',')}]`, game])).rows.map((r) => r.id as string);
   // Authority ranking: official FAQ/errata and publisher sources lift above product pages and community text; garbled OCR text sinks.
@@ -102,14 +109,20 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   const rows = (await pool.query(
     `SELECT ch.id::text chunk_id, g.name game, g.slug, ch.page, ch.printed_page printed, ch.locator section, left(ch.text, $2) snippet, s.title source_title, s.url source_url, s.publisher, s.availability ${base} WHERE ch.id = ANY($1::bigint[])`, [ids, snip])).rows;
   const byId = new Map(rows.map((r) => [r.chunk_id as string, r]));
-  if (opts.rerank && ids.length > 1) ids = (await rerank(q, ids.filter((id) => byId.has(id)), byId)).slice(0, limit);
+  if (stats) stats.searchMs = Date.now() - t0 - stats.embedMs;
+  // Reranking only reorders; when the fused list already fits in `limit`, every candidate is kept anyway, so skip the LLM round trip.
+  if (opts.rerank && ids.length > limit) {
+    t0 = Date.now();
+    ids = (await rerank(q, ids.filter((id) => byId.has(id)), byId, stats)).slice(0, limit);
+    if (stats) stats.rerankMs = Date.now() - t0;
+  }
   return ids.filter((id) => byId.has(id)).map((id) => ({ ...byId.get(id), via: kw.includes(id) && vec.includes(id) ? 'keyword+semantic' : kw.includes(id) ? 'keyword' : 'semantic' }));
 }
 
 const rerankCache = new Map<string, string[]>();
 
 /** Ask the chat model to order the candidates by usefulness for the question. Any failure keeps the original order. */
-async function rerank(q: string, ids: string[], byId: Map<string, { snippet: string; page: number; section?: string | null }>): Promise<string[]> {
+async function rerank(q: string, ids: string[], byId: Map<string, { snippet: string; page: number; section?: string | null }>, stats?: SearchStats): Promise<string[]> {
   const ai = getAi(); if (!ai) return ids;
   const key = q + '|' + ids.join(',');
   const hit = rerankCache.get(key); if (hit) return hit;
@@ -117,12 +130,15 @@ async function rerank(q: string, ids: string[], byId: Map<string, { snippet: str
   try {
     const r = await ai.chat({
       temperature: 0,
-      maxTokens: 1500, // gemma4 "thinks" first; a small cap leaves no room for the answer
+      // A JSON array needs no thinking: 'none' cut this call from 2-8 s to ~0.3 s on gemma4. The cap stays roomy in case an endpoint ignores it.
+      reasoning: 'none',
+      maxTokens: 1500,
       messages: [
         { role: 'system', content: 'You rank excerpts of a board game rulebook by how directly they answer the question. Excerpts that state the rule outrank examples, glossaries or flavour. Reply with ONLY a JSON array of the excerpt numbers, best first, at most 5 numbers. Example: [3,1,4]' },
         { role: 'user', content: `Question: ${q}\n\nExcerpts:\n${list}` },
       ],
     });
+    if (stats) { stats.promptTokens += r.promptTokens; stats.completionTokens += r.completionTokens; }
     const out = applyRanking(ids, parseRanking(r.text, ids.length));
     if (rerankCache.size > 300) rerankCache.clear();
     rerankCache.set(key, out);
