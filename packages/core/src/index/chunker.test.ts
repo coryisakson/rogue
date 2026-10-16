@@ -50,10 +50,10 @@ describe('splitJoinedHeadings', () => {
   it('separates neighbouring two-line headings using "the <Name>" in the text', () => {
     const body = 'CONTINGENCY PLANNER\nThe Contingency Planner may take a card.\nCONTINGENCY\nPLANNER\nDISPATCHER\nThe Dispatcher may move pawns.\nQUARANTINE\nSPECIALIST\nThe Quarantine Specialist stops cubes.';
     const out = splitJoinedHeadings(body).split('\n');
-    expect(out).toContain('CONTINGENCY PLANNER');
-    expect(out).toContain('DISPATCHER');
-    expect(out).toContain('QUARANTINE SPECIALIST');
-    expect(out).not.toContain('CONTINGENCY PLANNER DISPATCHER');
+    expect(out).toContain('## CONTINGENCY PLANNER');
+    expect(out).toContain('## DISPATCHER');
+    expect(out).toContain('## QUARANTINE SPECIALIST');
+    expect(out).not.toContain('## CONTINGENCY PLANNER DISPATCHER');
   });
   it('leaves single caps lines and normal text alone', () => {
     expect(splitJoinedHeadings('ROLES\nEach player has a role.')).toBe('ROLES\nEach player has a role.');

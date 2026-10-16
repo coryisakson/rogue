@@ -16,7 +16,7 @@ const CAPS_LINE = /^[A-Z][A-Z' -]{2,}$/;
 /**
  * Two-column PDFs print neighbouring all-caps headings on consecutive lines ("CONTINGENCY\nPLANNER\nDISPATCHER"), which reads
  * like one name. Split such a run into names: the longest word group that the page later calls "the <Name>" is one heading
- * (so "Contingency Planner" and "Dispatcher" separate). Each heading goes on its own line. Game-agnostic, no name lists.
+ * (so "Contingency Planner" and "Dispatcher" separate). Each heading goes on its own line, marked "## ". Game-agnostic, no name lists.
  */
 export function splitJoinedHeadings(body: string): string {
   const lines = body.split('\n');
@@ -32,7 +32,7 @@ export function splitJoinedHeadings(body: string): string {
       for (let len = words.length - k; len > 1; len--) {
         if (lower.includes('the ' + words.slice(k, k + len).join(' ').toLowerCase())) { take = len; break; }
       }
-      out.push(words.slice(k, k + take).join(' '));
+      out.push('## ' + words.slice(k, k + take).join(' ')); // marker keeps the model from re-joining neighbours
       k += take;
     }
     i = j;
