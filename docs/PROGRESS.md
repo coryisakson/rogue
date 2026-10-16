@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-16 (Hermes): 0.0.97: chat thread is page-memory only (no sessionStorage; reload/back clears it).
 - 2026-10-16 (Hermes): 0.0.96: chat is conversational (history, follow-up rewrite, 6 turns/4000 chars, 12-turn thread cap, 60/day per user, token columns, admin tokens line). Latency: reasoning_effort none on rerank/rewrite (measured 2-8s -> 0.3s), answer low. Verify live timings.
 - 2026-10-16 (Hermes): 0.0.95: game page is a threaded rules chat (/api/ask, /ask redirects), citations grouped per document with all pages, fact base moved to /games/<slug>/facts, BGG/Reddit as links only, admin /admin/extracts markdown viewer. Needs browser check.
 - 2026-10-16 (Hermes): 0.0.94: card-size player aids at /games/<slug>/aid (poker/mini/tarot/page/letter, ?sheet=1 cut-out tiling, fit script, cited footer); games.card_size (0029, unset). Reddit/BGG ruled out (R29/R30). Needs real print test; Scout publisher FAQ run next.
