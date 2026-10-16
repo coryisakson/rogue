@@ -12,9 +12,12 @@ export const CHAT_SYSTEM = `You answer board game rules questions using ONLY the
 - If excerpts disagree, say so and cite both. But a role's special ability that changes a general rule is an exception, not a disagreement: state the general rule first, then the exception.
 - Excerpts come from two-column PDFs, so words from neighbouring columns can run together. Use sense to separate them.`;
 
-export function buildPrompt(question: string, excerpts: Excerpt[]): string {
+/** `conversation` is the compact 'Conversation so far' block (historyBlock); `standalone` the rewritten follow-up, shown only when it differs. */
+export function buildPrompt(question: string, excerpts: Excerpt[], context: { conversation?: string; standalone?: string } = {}): string {
   const ex = excerpts.map((e, i) => `[${i + 1}] (${e.section ? `s.${e.page} "${e.section}"` : formatPageCite(e.page, e.printed)}) ${e.text.replace(/\s+/g, ' ').trim()}`).join('\n\n');
-  return `Rulebook excerpts:\n\n${ex}\n\nQuestion: ${question}`;
+  const convo = context.conversation ? `${context.conversation}\n\n` : '';
+  const meaning = context.standalone && context.standalone !== question ? `\n(Read as: ${context.standalone})` : '';
+  return `${convo}Rulebook excerpts:\n\n${ex}\n\nQuestion: ${question}${meaning}`;
 }
 
 /** Page numbers the answer cites, e.g. "(p.3)" or "p. 3, p.4". */

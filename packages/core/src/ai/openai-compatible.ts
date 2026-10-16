@@ -11,6 +11,17 @@ export interface OpenAiCompatibleOptions {
   fetchImpl?: typeof fetch; // injectable for tests
 }
 
+/** The /chat/completions request body. Optional fields are left out entirely so endpoints that do not know them are not confused. */
+export function chatBody(req: ChatRequest, model: string): Record<string, unknown> {
+  return {
+    model,
+    messages: req.messages,
+    temperature: req.temperature ?? 0,
+    ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
+    ...(req.reasoning !== undefined ? { reasoning_effort: req.reasoning } : {}),
+  };
+}
+
 /** Works with Olares Router, llama.cpp, Ollama, vLLM, OpenAI and any OpenAI-compatible endpoint. */
 export class OpenAiCompatibleProvider implements AiProvider {
   readonly id = 'openai-compatible';
@@ -35,12 +46,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
 
   async chat(req: ChatRequest): Promise<ChatResult> {
     const model = req.model ?? this.o.defaultChatModel ?? 'default-chat';
-    const j = await this.post('/chat/completions', {
-      model,
-      messages: req.messages,
-      temperature: req.temperature ?? 0,
-      ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
-    });
+    const j = await this.post('/chat/completions', chatBody(req, model));
     const text = j?.choices?.[0]?.message?.content;
     if (typeof text !== 'string') throw new Error(`AI chat response missing choices[0].message.content: ${JSON.stringify(j).slice(0, 400)}`);
     return {

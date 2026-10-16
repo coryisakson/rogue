@@ -12,7 +12,12 @@ export interface ChatRequest {
   model?: string; // route name such as "default-chat", or "provider/model"
   temperature?: number;
   maxTokens?: number;
+  /** Thinking budget for reasoning models, sent as `reasoning_effort`. 'none' skips thinking: short structured calls
+   *  (rerank, query rewrite) answer in ~0.3 s instead of 2-8 s. Unset = the model's default. */
+  reasoning?: ReasoningEffort;
 }
+
+export type ReasoningEffort = 'none' | 'low';
 
 export interface ChatResult {
   text: string;

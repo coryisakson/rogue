@@ -13,6 +13,27 @@ export class RateLimiter {
   }
 }
 
+/**
+ * Per-key counter that resets at UTC midnight (daily chat budget). In-memory like RateLimiter: a restart forgives the day,
+ * which is acceptable for a single small instance. `count` reads without spending; `add` spends one.
+ */
+export class DailyCounter {
+  private counts = new Map<string, { day: string; n: number }>();
+  constructor(private now: () => number = Date.now) {}
+  private today(): string { return new Date(this.now()).toISOString().slice(0, 10); }
+  count(key: string): number {
+    const c = this.counts.get(key);
+    return c && c.day === this.today() ? c.n : 0;
+  }
+  add(key: string): number {
+    const day = this.today();
+    if (this.counts.size > 5000) for (const [k, v] of this.counts) if (v.day !== day) this.counts.delete(k);
+    const n = this.count(key) + 1;
+    this.counts.set(key, { day, n });
+    return n;
+  }
+}
+
 /** Constant-time string compare. */
 export function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

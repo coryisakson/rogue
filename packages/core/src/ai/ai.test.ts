@@ -21,6 +21,22 @@ describe('OpenAiCompatibleProvider', () => {
     });
   });
 
+  it('sends reasoning_effort and max_tokens only when set', async () => {
+    const bodies: any[] = [];
+    const p = new OpenAiCompatibleProvider({
+      baseUrl: 'http://router/v1',
+      defaultChatModel: 'Olares/gemma4:e4b',
+      fetchImpl: fakeFetch((_url, body) => { bodies.push(body); return { choices: [{ message: { content: '[1]' } }] }; }),
+    });
+    await p.chat({ messages: [{ role: 'user', content: 'rank' }], reasoning: 'none', maxTokens: 120 });
+    await p.chat({ messages: [{ role: 'user', content: 'answer' }], reasoning: 'low', temperature: 0.2 });
+    await p.chat({ messages: [{ role: 'user', content: 'plain' }] });
+    expect(bodies[0]).toEqual({ model: 'Olares/gemma4:e4b', messages: [{ role: 'user', content: 'rank' }], temperature: 0, max_tokens: 120, reasoning_effort: 'none' });
+    expect(bodies[1]).toMatchObject({ reasoning_effort: 'low', temperature: 0.2 });
+    expect(bodies[1]).not.toHaveProperty('max_tokens');
+    expect(bodies[2]).not.toHaveProperty('reasoning_effort');
+  });
+
   it('embeds and checks vector count', async () => {
     const p = new OpenAiCompatibleProvider({
       baseUrl: 'http://router/v1',

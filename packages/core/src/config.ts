@@ -35,6 +35,10 @@ export interface ServiceConfig {
   aiApiKey: string | null;
   aiChatModel: string;
   aiEmbedModel: string;
+  /** Thinking budget for the final rules-chat answer (ROGUE_AI_ANSWER_REASONING). 'default' = send nothing, let the model decide. */
+  aiAnswerReasoning: 'none' | 'low' | 'default';
+  /** Rules-chat questions per signed-in user per day (ROGUE_CHAT_DAILY_LIMIT); admins are exempt. */
+  chatDailyLimit: number;
 }
 
 export function loadServices(env: Record<string, string | undefined> = {}): ServiceConfig {
@@ -46,5 +50,17 @@ export function loadServices(env: Record<string, string | undefined> = {}): Serv
     aiApiKey: env['ROGUE_AI_API_KEY'] || null,
     aiChatModel: env['ROGUE_AI_CHAT_MODEL'] || 'default-chat',
     aiEmbedModel: env['ROGUE_AI_EMBED_MODEL'] || 'default-embedding',
+    aiAnswerReasoning: parseReasoning(env['ROGUE_AI_ANSWER_REASONING']),
+    chatDailyLimit: positiveInt(env['ROGUE_CHAT_DAILY_LIMIT'], 60),
   };
+}
+
+// 'low' keeps some thinking for rule answers (they need it) but cuts the ~430-token think the model does by default.
+function parseReasoning(v: string | undefined): 'none' | 'low' | 'default' {
+  return v === 'none' || v === 'default' ? v : 'low';
+}
+
+function positiveInt(v: string | undefined, fallback: number): number {
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
 }
