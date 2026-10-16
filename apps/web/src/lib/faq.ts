@@ -3,8 +3,8 @@ import { ensureMigrated, getPool } from './services';
 
 export interface FaqRow { game_slug: string; question_norm: string; question: string; answer: string; sources: { page: number; section?: string | null; title: string; url: string }[] | null; total: number; up: number; status: string | null; canonical?: boolean }
 
-/** One row per (game, question): each user counts once (their latest vote), text from the newest stored answer. */
-async function tally(game: string | null): Promise<FaqRow[]> {
+/** One row per (game, question): each user counts once (their latest vote), text from the newest stored answer. Also read by qa-facts. */
+export async function tally(game: string | null): Promise<FaqRow[]> {
   const pool = getPool(); if (!pool) return [];
   await ensureMigrated();
   const r = await pool.query(
