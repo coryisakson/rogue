@@ -220,29 +220,43 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
       if (serverTurn && clearBtn) clearBtn.hidden = false;
       updateMeter(false);
 
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault(); // we handle it; Base.astro's busy guard skips prevented submits, so set it ourselves
+      // The box clears at once and the button stays usable: questions typed while an answer is loading wait in a queue and
+      // are sent one at a time, so each follow-up can see the answer before it (Cory 2026-10-16).
+      const queue = []; let working = false; let stopped = false; let gen = 0;
+      async function work() {
+        if (working) return; working = true;
+        while (queue.length) {
+          const { q, turn, g } = queue.shift();
+          if (g !== gen) continue; // thread was cleared while this was waiting
+          if (stopped) { turn.replaceWith(addTurn({ q, error: 'This conversation is full. Start a new one to keep asking.' })); continue; }
+          let t; let full = false;
+          const prior = load().map((x) => ({ q: x.q, a: x.answer || '' }));
+          try {
+            const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ game, q, history: prior }) });
+            const body = await r.json().catch(() => ({}));
+            if (body.limit) { t = { q, error: body.message }; full = body.limit === 'thread'; }
+            else t = r.ok ? { q, id: body.id, answer: body.answer, warning: body.warning, docs: body.docs } : { q, error: body.error || 'Something went wrong. Please try again.', signIn: r.status === 401 };
+          } catch {
+            t = { q, error: 'Could not reach the rules assistant. Check your connection and try again.' };
+          }
+          if (g !== gen) continue;
+          turn.replaceWith(addTurn(t));
+          if (!t.error) save([...load(), t]);
+          if (full) stopped = true;
+          updateMeter(full);
+        }
+        working = false;
+        if (!input.disabled) input.focus(); else if (clearBtn) clearBtn.focus();
+      }
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
         const q = input.value.trim();
-        if (q.length < 3 || form.getAttribute('aria-busy') === 'true') return;
-        window.RogueBusy && window.RogueBusy.set(form, e.submitter);
+        if (q.length < 3 || stopped) return;
+        input.value = ''; // clear straight away so the next question can be typed while this one loads
         const turn = addTurn({ q, pending: true });
         turn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        let t; let full = false;
-        // Earlier answered turns go along so follow-ups ("and the medic?") make sense; the server clamps and trims them.
-        const prior = load().map((x) => ({ q: x.q, a: x.answer || '' }));
-        try {
-          const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ game, q, history: prior }) });
-          const body = await r.json().catch(() => ({}));
-          if (body.limit) { t = { q, error: body.message }; full = body.limit === 'thread'; }
-          else t = r.ok ? { q, id: body.id, answer: body.answer, warning: body.warning, docs: body.docs } : { q, error: body.error || 'Something went wrong. Please try again.', signIn: r.status === 401 };
-        } catch {
-          t = { q, error: 'Could not reach the rules assistant. Check your connection and try again.' };
-        }
-        turn.replaceWith(addTurn(t));
-        if (!t.error) { save([...load(), t]); input.value = ''; }
-        window.RogueBusy && window.RogueBusy.clear(form);
-        updateMeter(full);
-        if (!input.disabled) input.focus(); else if (clearBtn) clearBtn.focus();
+        queue.push({ q, turn, g: gen });
+        work();
       });
 
       // Votes are sent in the background so the thread is not reloaded (rate-answer answers with a redirect).
@@ -263,7 +277,7 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
       });
 
       if (clearBtn) clearBtn.addEventListener('click', () => {
-        memory = [];
+        memory = []; queue.length = 0; stopped = false; gen++;
         thread.replaceChildren();
         clearBtn.hidden = true;
         if (location.search) history.replaceState(null, '', location.pathname);
