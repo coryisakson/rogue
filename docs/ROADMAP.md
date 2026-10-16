@@ -70,6 +70,18 @@ No harness bake-off. Nanobot (HKUDS, MIT) is the multi-agent orchestrator; use o
 - [ ] Exit test: given a game name, Scout + Librarian find permitted sources and propose cited facts; a human approves in the queue
 - Out of scope: multi-harness comparison, scoring report, extra Nanobot channels (chat apps, WebUI, cron, memory/dream), sandboxing beyond the container boundary.
 
+## Accessibility and design system (added 2026-10-16, Cory; unattended-friendly, see docs/adr/0003-design-system-and-accessibility.md)
+Target: Section 508 = WCAG 2.2 AA, plus an ACR/VPAT. Work these in order, one PR-sized item per session; none needs Cory except the sign-off at the end.
+- [ ] A1 Audit: run axe-core (and Lighthouse) against the live pages with a headless browser (home, games, game chat, facts, setup, aid, faq, login, account, request-game, about; admin pages via admin session). Save the report as docs/a11y/audit-<date>.md with counts by rule and a fix list. No fixes yet.
+- [ ] A2 Quick fixes on the current CSS: colour contrast 4.5:1 (text) / 3:1 (UI), visible focus rings, skip-to-content link, labels for every input and emoji button (vote buttons), `aria-live="polite"` for new chat answers, heading order, table headers/captions, `lang` per language, reduced-motion for spinners, 200% zoom/reflow at 320px. Add an automated axe check to scripts/qcheck.sh or CI so regressions fail.
+- [ ] A3 Design tokens: move colours/spacing/type into CSS variables (light + dark); keep class names (.btn, .card, .pill) working.
+- [ ] A4 Pilot shadcn/ui: add Tailwind + `@astrojs/react` + shadcn init in apps/web; port ONE widget (language switcher as an accessible Select) and the chat input/thread as islands; measure JS size and page speed; write the result into ADR 0003 (accept or fall back to Zag.js/Ark UI).
+- [ ] A5 Migrate pages to the design system one at a time (game page, facts, account, login, then admin); axe must stay clean after each.
+- [ ] A6 Print/sheet accessibility: setup sheet, player aid and cut-out sheet have text alternatives, logical reading order, and a high-contrast print option.
+- [ ] A7 Manual pass: keyboard-only walkthrough of every flow; NVDA + VoiceOver notes in docs/a11y/manual-<date>.md. Cory (or a tester) confirms screen-reader behaviour.
+- [ ] A8 Publish docs/a11y/ACR.md (VPAT 2.5 WCAG edition) from the audits; link from /about and the footer, plus an accessibility statement page and a feedback contact.
+- [ ] Acceptance: axe reports 0 serious/critical on all pages, keyboard-only works end to end, ACR published.
+
 ## Later phases (see plan §11)
 1 KB core · 1a Operator v0 · 1b Agent team on Nanobot · 2 Learning loop · 3 Setup sheets · 4 Game chat ·
 4b Rights/publisher program · 5 Public surfaces · 5b Ratings/organizers · 5c Admin/compliance · 6 MCP ·

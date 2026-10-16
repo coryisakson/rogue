@@ -10,6 +10,8 @@ Rulebook: AGENTS.md. Product principle: AI tasks -> Nanobot agents over MCP in b
 3. EXTRA SOURCES (Reddit+BGG ruled out, R29/R30; remaining: run Scout for publisher FAQ/errata on both games) within terms (Cory): publisher sites often have extra info and FAQs (Scout already finds FAQ/errata links; use it for both games). BGG and Reddit answers only if NO terms violation: read BGG_NOTES.md (BGG blocks automated reads; API needs a registered app token, no re-exposing data) and Reddit API terms/robots first, record verdicts in REVIEW_LOG.md, and add an APPROVALS entry before ingesting. Forum/Reddit content gets the lowest weight and is only quoted briefly with citation.
 4. Then: aid page shipped 0.0.94 (needs print test, card_size unset), Player Aid Agent (see BACKLOG), frontier judge (needs APPROVALS entry). Q&A-to-facts shipped (0 of 4 eligible).
 
+5. UNATTENDED BACKGROUND TRACK (Cory 2026-10-16): Accessibility + design system, ROADMAP section 'Accessibility and design system' A1-A8, ADR 0003 (shadcn/ui, WCAG 2.2 AA). Work these when no MVP item is pending or Cory is away; start at A1 (audit only).
+
 ## Done recently
 MinerU OCR 0.0.86-0.0.89 (docs/OCR.md); chart 0.0.4 api-server at http://75f353a31.cisakson.olares.local. Both games re-indexed.
 
