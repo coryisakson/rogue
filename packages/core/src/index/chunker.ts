@@ -47,7 +47,13 @@ const STOP = new Set('a an the of to in on for and or is are was be do does did 
 /** Conversational question -> OR query over content words (websearch_to_tsquery is AND-only and returns nothing for questions). */
 export function orQuery(q: string): string {
   const words = [...new Set(q.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 1 && !STOP.has(w)))];
-  return words.join(' | ');
+  return words.map(prefixForm).join(' | ');
+}
+
+/** The 'simple' search config does no stemming, so "retaining" would miss "retained". Long English words with a common ending become prefix terms ("retain:*"). */
+function prefixForm(w: string): string {
+  const m = /^([a-z]{4,})(ing|ed|es|s)$/.exec(w);
+  return m && m[1] ? `${m[1]}:*` : w;
 }
 
 

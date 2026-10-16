@@ -35,6 +35,7 @@ describe('chunker', () => {
     expect(orQuery("what's (a:b) & !c")).not.toMatch(/[():&!']/);
     expect(orQuery('ゲーム 準備')).toBe('ゲーム | 準備');
     expect(orQuery('the of a')).toBe('');
+    expect(orQuery('retaining exhausts')).toBe('retain:* | exhaust:*');
   });
 });
 
