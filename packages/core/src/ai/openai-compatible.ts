@@ -9,16 +9,19 @@ export interface OpenAiCompatibleOptions {
   defaultEmbedModel?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch; // injectable for tests
+  /** Send `reasoning_effort` when a request sets it (default true). Off for per-role overrides such as Anthropic's
+   *  OpenAI-compatible endpoint, which may reject the field. */
+  sendReasoning?: boolean;
 }
 
 /** The /chat/completions request body. Optional fields are left out entirely so endpoints that do not know them are not confused. */
-export function chatBody(req: ChatRequest, model: string): Record<string, unknown> {
+export function chatBody(req: ChatRequest, model: string, opts: { sendReasoning?: boolean } = {}): Record<string, unknown> {
   return {
     model,
     messages: req.messages,
     temperature: req.temperature ?? 0,
     ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
-    ...(req.reasoning !== undefined ? { reasoning_effort: req.reasoning } : {}),
+    ...(req.reasoning !== undefined && opts.sendReasoning !== false ? { reasoning_effort: req.reasoning } : {}),
   };
 }
 
@@ -46,7 +49,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
 
   async chat(req: ChatRequest): Promise<ChatResult> {
     const model = req.model ?? this.o.defaultChatModel ?? 'default-chat';
-    const j = await this.post('/chat/completions', chatBody(req, model));
+    const j = await this.post('/chat/completions', chatBody(req, model, { sendReasoning: this.o.sendReasoning ?? true }));
     const text = j?.choices?.[0]?.message?.content;
     if (typeof text !== 'string') throw new Error(`AI chat response missing choices[0].message.content: ${JSON.stringify(j).slice(0, 400)}`);
     return {

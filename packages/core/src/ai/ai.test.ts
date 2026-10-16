@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { OpenAiCompatibleProvider } from './openai-compatible.js';
+import { OpenAiCompatibleProvider, chatBody } from './openai-compatible.js';
+import { chatRoles, loadAiRole } from './roles.js';
 
 function fakeFetch(handler: (url: string, body: any) => unknown, status = 200): typeof fetch {
   return (async (url: string, init: RequestInit) =>
@@ -49,5 +50,42 @@ describe('OpenAiCompatibleProvider', () => {
   it('throws a readable error on HTTP failure', async () => {
     const p = new OpenAiCompatibleProvider({ baseUrl: 'http://router/v1', fetchImpl: fakeFetch(() => ({ error: 'x' }), 503) });
     await expect(p.chat({ messages: [] })).rejects.toThrow(/HTTP 503/);
+  });
+});
+
+describe('per-role AI endpoints', () => {
+  const env = {
+    ROGUE_AI_BASE_URL: 'http://router/v1', ROGUE_AI_API_KEY: 'local-key', ROGUE_AI_CHAT_MODEL: 'Olares/gemma4:e4b',
+    ROGUE_AI_MULTI_BASE_URL: 'https://api.anthropic.com/v1', ROGUE_AI_MULTI_API_KEY: 'test-key', ROGUE_AI_MULTI_MODEL: 'claude-test',
+  };
+
+  it('falls back to the default endpoint unless the role has its own base URL', () => {
+    expect(loadAiRole(env, 'chat')).toEqual({ baseUrl: 'http://router/v1', apiKey: 'local-key', model: 'Olares/gemma4:e4b', overridden: false });
+    expect(loadAiRole({ ...env, ROGUE_AI_TRANSLATE_MODEL: 'small' }, 'translate')).toMatchObject({ baseUrl: 'http://router/v1', model: 'small', overridden: false });
+    expect(loadAiRole(env, 'chat_multilingual')).toEqual({ baseUrl: 'https://api.anthropic.com/v1', apiKey: 'test-key', model: 'claude-test', overridden: true });
+  });
+
+  it('never sends the default key to an overridden endpoint', () => {
+    expect(loadAiRole({ ...env, ROGUE_AI_MULTI_API_KEY: undefined }, 'chat_multilingual').apiKey).toBeNull();
+  });
+
+  it('request body: an overridden role gets no reasoning_effort, the default provider still does', async () => {
+    const bodies: any[] = [];
+    const fetchImpl = fakeFetch((_url, body) => { bodies.push(body); return { choices: [{ message: { content: 'ok' } }] }; });
+    const multi = loadAiRole(env, 'chat_multilingual');
+    const over = new OpenAiCompatibleProvider({ baseUrl: multi.baseUrl!, defaultChatModel: multi.model, sendReasoning: !multi.overridden, fetchImpl });
+    const local = new OpenAiCompatibleProvider({ baseUrl: 'http://router/v1', defaultChatModel: 'Olares/gemma4:e4b', fetchImpl });
+    await over.chat({ messages: [{ role: 'user', content: 'hallo' }], reasoning: 'low', maxTokens: 700 });
+    await local.chat({ messages: [{ role: 'user', content: 'hi' }], reasoning: 'low' });
+    expect(bodies[0]).toEqual({ model: 'claude-test', messages: [{ role: 'user', content: 'hallo' }], temperature: 0, max_tokens: 700 });
+    expect(bodies[1]).toMatchObject({ reasoning_effort: 'low' });
+    expect(chatBody({ messages: [], reasoning: 'none' }, 'm', { sendReasoning: false })).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('routes multilingual asks to the multilingual override only when it is configured', () => {
+    expect(chatRoles({ userLang: 'de', translating: true, multiConfigured: true })).toEqual({ rewrite: 'chat_multilingual', answer: 'chat_multilingual' });
+    expect(chatRoles({ userLang: 'en', translating: true, multiConfigured: true })).toEqual({ rewrite: 'chat_multilingual', answer: 'chat_multilingual' });
+    expect(chatRoles({ userLang: 'en', translating: false, multiConfigured: true })).toEqual({ rewrite: 'chat', answer: 'chat' });
+    expect(chatRoles({ userLang: 'de', translating: true, multiConfigured: false })).toEqual({ rewrite: 'translate', answer: 'chat' });
   });
 });

@@ -1,3 +1,5 @@
+import { loadAiRoles, type AiEndpoint, type AiRole } from './ai/roles.js';
+
 /**
  * Instance profile (see design plan section 7f). Phase 0 only defines the shape and EU defaults.
  * Everything instance-specific (name, domain, region, policy pack) lives here, never hard-coded elsewhere.
@@ -39,6 +41,8 @@ export interface ServiceConfig {
   aiAnswerReasoning: 'none' | 'low' | 'default';
   /** Rules-chat questions per signed-in user per day (ROGUE_CHAT_DAILY_LIMIT); admins are exempt. */
   chatDailyLimit: number;
+  /** Per-role chat endpoints (ROGUE_AI_CHAT_* / ROGUE_AI_TRANSLATE_* / ROGUE_AI_MULTI_*), each falling back to the default. */
+  aiRoles: Record<AiRole, AiEndpoint>;
 }
 
 export function loadServices(env: Record<string, string | undefined> = {}): ServiceConfig {
@@ -52,6 +56,7 @@ export function loadServices(env: Record<string, string | undefined> = {}): Serv
     aiEmbedModel: env['ROGUE_AI_EMBED_MODEL'] || 'default-embedding',
     aiAnswerReasoning: parseReasoning(env['ROGUE_AI_ANSWER_REASONING']),
     chatDailyLimit: positiveInt(env['ROGUE_CHAT_DAILY_LIMIT'], 60),
+    aiRoles: loadAiRoles(env),
   };
 }
 
