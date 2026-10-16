@@ -22,6 +22,7 @@ export * from './ocr/index.js';
 export * from './qr/index.js';
 export * from './addgame/index.js';
 export * from './faq.js';
+export * from './faq-curate.js';
 export * from './scout/index.js';
 export * from './scout/judge.js';
 export * from './intake/index.js';

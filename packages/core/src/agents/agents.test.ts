@@ -55,4 +55,15 @@ describe('agent jobs', () => {
     expect(agentMayActOn('scout', { kind: 'scout_judge', status: 'queued' })).toBe(false);
     expect(agentMayActOn('terms-agent', { kind: 'scout_judge', status: 'running' })).toBe(false);
   });
+  it('gives faq_curate jobs only to the faq-curator, on its own port', () => {
+    expect(JOB_KINDS).toContain('faq_curate');
+    expect(JOB_AGENT.faq_curate).toBe('faq-curator');
+    expect(JOB_MINUTES.faq_curate).toBe(25);
+    expect(AGENT_PORTS['faq-curator']).toBe(8905);
+    expect(verifyAgentHeader(`faq-curator:${agentToken('k', 'faq-curator')}`, 'k')).toBe('faq-curator');
+    expect(agentMayActOn('faq-curator', { kind: 'faq_curate', status: 'running' })).toBe(true);
+    expect(agentMayActOn('faq-curator', { kind: 'faq_curate', status: 'queued' })).toBe(false);
+    expect(agentMayActOn('faq-curator', { kind: 'scout_judge', status: 'running' })).toBe(false);
+    expect(agentMayActOn('scout', { kind: 'faq_curate', status: 'running' })).toBe(false);
+  });
 });
