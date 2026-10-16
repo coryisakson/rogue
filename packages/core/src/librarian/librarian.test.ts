@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDrafts, parseVerdict, quoteOnPage } from './librarian.js';
+import { parseDrafts, parseVerdict, quoteOnPage, screenDraft, toDraft } from './librarian.js';
 
 describe('librarian helpers', () => {
   it('quoteOnPage ignores case, whitespace and curly quotes but not content', () => {
@@ -24,5 +24,20 @@ describe('librarian helpers', () => {
     expect(parseVerdict('NOT_SUPPORTED')).toBe(false);
     expect(parseVerdict('Not supported because')).toBe(false);
     expect(parseVerdict('maybe')).toBe(false);
+  });
+  it('toDraft explains what is wrong with a proposed claim', () => {
+    expect(toDraft({ topic: 'setup', body: 'Each player starts with three cards.', quote: 'three cards each', player_count: '3' })).toMatchObject({ playerCount: 3 });
+    expect(toDraft({ topic: 'setup', body: 'Each player starts with three cards.', quote: 'three cards each', player_count: null })).toMatchObject({ playerCount: null });
+    expect(toDraft({ topic: 'bogus', body: 'Each player starts with three cards.', quote: 'q' })).toMatch(/topic/);
+    expect(toDraft({ topic: 'setup', body: 'short', quote: 'q' })).toMatch(/body/);
+    expect(toDraft({ topic: 'setup', body: 'Each player starts with three cards.', quote: ' ' })).toMatch(/quote/);
+    expect(toDraft(null)).toBe('not an object');
+  });
+  it('screenDraft applies the verbatim and duplicate gates', () => {
+    const page = 'Setup. Players start with three cards each and draw two per turn.';
+    const d = { topic: 'setup' as const, playerCount: null, body: 'Each player begins holding three cards.', quote: 'Players start with three cards each' };
+    expect(screenDraft(d, page, new Set())).toBeNull();
+    expect(screenDraft({ ...d, quote: 'Players start with four cards each' }, page, new Set())).toMatch(/verbatim/);
+    expect(screenDraft(d, page, new Set([d.quote.toLowerCase()]))).toMatch(/already covered/);
   });
 });

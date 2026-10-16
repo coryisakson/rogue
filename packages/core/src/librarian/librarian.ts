@@ -21,16 +21,35 @@ export function parseDrafts(reply: string): DraftClaim[] {
   try { raw = JSON.parse(m[0]); } catch { return []; }
   if (!Array.isArray(raw)) return [];
   const out: DraftClaim[] = [];
-  for (const r of raw as Record<string, unknown>[]) {
-    const topic = String(r['topic'] ?? '');
-    const body = String(r['body'] ?? '').trim();
-    const quote = String(r['quote'] ?? '').trim();
-    if (!(TOPICS as readonly string[]).includes(topic) || body.length < 15 || body.length > 600 || !quote) continue;
-    const pc = Number(r['player_count']);
-    out.push({ topic: topic as Topic, playerCount: Number.isInteger(pc) && pc >= 1 && pc <= 12 ? pc : null, body, quote });
-  }
+  for (const r of raw as Record<string, unknown>[]) { const d = toDraft(r); if (typeof d !== 'string') out.push(d); }
   return out;
 }
+
+/** Check and normalise one proposed claim (from a model reply or an agent tool call). Returns the claim or why it is malformed. */
+export function toDraft(r: Record<string, unknown> | null | undefined): DraftClaim | string {
+  if (!r || typeof r !== 'object') return 'not an object';
+  const topic = String(r['topic'] ?? '');
+  const body = String(r['body'] ?? '').trim();
+  const quote = String(r['quote'] ?? '').trim();
+  if (!(TOPICS as readonly string[]).includes(topic)) return `topic must be one of: ${TOPICS.join(', ')}`;
+  if (body.length < 15 || body.length > 600) return 'body must be 15 to 600 characters';
+  if (!quote) return 'quote is missing';
+  const pc = Number(r['player_count']);
+  return { topic: topic as Topic, playerCount: Number.isInteger(pc) && pc >= 1 && pc <= 12 ? pc : null, body, quote };
+}
+
+/**
+ * The code gates every claim passes before the verifier model sees it: the quote must be verbatim on the cited page and
+ * must not already back another claim of the same edition. `known` holds lower-cased quotes already cited. Null = passes.
+ */
+export function screenDraft(d: DraftClaim, pageText: string, known: ReadonlySet<string>): string | null {
+  if (!quoteOnPage(d.quote, pageText)) return 'quote not verbatim on the page';
+  if (known.has(d.quote.toLowerCase())) return 'already covered (quote is cited by another claim)';
+  return null;
+}
+
+/** Pages shorter than this are covers, credits or art and are not worth drafting from. */
+export const MIN_DRAFT_PAGE_CHARS = 200;
 
 /** Verifier reply must start with SUPPORTED; anything else (including garbage) counts as not supported. */
 export function parseVerdict(reply: string): boolean {

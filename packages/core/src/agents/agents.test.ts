@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agentApiKey, agentToken, verifyAgentHeader } from './index.js';
+import { AGENT_NAMES, AGENT_PORTS, JOB_AGENT, JOB_KINDS, JOB_MINUTES, agentApiKey, agentMayActOn, agentToken, verifyAgentHeader } from './index.js';
 
 describe('agent identity', () => {
   it('derives distinct, stable secrets per agent', () => {
@@ -16,5 +16,27 @@ describe('agent identity', () => {
     expect(verifyAgentHeader('nobody:abc', 'k')).toBeNull();
     expect(verifyAgentHeader(null, 'k')).toBeNull();
     expect(verifyAgentHeader(ok, null)).toBeNull();
+  });
+  it('accepts the librarian header and keeps ports unique', () => {
+    expect(verifyAgentHeader(`librarian:${agentToken('k', 'librarian')}`, 'k')).toBe('librarian');
+    expect(AGENT_PORTS.librarian).toBe(8903);
+    expect(new Set(AGENT_NAMES.map((n) => AGENT_PORTS[n])).size).toBe(AGENT_NAMES.length);
+  });
+});
+
+describe('agent jobs', () => {
+  it('maps every job kind to a known agent with a time budget', () => {
+    expect(JOB_AGENT.librarian_draft).toBe('librarian');
+    for (const k of JOB_KINDS) { expect(AGENT_NAMES).toContain(JOB_AGENT[k]); expect(JOB_MINUTES[k]).toBeGreaterThan(0); }
+    expect(JOB_MINUTES.librarian_draft).toBeGreaterThan(JOB_MINUTES.scout_variants);
+  });
+  it('refuses tool calls on jobs that are not running or belong to another agent', () => {
+    expect(agentMayActOn('librarian', { kind: 'librarian_draft', status: 'running' })).toBe(true);
+    expect(agentMayActOn('librarian', { kind: 'librarian_draft', status: 'queued' })).toBe(false);
+    expect(agentMayActOn('librarian', { kind: 'librarian_draft', status: 'done' })).toBe(false);
+    expect(agentMayActOn('scout', { kind: 'librarian_draft', status: 'running' })).toBe(false);
+    expect(agentMayActOn('librarian', { kind: 'scout_variants', status: 'running' })).toBe(false);
+    expect(agentMayActOn('librarian', { kind: 'unknown', status: 'running' })).toBe(false);
+    expect(agentMayActOn('librarian', null)).toBe(false);
   });
 });
