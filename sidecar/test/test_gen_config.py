@@ -25,7 +25,7 @@ def test_specs_and_tools():
     assert specs["quality-curator"]["tools"] == ["get_job", "get_page_text", "reocr_page",
         "propose_page_repair", "mark_page_unusable", "finish_job"]
     assert specs["scout"]["port"] == 8902
-    assert specs["scout"]["tools"] == ["get_job", "preview_url", "propose_text_variant", "finish_job"]
+    assert specs["scout"]["tools"] == ["get_job", "preview_url", "propose_text_variant", "propose_source", "finish_job"]
     assert specs["librarian"]["port"] == 8903
     assert specs["librarian"]["tools"] == ["get_job", "get_page_text", "propose_claim", "finish_job"]
     assert specs["terms-agent"]["port"] == 8904

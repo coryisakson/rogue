@@ -11,7 +11,10 @@ Container `cisakson/rogue-agents` (python:3.12-slim + pinned `nanobot-ai[api]==0
 ## Tool contract
 Agents see only the MCP server `rogue` at `${ROGUE_MCP_URL}/<agent>` (stateless streamable HTTP: POST JSON-RPC, 405 on GET) with header `x-rogue-agent: <name>:<token>`; `enabledTools` is the spec's `tools` list.
 - quality-curator (8901): get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job
-- scout (8902): get_job, preview_url, propose_text_variant, finish_job
+- scout (8902): get_job, preview_url, propose_text_variant, propose_source, finish_job. Two job kinds: `scout_variants` (one PDF source:
+  propose a text version; overlap and host gates in code) and `scout_judge` (one game request, `agent_jobs.request_id`: propose which
+  publisher-page links are the official rulebook/faq/errata). `judgeSourcePick` decides each proposal (listed or same publisher site,
+  robots, approved host, else needs_human); picks land in `agent_jobs.result.picks` and the request's scout report. Nothing is ingested.
 - librarian (8903): get_job, get_page_text, propose_claim, finish_job. Job kind `librarian_draft` (one rulebook source). propose_claim runs
   the same gates as the in-process Librarian (verbatim quote, duplicate quote, verifier model) and publishes with a citation; counts
   drafted/published/rejected and lastPage in `agent_jobs.result`. Budget: 400 tool iterations, API timeout 10800s, toolTimeout 180s.
