@@ -66,4 +66,4 @@ The manual find-and-retrieve work done while building Rogue (search, read publis
 - Anything that touches 3 or more files, or a self-contained subsystem, goes to a worker: `scripts/new-worker.sh <slug>`, fill TASK.md, `scripts/run-worker.sh <slug>` (background), then `scripts/merge-branch.sh cc/<slug>`. The orchestrator reads only the worker's short report and `git diff --stat`, never the full diff unless something looks wrong.
 
 ## Content-quality validation (Cory 2026-10-16)
-OCR/page-text quality work AND Ask evals / KB quality checks are ENABLED again (Cory re-enabled them after the MinerU OCR switch, 0.0.87). Code quality always applies: tests, strict types and `scripts/qcheck.sh` CHECK OK for every change.
+OCR/page-text quality work AND Ask evals / KB quality checks are ENABLED again (Cory re-enabled them after the MinerU OCR switch, 0.0.88). Code quality always applies: tests, strict types and `scripts/qcheck.sh` CHECK OK for every change.
