@@ -14,6 +14,7 @@ export * from './chat/index.js';
 export * from './auth/index.js';
 export * from './digest';
 export * from './sheet/index.js';
+export * from './aid/index.js';
 export * from './ratings.js';
 export * from './i18n/index.js';
 export * from './review.js';
