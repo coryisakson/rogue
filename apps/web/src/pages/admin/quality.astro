@@ -1,12 +1,13 @@
 ---
 import Admin from '../../layouts/Admin.astro';
 import { getPool, ensureMigrated } from '../../lib/services';
+import { sourceWeight } from '@rogue/core';
 import { agentsEnabled } from '../../lib/agent-jobs';
 await ensureMigrated();
 const pool = getPool();
 const q = async (sql: string) => (pool ? (await pool.query(sql)).rows : []);
 const JOB_LABEL: Record<string, string> = { quality_curate: 'Quality Curator', scout_variants: 'Scout (text versions)', librarian_draft: 'Librarian', terms_judge: 'Terms Agent' };
-const sources = await q(`SELECT s.id, s.title, s.content_type, count(*)::int pages,
+const sources = await q(`SELECT s.id, s.title, s.content_type, s.authority, (SELECT d.kind FROM documents d WHERE d.source_id=s.id LIMIT 1) kind, count(*)::int pages,
     count(*) FILTER (WHERE pq.verdict='ok')::int ok, count(*) FILTER (WHERE pq.verdict IN ('suspect','garbled'))::int weak,
     count(*) FILTER (WHERE pq.state='repaired')::int repaired, count(*) FILTER (WHERE pq.state='unusable')::int unusable,
     count(*) FILTER (WHERE pq.state='reviewed')::int reviewed, round(avg(pq.score)::numeric,2) avg
@@ -38,7 +39,7 @@ const waiting = variants.filter((v) => v.status === 'needs_human');
   <div style="display:grid;gap:.5rem">
     {sources.map((s) => (
       <div class="card">
-        <b>{s.title}</b> <span class="pill">{String(s.content_type).split(';')[0]}</span>
+        <b>{s.title}</b> <span class="pill">{String(s.content_type).split(';')[0]}</span> <span class="pill" title="Retrieval weight: rulebook highest, then publisher/author clarifications, then everything else">weight {sourceWeight(s.kind, s.authority).toFixed(2)} ({s.kind ?? 'other'}, {s.authority ?? 'other'})</span>
         <div><small>{s.pages} pages · average score {s.avg} · {s.ok} clean · {s.weak} weak · {s.repaired} repaired · {s.reviewed} reviewed, kept · {s.unusable} left out</small></div>
       </div>
     ))}

@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { sourceWeight } from './authority.js';
 import { rrf } from './chunker.js';
 describe('authority', () => {
-  it('orders errata > faq > rulebook > product page, publisher > community', () => {
+  it('orders rulebook > errata > faq > everything else, publisher > community', () => {
     const w = (k: string, a = 'publisher') => sourceWeight(k, a);
+    expect(w('rulebook')).toBeGreaterThan(w('errata'));
     expect(w('errata')).toBeGreaterThan(w('faq'));
-    expect(w('faq')).toBeGreaterThan(w('rulebook'));
-    expect(w('rulebook')).toBeGreaterThan(w('other'));
+    expect(w('faq')).toBeGreaterThan(w('quickstart'));
+    expect(w('faq')).toBeGreaterThan(w('article'));
+    expect(w('faq')).toBeGreaterThan(w('forum_post', 'forum'));
+    expect(w('faq')).toBeGreaterThan(w('other'));
     expect(w('rulebook')).toBeGreaterThan(w('rulebook', 'community'));
     expect(w('rulebook', 'community')).toBeGreaterThan(w('rulebook', 'forum'));
   });
