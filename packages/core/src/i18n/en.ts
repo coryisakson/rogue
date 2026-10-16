@@ -1,0 +1,120 @@
+/**
+ * English: the source dictionary. Every other language must have every key here (i18n.test.ts fails otherwise).
+ * `{name}` placeholders are filled by t(locale, key, { name }). Keep HTML out of strings: pages put links around them.
+ */
+export const en = {
+  // Layout: nav, footer, language switcher
+  'nav.games': 'Games', 'nav.about': 'About', 'nav.admin': 'Admin', 'nav.signin': 'Sign in', 'nav.signout': 'Sign out',
+  'footer.preview': 'MVP preview · AI-drafted from publisher rulebooks, always check the source',
+  'footer.how': 'how this works',
+  'lang.label': 'Language', 'lang.change': 'Change',
+
+  // Shared bits
+  'common.players': '{min}–{max} players',
+  'common.back': '← {name}',
+  'common.sources': 'Sources:',
+  'common.edition': 'edition: {edition}',
+
+  // Home page
+  'home.title': 'Rules, cited',
+  'home.h1': 'Setup it fast. Rules, cited.',
+  'home.intro': "Rogue is an open, rights-aware tabletop knowledge base. Every statement points back to the publisher's own rulebook, and each game gets a one-page setup sheet you can print.",
+  'home.ready': 'Ready now', 'home.facts': '{n} cited facts', 'home.soon': 'Coming soon',
+
+  // Games list
+  'games.title': 'Games', 'games.search': 'Search games', 'games.placeholder': 'Type a game name…',
+  'games.popular': 'Popular games', 'games.ready': 'ready to ask', 'games.noSources': 'no sources ingested yet',
+  'games.matchOne': '{n} game matches', 'games.matchMany': '{n} games match',
+  'games.missing': "We don't have {term} yet.", 'games.wantIt': 'Do you want it added?', 'games.requestThis': 'Request this game',
+  'games.requestNote': "(sign in; an agent looks for the publisher's rules and an admin only steps in if needed).",
+  'games.missingFoot': 'Missing a game?', 'games.requestIt': 'Request it',
+
+  // Game page
+  'game.setup': 'Setup one-pager', 'game.aid': 'Player aid', 'game.faq': 'Common questions',
+  'game.linksTitle': 'Companion app and links',
+  'game.linksNote': "QR codes printed in the publisher's rulebook. We only list the link; check the address before you open it.",
+  'game.communityTitle': 'More community discussion', 'game.bggForums': 'BoardGameGeek forums ↗',
+  'game.reddit': 'Search Reddit for rules discussion ↗', 'game.communityNote': 'We do not read or copy these sites; links only.',
+  'game.noSourcesTitle': 'No sources yet.',
+  'game.noSourcesBody': 'We have not ingested an official source for this game. If you are the publisher, you can',
+  'game.contactUs': 'contact us', 'game.noSourcesEnd': 'to authorise one.',
+  'game.sourcesTitle': 'Sources', 'game.unavailable': 'no longer available',
+  'game.rightsNote': "We link to the publisher's file and quote only short passages. We do not host rulebooks. Rules chat needs a free sign-in (GitHub, Google or Discord).",
+  'game.factBase': 'Browse the fact base',
+
+  // Rules chat (game page, client script and /api/ask)
+  'chat.placeholder': 'Ask anything about {game}…', 'chat.ask': 'Ask',
+  'chat.newConversation': 'New conversation', 'chat.startNew': 'Start new conversation',
+  'chat.citesNote': "Every answer cites the publisher's rulebook page.",
+  'chat.signInTitle': 'Sign in to ask the rules assistant.',
+  'chat.signInBody': 'It uses AI compute, so it is for signed-in players. Setup sheets stay open to everyone.',
+  'chat.aiNote': 'AI answer from the publisher rulebook, can be wrong', 'chat.check': 'check', 'chat.quote': 'Quote',
+  'chat.helpfulQ': 'Was this helpful?', 'chat.helpful': '👍 Helpful', 'chat.notHelpful': '👎 Not helpful',
+  'chat.voteSaved': 'Thanks, vote saved.', 'chat.voteTooMany': 'Too many votes, slow down.', 'chat.voteFailed': 'Could not save the vote.',
+  'chat.thinking': 'Looking it up in the rulebook…',
+  'chat.meter': 'Turn {n} of {max}',
+  'chat.meterWarn': 'Turn {n} of {max}. Nearly full: answers stay most accurate in a fresh conversation.',
+  'chat.meterFull': 'Turn {n} of {max}. This conversation is full; start a new one to keep asking.',
+  'chat.fullError': 'This conversation is full. Start a new one to keep asking.',
+  'chat.genericError': 'Something went wrong. Please try again.',
+  'chat.offline': 'Could not reach the rules assistant. Check your connection and try again.',
+  'chat.busy': 'The rules assistant is busy or offline. Please try again in a minute.',
+  'chat.tooMany': 'Too many questions; try again in a minute.',
+  'chat.tooShort': 'Ask a question of at least 3 characters.',
+  'chat.unknownGame': 'Unknown game.',
+  'chat.limitThread': 'This conversation is getting long. Start a new one to keep answers accurate.',
+  'chat.limitDaily': 'You have asked {n} questions today, the daily limit. It resets at midnight (UTC); thanks for your patience.',
+  'chat.notFound': 'I could not find anything about this in the indexed rulebook for this game.',
+  'chat.badCites': 'The answer cites page(s) {pages} that were not in the retrieved excerpts. Check the rulebook.',
+
+  // Sign-in and account
+  'login.intro': 'Sign in to ask the rules assistant and (soon) rate answers and add games. Reading facts and setup sheets never needs an account.',
+  'login.failed': 'sign-in failed', 'login.tryAgain': 'Please try again.',
+  'login.signedInAs': 'You are signed in as {name}.', 'login.continue': 'Continue',
+  'login.notConfigured': 'not configured', 'login.noProviders': 'No sign-in providers are set up on this instance yet.',
+  'login.continueWith': 'Continue with {provider}',
+  'login.privacy': "We store only your provider's user id, display name and avatar. No email, no password.",
+  'account.title': 'Your account', 'account.signedInVia': 'Signed in as {name} via {provider}.',
+  'account.stored': 'We store your provider user id, display name, avatar, your language choice, your active sessions, your fact ratings and, if you link Discord, your thumbs up/down on Discord answers (never the question text). Nothing else.',
+  'account.merged': 'accounts merged', 'account.already': 'already linked', 'account.linked': 'linked',
+  'account.languageTitle': 'Language',
+  'account.languageBody': "Pages and rules-chat answers use this language. Quotes from rulebooks stay in the rulebook's language.",
+  'account.languageSaved': 'Language saved.',
+  'account.methods': 'Sign-in methods',
+  'account.discordNote': 'Linking Discord ties the 👍/👎 you give to bot answers in Discord to this account, so deleting the account deletes them too.',
+  'account.sameAccount': 'All of these open this same account.', 'account.linkIt': 'link it',
+  'account.deleteTitle': 'Delete my account',
+  'account.deleteBody': 'This permanently removes your account, sessions and all your ratings. It cannot be undone.',
+  'account.deleteConfirm': 'Yes, delete my account and ratings', 'account.deleteButton': 'Delete everything',
+
+  // Setup one-pager chrome
+  'sheet.title': '{game} setup', 'sheet.heading': '{game} · Setup', 'sheet.players': 'Players:', 'sheet.all': 'all',
+  'sheet.print': 'Print (half-letter, 1 page)', 'sheet.byPlayers': 'Changes by player count',
+  'sheet.thPlayers': 'Players', 'sheet.thChanges': 'What changes',
+  'sheet.noVariants': 'No player-count changes recorded for this game.',
+  'sheet.foot': "Written by AI from the publisher's rulebook, each line quote-checked against the cited page; the rulebook is authoritative. Not affiliated with the publisher. Rogue v0 · open source.",
+  'sheet.none': 'No cited setup facts for this game yet.',
+
+  // Player aid chrome
+  'aid.title': '{game} player aid', 'aid.cardTitle': '{game} · Player aid', 'aid.size': 'Size:',
+  'aid.oneCard': 'one card', 'aid.cutSheet': 'cut-out sheet ({n} per letter page)',
+  'aid.print': 'Print ({what})', 'aid.printSheet': 'letter, {n} cards',
+  'aid.omittedOne': '{n} more rule not shown; see the rulebook.', 'aid.omittedMany': '{n} more rules not shown; see the rulebook.',
+  'aid.foot': "AI summary of the publisher's rulebook, each line cited; the rulebook is authoritative. Not affiliated with the publisher. Rogue · open source.",
+  'aid.none': 'No cited turn facts for this game yet.',
+
+  // FAQ page
+  'faq.title': '{game} FAQ', 'faq.h1': '{game}: frequently asked questions', 'faq.askOwn': 'Ask your own question',
+  'faq.note': "Questions players asked the rules assistant that most voters found helpful. Answers are AI-written from the publisher's rulebook and can be wrong; check the page cited.",
+  'faq.empty': 'No FAQ yet. A question appears here after at least 3 players have rated its answer and most found it helpful.',
+  'faq.helpful': '{up} of {total} found this helpful',
+
+  // Fact base page
+  'facts.title': 'Fact base: {game}',
+  'facts.note': 'The cited facts behind our answers and one-pagers ({n}). Each one names its source and page.',
+  'facts.filterPlaceholder': 'Admin: filter facts…', 'facts.filter': 'Filter',
+  'facts.emptyTitle': 'No cited facts yet.', 'facts.emptyBody': 'We have not ingested an official source for this game.',
+  'facts.players': '{n} players', 'facts.source': 'Source:', 'facts.unavailable': 'source no longer available',
+  'facts.human': 'Human-reviewed', 'facts.ai': 'AI-verified', 'facts.rate': 'Rate this fact:', 'facts.signInToRate': 'Sign in to rate',
+  'facts.starOne': '1 star', 'facts.starMany': '{n} stars',
+} as const;
