@@ -41,7 +41,7 @@ export async function enqueueJob(kind: JobKind, sourceId: number): Promise<numbe
   return r.rowCount ? Number(r.rows[0].id) : null;
 }
 
-/** Queue a job on a game request (terms_judge) unless one is already open for it. */
+/** Queue a job on a game request (terms_judge, scout_judge) unless one is already open for it. */
 export async function enqueueRequestJob(kind: JobKind, requestId: number): Promise<number | null> {
   const pool = getPool(); if (!pool) return null;
   await ensureMigrated();
@@ -137,8 +137,8 @@ export async function runNextJob(): Promise<boolean> {
       const giveUp = job.attempts >= (unreachable ? 8 : 2);
       await pool.query("UPDATE agent_jobs SET status=$2, error=$3, not_before=now() + ($4 || ' minutes')::interval, finished_at=CASE WHEN $2='failed' THEN now() END WHERE id=$1 AND status='running'", [job.id, giveUp ? 'failed' : 'queued', msg.slice(0, 500), unreachable ? '10' : '3']);
       await audit(`agent:${agent}`, 'job_error', { id: job.id, error: msg.slice(0, 300) });
-      // A failed terms job must still reach a human, or the game request would wait forever.
-      if (giveUp && job.kind === 'terms_judge') await afterJob(job.kind, Number(job.id)).catch((e) => console.warn('[agents] afterJob failed:', (e as Error).message));
+      // A failed terms job must still reach a human, or the game request would wait forever; a failed scout job notes the fallback.
+      if (giveUp && (job.kind === 'terms_judge' || job.kind === 'scout_judge')) await afterJob(job.kind, Number(job.id)).catch((e) => console.warn('[agents] afterJob failed:', (e as Error).message));
       return true;
     }
     // The agent finished talking. If it never called finish_job, the work it did is kept but a human is told.
@@ -159,6 +159,7 @@ export async function runNextJob(): Promise<boolean> {
 /**
  * After a quality job changed page text, rebuild that source's chunks so search sees the better text.
  * After a terms job, code turns the agent's labels into the verdict and settles the game request.
+ * After a scout judgement job, the gated picks are written into the request's scout report.
  */
 async function afterJob(kind: JobKind, jobId: number): Promise<void> {
   const pool = getPool(); if (!pool) return;
@@ -167,6 +168,13 @@ async function afterJob(kind: JobKind, jobId: number): Promise<void> {
     if (!j?.request_id) return;
     const { afterTermsJudged } = await import('./add-game'); // add-game imports this module; load it lazily
     await afterTermsJudged(Number(j.request_id), { id: Number(j.id), status: j.status, result: j.result ?? {} });
+    return;
+  }
+  if (kind === 'scout_judge') {
+    const j = (await pool.query('SELECT id, status, request_id, result FROM agent_jobs WHERE id=$1', [jobId])).rows[0];
+    if (!j?.request_id) return;
+    const { applyScoutJudgement } = await import('./scout'); // scout imports this module; load it lazily
+    await applyScoutJudgement(Number(j.request_id), { id: Number(j.id), status: j.status, result: j.result ?? {} });
     return;
   }
   if (kind !== 'quality_curate') return;

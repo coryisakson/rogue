@@ -1,8 +1,9 @@
 import { lookup } from 'node:dns/promises';
 import {
   RightsGatedFetcher, extractLinks, findTermsLink, flagTerms, hostProblem, isPrivateAddress, rankCandidates,
-  extractHtmlSections, type DocCandidate, type PageLink, type TermsFlag,
+  extractHtmlSections, latestPicks, scoutJudgementNotes, type DocCandidate, type PageLink, type SourcePick, type TermsFlag,
 } from '@rogue/core';
+import { agentsEnabled, enqueueRequestJob } from './agent-jobs';
 import { getPool } from './services';
 
 export interface ScoutReport {
@@ -12,6 +13,8 @@ export interface ScoutReport {
   termsUrl: string | null;
   termsFlags: TermsFlag[];
   notes: string[];
+  /** The Nanobot Scout's judgement of the candidates (scout_judge job), once it ended. Absent when agents are off. */
+  agent?: { jobId: number; status: string; picks: SourcePick[] };
 }
 
 /** Public https host, no internal names, and every resolved address is public (same guard as the add-game flow). */
@@ -78,7 +81,33 @@ export async function scoutRequest(id: number): Promise<ScoutReport | null> {
   if (links.length && !listed) report.notes.push('The requested rulebook link is not among the links on that page.');
   await pool.query('UPDATE game_requests SET scout=$2 WHERE id=$1', [id, report]);
   await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['scout', 'game_request_scouted', { id, page: r.found_on, candidates: report.candidates.length, termsFlags: report.termsFlags.length }]);
+  // The code ranking above is the fallback. With agents on, the Nanobot Scout judges which candidates are THIS game's official
+  // rulebook, FAQ or errata (ADR 0002). Callers do not wait (an admin form calls this): the job id goes on the report for anyone
+  // polling the job row, and the worker merges the gated picks when the job ends (applyScoutJudgement).
+  if (report.candidates.length && agentsEnabled()) {
+    const jobId = await enqueueRequestJob('scout_judge', id);
+    if (jobId !== null) {
+      report.agent = { jobId, status: 'queued', picks: [] };
+      await pool.query('UPDATE game_requests SET scout=$2 WHERE id=$1', [id, report]);
+    }
+  }
   return report;
+}
+
+/**
+ * Called by the agent worker when a scout_judge job ended (done, needs_human or failed). The picks were already decided by
+ * judgeSourcePick when the agent proposed them; this only writes them and plain notes into the scout report.
+ */
+export async function applyScoutJudgement(requestId: number, job: { id: number; status: string; result: Record<string, unknown> }): Promise<void> {
+  const pool = getPool(); if (!pool) return;
+  const r = (await pool.query('SELECT scout, rulebook_url FROM game_requests WHERE id=$1', [requestId])).rows[0];
+  if (!r?.scout) return;
+  const report = r.scout as ScoutReport;
+  const picks = latestPicks(Array.isArray(job.result['picks']) ? (job.result['picks'] as SourcePick[]) : []);
+  report.agent = { jobId: job.id, status: job.status, picks };
+  report.notes = report.notes.filter((n) => !n.startsWith('The Scout agent') && !n.startsWith('Scout agent:')).concat(scoutJudgementNotes(picks, job.status, r.rulebook_url ?? null));
+  await pool.query('UPDATE game_requests SET scout=$2 WHERE id=$1', [requestId, report]);
+  await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['scout', 'game_request_scout_judged', { id: requestId, job: job.id, status: job.status, picks: picks.map((p) => `${p.role}:${p.status}`) }]);
 }
 
 /**
