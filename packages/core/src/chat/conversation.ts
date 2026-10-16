@@ -1,5 +1,6 @@
 /** Pure helpers that turn the game-page chat into a conversation: history clamping, follow-up rewrite, budget checks. */
 import type { AiProvider } from '../ai/types.js';
+import { LANGUAGE_NAMES_EN, isLocale } from '../i18n/index.js';
 
 /** One earlier turn of the thread, as the browser sends it back: the question and the answer text it got. */
 export interface ChatTurn { q: string; a: string }
@@ -79,25 +80,55 @@ export function parseRewrite(text: string, fallback: string): string {
   return line.length >= 3 && line.length <= MAX_QUESTION_CHARS ? line : fallback;
 }
 
+const langName = (code: string) => (isLocale(code) ? LANGUAGE_NAMES_EN[code] : code);
+
+/** Rewrite and translate in one call, for a question asked in another language than the game's rulebook(s). */
+export function rewriteTranslateSystem(langs: string[]): string {
+  return 'Rewrite the last question as a standalone question using the conversation, if any; keep the game terms. '
+    + `Then translate that standalone question into ${langs.map((l) => `${langName(l)} (${l})`).join(', ')}, using the usual rule terms of the game in that language. `
+    + `Output only these lines, nothing else:\nQ: <standalone question>\n${langs.map((l) => `${l}: <translation>`).join('\n')}`;
+}
+
+/**
+ * Read the rewrite+translate output. A missing or junk "Q:" line keeps the question as typed; a missing or junk translation is
+ * simply left out (retrieval then runs on the original only), so a bad reply never makes retrieval worse than no rewrite.
+ */
+export function parseRewriteTranslate(text: string, fallback: string, langs: string[]): { standalone: string; translations: Record<string, string> } {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const value = (prefix: string) => {
+    const line = lines.find((l) => l.toLowerCase().startsWith(`${prefix.toLowerCase()}:`));
+    const v = line ? line.slice(prefix.length + 1).trim().replace(/^["'“”]+|["'“”]+$/g, '').trim() : '';
+    return v.length >= 3 && v.length <= MAX_QUESTION_CHARS ? v : null;
+  };
+  const translations: Record<string, string> = {};
+  for (const l of langs) { const v = value(l); if (v) translations[l] = v; }
+  return { standalone: value('Q') ?? fallback, translations };
+}
+
+export interface RewriteResult { standalone: string; translations: Record<string, string>; promptTokens: number; completionTokens: number; rewritten: boolean }
+
 /**
  * Follow-up questions ("and what about the medic?") make poor search queries. With history, ask the model (no thinking, tiny budget)
  * for a standalone version; without history, or on any failure, use the question as typed.
+ * `translateTo` lists rulebook languages that differ from the user's: the same call then also translates the question into them,
+ * so retrieval can search the rulebook in its own words (searchRules queries the original and the translations).
  */
-export async function rewriteQuestion(ai: Pick<AiProvider, 'chat'> | null, history: ChatTurn[], question: string): Promise<{ standalone: string; promptTokens: number; completionTokens: number; rewritten: boolean }> {
-  const none = { standalone: question, promptTokens: 0, completionTokens: 0, rewritten: false };
-  if (!ai || !history.length) return none;
+export async function rewriteQuestion(ai: Pick<AiProvider, 'chat'> | null, history: ChatTurn[], question: string, opts: { translateTo?: string[] } = {}): Promise<RewriteResult> {
+  const langs = opts.translateTo ?? [];
+  const none = { standalone: question, translations: {}, promptTokens: 0, completionTokens: 0, rewritten: false };
+  if (!ai || (!history.length && !langs.length)) return none;
   try {
     const r = await ai.chat({
       temperature: 0,
-      maxTokens: 120,
+      maxTokens: 120 + 100 * langs.length,
       reasoning: 'none',
       messages: [
-        { role: 'system', content: REWRITE_SYSTEM },
-        { role: 'user', content: `${historyBlock(history)}\n\nLast question: ${question}` },
+        { role: 'system', content: langs.length ? rewriteTranslateSystem(langs) : REWRITE_SYSTEM },
+        { role: 'user', content: `${history.length ? `${historyBlock(history)}\n\n` : ''}Last question: ${question}` },
       ],
     });
-    const standalone = parseRewrite(r.text, question);
-    return { standalone, promptTokens: r.promptTokens, completionTokens: r.completionTokens, rewritten: standalone !== question };
+    const { standalone, translations } = langs.length ? parseRewriteTranslate(r.text, question, langs) : { standalone: parseRewrite(r.text, question), translations: {} };
+    return { standalone, translations, promptTokens: r.promptTokens, completionTokens: r.completionTokens, rewritten: standalone !== question };
   } catch (e) {
     console.warn(`[chat] question rewrite failed, using the raw question: ${(e as Error).message}`);
     return none;

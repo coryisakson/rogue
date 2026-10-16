@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupCitations, pageList, type CitationSource } from './group-citations.js';
+import { groupCitations, langTag, pageList, type CitationSource } from './group-citations.js';
 
 const src = (page: number | null, url = 'https://pub.example/rules.pdf', extra: Partial<CitationSource> = {}): CitationSource =>
   ({ page, printed: null, section: null, title: 'Rulebook', url, publisher: 'Pub', quote: `quote p${page}`, ...extra });
@@ -31,6 +31,22 @@ describe('groupCitations', () => {
     expect(g[0]!.pages).toEqual(['1', '5']);
     expect(g[0]!.quote).toBe('quote p5');
     expect(g[1]!.title).toBe('FAQ');
+  });
+  it('one game, two editions in different languages: each document keeps its pages, quote and language tag', () => {
+    // Pandemic with a German (Pegasus) and an English (Z-Man) rulebook; retrieval interleaves hits from both.
+    const de = 'https://pegasus.example/pandemie-regeln.pdf'; const en = 'https://zman.example/pandemic-rules.pdf';
+    const g = groupCitations([
+      src(6, de, { title: 'Pandemie Spielregel', publisher: 'Pegasus', lang: 'de', quote: 'Handkartenlimit von 7 Karten' }),
+      src(7, en, { title: 'Pandemic Rules', publisher: 'Z-Man', lang: 'en', quote: 'hand limit of 7 cards' }),
+      src(4, de, { title: 'Pandemie Spielregel', publisher: 'Pegasus', lang: 'de', quote: 'Aufbau' }),
+      src(7, en, { title: 'Pandemic Rules', publisher: 'Z-Man', lang: 'en' }),
+    ]);
+    expect(g.map((d) => [d.title, d.pages, d.quote, d.lang, langTag(d.lang)])).toEqual([
+      ['Pandemie Spielregel', ['4', '6'], 'Handkartenlimit von 7 Karten', 'de', 'DE'],
+      ['Pandemic Rules', ['7'], 'hand limit of 7 cards', 'en', 'EN'],
+    ]);
+    expect(langTag(null)).toBe('');
+    expect(langTag('de-AT')).toBe('DE');
   });
   it('skips empty quotes when choosing the document quote', () => {
     expect(groupCitations([src(1, undefined, { quote: '  ' }), src(2)])[0]!.quote).toBe('quote p2');

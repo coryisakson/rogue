@@ -1,10 +1,10 @@
 import { formatPageCite } from '../pagelabels.js';
 
 /** One retrieved passage behind an answer, as the rules chat returns it (best match first). */
-export interface CitationSource { page: number | null; printed?: number | null; section?: string | null; title: string; url: string; publisher: string | null; quote: string }
+export interface CitationSource { page: number | null; printed?: number | null; section?: string | null; title: string; url: string; publisher: string | null; quote: string; lang?: string | null }
 
-/** One cited document: every known page once, in page order, plus one short quote. */
-export interface CitedDocument { title: string; url: string; publisher: string | null; pages: string[]; quote: string }
+/** One cited document: every known page once, in page order, plus one short quote (kept in the document's language, `lang`). */
+export interface CitedDocument { title: string; url: string; publisher: string | null; pages: string[]; quote: string; lang: string | null }
 
 const knownPage = (p: number | null | undefined): p is number => typeof p === 'number' && Number.isFinite(p) && p >= 1;
 
@@ -18,7 +18,7 @@ export function groupCitations(sources: CitationSource[]): CitedDocument[] {
   for (const s of sources) {
     let entry = docs.get(s.url);
     if (!entry) {
-      entry = { doc: { title: s.title, url: s.url, publisher: s.publisher, pages: [], quote: '' }, pages: new Map() };
+      entry = { doc: { title: s.title, url: s.url, publisher: s.publisher, pages: [], quote: '', lang: s.lang ?? null }, pages: new Map() };
       docs.set(s.url, entry);
     }
     // The first non-empty quote is the best-ranked one; keep only that (short quotes, rights rule 3).
@@ -36,4 +36,9 @@ export function groupCitations(sources: CitationSource[]): CitedDocument[] {
 export function pageList(pages: string[]): string {
   if (!pages.length) return '';
   return `${pages.length === 1 ? 'p.' : 'pp.'} ${pages.join(', ')}`;
+}
+
+/** Language tag shown next to a cited document, e.g. "DE"; empty when unknown. */
+export function langTag(lang: string | null | undefined): string {
+  return (lang ?? '').trim().split(/[-_]/)[0]!.toUpperCase();
 }

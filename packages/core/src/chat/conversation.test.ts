@@ -4,7 +4,7 @@ import { DailyCounter } from '../security/ratelimit.js';
 import { buildPrompt } from './chat.js';
 import {
   MAX_THREAD_TURNS, THREAD_LIMIT_MESSAGE, answerMaxTokens, checkChatBudget, historyBlock, parseHistory, parseRewrite,
-  rewriteQuestion, stripCitations, trimHistory, type ChatTurn,
+  parseRewriteTranslate, rewriteQuestion, stripCitations, trimHistory, type ChatTurn,
 } from './conversation.js';
 
 const turn = (i: number, a = `Answer ${i} (p.${i}).`): ChatTurn => ({ q: `Question ${i}?`, a });
@@ -67,7 +67,7 @@ describe('rewriteQuestion', () => {
     let req: any;
     const ai = { chat: async (r: any) => { req = r; return result('Standalone question: "Can the Medic remove cubes on a cured disease?"\n'); } };
     const r = await rewriteQuestion(ai, history, 'and when cured?');
-    expect(r).toEqual({ standalone: 'Can the Medic remove cubes on a cured disease?', promptTokens: 40, completionTokens: 12, rewritten: true });
+    expect(r).toEqual({ standalone: 'Can the Medic remove cubes on a cured disease?', translations: {}, promptTokens: 40, completionTokens: 12, rewritten: true });
     expect(req).toMatchObject({ temperature: 0, maxTokens: 120, reasoning: 'none' });
     expect(req.messages[1].content).toContain('Last question: and when cured?');
   });
@@ -78,6 +78,19 @@ describe('rewriteQuestion', () => {
     expect((await rewriteQuestion(empty, history, 'and when cured?')).standalone).toBe('and when cured?');
     expect(parseRewrite('x'.repeat(400), 'raw')).toBe('raw');
     expect((await rewriteQuestion(null, history, 'raw q')).standalone).toBe('raw q');
+  });
+  it('translates the question into the rulebook languages in the same call, even without history', async () => {
+    let req: any;
+    const ai = { chat: async (r: any) => { req = r; return result('Q: Wie viele Karten darf man auf der Hand haben?\nen: How many cards can you hold in your hand?\n'); } };
+    const r = await rewriteQuestion(ai, [], 'Wie viele Karten darf man auf der Hand haben?', { translateTo: ['en'] });
+    expect(r).toMatchObject({ standalone: 'Wie viele Karten darf man auf der Hand haben?', translations: { en: 'How many cards can you hold in your hand?' }, rewritten: false });
+    expect(req.messages[0].content).toContain('English (en)');
+    expect(req.messages[1].content).toBe('Last question: Wie viele Karten darf man auf der Hand haben?');
+    expect(req).toMatchObject({ reasoning: 'none', maxTokens: 220 });
+  });
+  it('drops junk translations and keeps the raw question when the Q line is missing', () => {
+    expect(parseRewriteTranslate('en: ok\nde: Wie geht das?', 'raw', ['en', 'de'])).toEqual({ standalone: 'raw', translations: { de: 'Wie geht das?' } });
+    expect(parseRewriteTranslate('nonsense', 'raw', ['en'])).toEqual({ standalone: 'raw', translations: {} });
   });
 });
 

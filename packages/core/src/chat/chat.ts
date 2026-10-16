@@ -1,16 +1,26 @@
 /** Pure helpers for rules chat. */
 import { formatPageCite } from '../pagelabels.js';
+import { LANGUAGE_NAMES_EN, type Locale } from '../i18n/index.js';
 
 /** `section` is set for web-page sources: they have no pages, so the excerpt is cited as (s.N) and shown by its heading.
  *  `printed` is the page number printed in the PDF; display only, citations stay the physical p.N. */
 export interface Excerpt { page: number; text: string; section?: string | null; printed?: number | null }
 
 export const CHAT_SYSTEM = `You answer board game rules questions using ONLY the numbered rulebook excerpts provided.
-- Answer in the same language as the question, in 1-4 short sentences. Quote at most one short phrase.
+- Answer in 1-4 short sentences. Quote at most one short phrase.
 - After each rule you state, cite the page like (p.3). An excerpt labelled (p.7 (printed 5)) is cited as (p.7): always use the first number. Excerpts labelled (s.N "heading") come from a web page: cite those like (s.2), never as a page.
 - If the excerpts do not contain the answer, say so plainly and suggest checking the official rulebook. Never guess or use outside knowledge.
 - If excerpts disagree, say so and cite both. But a role's special ability that changes a general rule is an exception, not a disagreement: state the general rule first, then the exception.
 - Excerpts come from two-column PDFs, so words from neighbouring columns can run together. Use sense to separate them.`;
+
+/**
+ * Added to the answer system prompt: which language to answer in. With the user's language (web chat) the answer follows it
+ * even when the rulebook is in another language; without one (Discord, MCP, evals) it follows the question.
+ */
+export function answerLanguageRule(userLang?: Locale | null): string {
+  if (!userLang) return '\n- Answer in the same language as the question.';
+  return `\n- Answer in ${LANGUAGE_NAMES_EN[userLang]}. Cite pages as (p.N) exactly as in the excerpts. Keep rule terms of the game in the language of the excerpts in parentheses at first use.`;
+}
 
 /** `conversation` is the compact 'Conversation so far' block (historyBlock); `standalone` the rewritten follow-up, shown only when it differs. */
 export function buildPrompt(question: string, excerpts: Excerpt[], context: { conversation?: string; standalone?: string } = {}): string {
