@@ -11,7 +11,7 @@ export interface SourceSeed {
   foundOn: string;
 }
 
-export const ALLOWED_HOSTS = ['cdn.svc.asmodee.net', 'www.zmangames.com', 'contentiongames.com'];
+export const ALLOWED_HOSTS = ['cdn.svc.asmodee.net', 'www.zmangames.com', 'contentiongames.com', 'gesellschaftsspiele.spielen.de'];
 
 export const SEEDS: SourceSeed[] = [
   {
@@ -44,5 +44,16 @@ export const SEEDS: SourceSeed[] = [
     kind: 'rulebook',
     editionLabel: 'Contention Games rulebook (publisher site, file dated 2024-03-23)',
     foundOn: 'https://contentiongames.com/games/slay/',
+  },
+  {
+    // German rulebook (Plan B Games, 2017) served by a retailer portal, not the publisher. Cory approved this host 2026-10-16 (R31 sourcing note) for language testing; an English publisher copy is still to be found.
+    gameSlug: 'azul',
+    url: 'https://gesellschaftsspiele.spielen.de/uploads/files/3568/5a246f9d95530.pdf',
+    title: 'Azul Spielanleitung (deutsch)',
+    publisher: 'Plan B Games / Pegasus Spiele',
+    language: 'de',
+    kind: 'rulebook',
+    editionLabel: 'Deutsche Spielanleitung (Plan B Games 2017, via spielen.de)',
+    foundOn: 'https://gesellschaftsspiele.spielen.de/',
   },
 ];
