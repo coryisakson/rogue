@@ -39,6 +39,12 @@ spec:
           value: Olares/embeddinggemma-300m
         - name: ROGUE_AI_BASE_URL
           value: '{{ .Values.rogueAiBaseUrl | default "" }}'
+        # Optional multilingual chat override (APPROVALS RGE-A18). Empty = gemma4 for every language.
+        # ROGUE_AI_MULTI_API_KEY is NOT set here: it must come from an Olares app secret (TODO in RGE-A18).
+        - name: ROGUE_AI_MULTI_BASE_URL
+          value: '{{ .Values.rogueAiMultiBaseUrl | default "" }}'
+        - name: ROGUE_AI_MULTI_MODEL
+          value: '{{ .Values.rogueAiMultiModel | default "" }}'
         - name: ROGUE_SEARCH_BASE_URL
           value: '{{ .Values.rogueSearchBaseUrl | default "" }}'
         - name: ROGUE_OCR_PROVIDER

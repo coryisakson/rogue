@@ -6,6 +6,10 @@ workloads:
 
 # Olares Router endpoint for local AI (OpenAI-compatible). Empty until confirmed (APPROVALS RGE-A12).
 rogueAiBaseUrl: "http://3a77b15d.shared.olares.com/v1"
+# Multilingual chat on another OpenAI-compatible endpoint (e.g. https://api.anthropic.com/v1), only after RGE-A18 is approved.
+# Empty = every language stays on the default model. The API key is never a chart value (app secret, see RGE-A18).
+rogueAiMultiBaseUrl: ""
+rogueAiMultiModel: ""
 # Web search for game intake and the Scout: a SearXNG root URL (JSON API). Empty = search off; requests then go to an admin for manual research.
 rogueSearchBaseUrl: "http://84a93c3c.cisakson.olares.local"
 # OCR: set to your PaddleOCR service root to use it (empty = built-in tesseract command)
