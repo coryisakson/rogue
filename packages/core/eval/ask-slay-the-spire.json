@@ -1,89 +1,91 @@
 {
- "game": "slay-the-spire",
- "title": "Slay the Spire: The Board Game",
- "note": "Answer-level eval for Ask. Pass = answer text matches `must` (case-insensitive regex), does not match `mustNot`, carries at least one citation, and has no citation warning. `expected` is the human-readable truth; `source` is where the question was found (forum/FAQ) or noted as rulebook-derived. Found by web search 2026-10-15; BGG pages block automated reading, so expectations were checked against the publisher rulebook text.",
- "rulebook": "https://contentiongames.com/_images/STS_KS_Rulebook.pdf",
- "questions": [
-  {
-   "q": "Is there a maximum hand size in Slay the Spire the board game?",
-   "must": "no maximum|no max|\\bno\\b",
-   "expected": "No maximum hand size.",
-   "kind": "fact",
-   "source": "https://boardgamegeek.com/thread/2988005/retain-a-card-draw-1-less-next-turn",
-   "rulebookRef": "FAQs & Random Rules"
-  },
-  {
-   "q": "How many cards do I draw at the start of my turn?",
-   "must": "\\b5\\b|five",
-   "expected": "Draw 5 cards.",
-   "kind": "fact",
-   "source": "https://boardgamegeek.com/thread/2988005/retain-a-card-draw-1-less-next-turn",
-   "rulebookRef": "Turn: Draw step"
-  },
-  {
-   "q": "Does retaining a card change how many cards I draw next turn?",
-   "must": "\\bno\\b|not|doesn't|does not",
-   "expected": "No; Retain does not affect the draw.",
-   "kind": "fact",
-   "source": "https://boardgamegeek.com/thread/2988005/retain-a-card-draw-1-less-next-turn",
-   "rulebookRef": "Retain (back of rulebook) / Draw step"
-  },
-  {
-   "q": "How many potions can I hold at once?",
-   "must": "\\b3\\b|three",
-   "expected": "3 potions.",
-   "kind": "fact",
-   "source": "https://www.reddit.com/r/boardgames/comments/1g28qpa/i_have_been_trying_to_understand_the_slay_the/",
-   "rulebookRef": "Rewards: Potion"
-  },
-  {
-   "q": "What is the maximum Energy I can have?",
-   "must": "\\b6\\b|six",
-   "expected": "6 Energy at once.",
-   "kind": "fact",
-   "source": "https://www.reddit.com/r/boardgames/comments/1cwhdqd/slay_the_spire_board_game_rules_questions/",
-   "rulebookRef": "Energy"
-  },
-  {
-   "q": "Can Block prevent an effect that says 'Lose X HP'?",
-   "must": "\\bno\\b|not|cannot|can't",
-   "expected": "No; Block only prevents damage.",
-   "kind": "fact",
-   "source": "(rulebook FAQ)",
-   "rulebookRef": "FAQs & Random Rules"
-  },
-  {
-   "q": "What carries over between acts?",
-   "must": "(deck|cards)[\\s\\S]*(relic|gold|potion)|(relic|gold|potion)[\\s\\S]*(deck|cards)",
-   "expected": "Your deck (with upgrades), gold, relics and potions; players heal to max HP at the start of Act II+.",
-   "kind": "fact",
-   "source": "https://www.reddit.com/r/boardgames/comments/1g28qpa/i_have_been_trying_to_understand_the_slay_the/",
-   "rulebookRef": "Between acts",
-   "mustNot": "shouldn.t be shuffled|not be shuffled"
-  },
-  {
-   "q": "If I discard a Daze at end of turn does it still exhaust?",
-   "must": "\\bno\\b|not|doesn't|does not|won't",
-   "expected": "Not via the Ethereal end-of-turn effect, since it left your hand first (BGG answer; verify against rulebook Ethereal text).",
-   "kind": "fact",
-   "source": "https://boardgamegeek.com/thread/3438764/discard-or-exhaust-a-curse-or-status",
-   "rulebookRef": "Ethereal / Exhaust (back of rulebook)"
-  },
-  {
-   "q": "How many characters can I play and what are they?",
-   "must": "Ironclad[\\s\\S]*Silent[\\s\\S]*Defect[\\s\\S]*Watcher",
-   "expected": "4: Ironclad, Silent, Defect, Watcher (derived by listing).",
-   "kind": "list",
-   "source": "packages/core/eval",
-   "rulebookRef": "Characters"
-  },
-  {
-   "q": "What happens if we run out of tokens?",
-   "must": "ignored|can't gain|cannot gain|can’t gain",
-   "expected": "You can't gain or apply more tokens; the effect is ignored.",
-   "kind": "fact",
-   "source": "(rulebook FAQ)",
-   "rulebookRef": "FAQs & Random Rules"
-  }
- ]
+  "game": "slay-the-spire",
+  "title": "Slay the Spire: The Board Game",
+  "note": "Answer-level eval for Ask. Pass = answer text matches `must` (case-insensitive regex), does not match `mustNot`, carries at least one citation, and has no citation warning. `expected` is the human-readable truth; `source` is where the question was found (forum/FAQ) or noted as rulebook-derived. Found by web search 2026-10-15; BGG pages block automated reading, so expectations were checked against the publisher rulebook text.",
+  "rulebook": "https://contentiongames.com/_images/STS_KS_Rulebook.pdf",
+  "questions": [
+    {
+      "q": "Is there a maximum hand size in Slay the Spire the board game?",
+      "must": "no maximum|no max|\\bno\\b",
+      "expected": "No maximum hand size.",
+      "kind": "fact",
+      "source": "https://boardgamegeek.com/thread/2988005/retain-a-card-draw-1-less-next-turn",
+      "rulebookRef": "FAQs & Random Rules"
+    },
+    {
+      "q": "How many cards do I draw at the start of my turn?",
+      "must": "\\b5\\b|five",
+      "expected": "Draw 5 cards.",
+      "kind": "fact",
+      "source": "https://boardgamegeek.com/thread/2988005/retain-a-card-draw-1-less-next-turn",
+      "rulebookRef": "Turn: Draw step"
+    },
+    {
+      "q": "Does retaining a card change how many cards I draw next turn?",
+      "must": "\\bno\\b|not|doesn't|does not",
+      "expected": "No; Retain does not affect the draw. The rulebook itself is silent; a cited \"the rulebook does not say\" is the correct answer.",
+      "kind": "fact",
+      "source": "https://boardgamegeek.com/thread/2988005/retain-a-card-draw-1-less-next-turn",
+      "rulebookRef": "Retain (back of rulebook) / Draw step",
+      "mayAbstain": true
+    },
+    {
+      "q": "How many potions can I hold at once?",
+      "must": "\\b3\\b|three",
+      "expected": "3 potions.",
+      "kind": "fact",
+      "source": "https://www.reddit.com/r/boardgames/comments/1g28qpa/i_have_been_trying_to_understand_the_slay_the/",
+      "rulebookRef": "Rewards: Potion"
+    },
+    {
+      "q": "What is the maximum Energy I can have?",
+      "must": "\\b6\\b|six",
+      "expected": "6 Energy at once.",
+      "kind": "fact",
+      "source": "https://www.reddit.com/r/boardgames/comments/1cwhdqd/slay_the_spire_board_game_rules_questions/",
+      "rulebookRef": "Energy"
+    },
+    {
+      "q": "Can Block prevent an effect that says 'Lose X HP'?",
+      "must": "\\bno\\b|not|cannot|can't",
+      "expected": "No; Block only prevents damage.",
+      "kind": "fact",
+      "source": "(rulebook FAQ)",
+      "rulebookRef": "FAQs & Random Rules"
+    },
+    {
+      "q": "What carries over between acts?",
+      "must": "(deck|cards)[\\s\\S]*(relic|gold|potion)|(relic|gold|potion)[\\s\\S]*(deck|cards)",
+      "expected": "Your deck (with upgrades), gold, relics and potions; players heal to max HP at the start of Act II+.",
+      "kind": "fact",
+      "source": "https://www.reddit.com/r/boardgames/comments/1g28qpa/i_have_been_trying_to_understand_the_slay_the/",
+      "rulebookRef": "Between acts",
+      "mustNot": "shouldn.t be shuffled|not be shuffled"
+    },
+    {
+      "q": "If I discard a Daze at end of turn does it still exhaust?",
+      "must": "\\bno\\b|not|doesn't|does not|won't",
+      "expected": "Not via the Ethereal end-of-turn effect, since it left your hand first (BGG answer; verify against rulebook Ethereal text). The rulebook itself is silent; a cited \"the rulebook does not say\" is the correct answer.",
+      "kind": "fact",
+      "source": "https://boardgamegeek.com/thread/3438764/discard-or-exhaust-a-curse-or-status",
+      "rulebookRef": "Ethereal / Exhaust (back of rulebook)",
+      "mayAbstain": true
+    },
+    {
+      "q": "How many characters can I play and what are they?",
+      "must": "Ironclad[\\s\\S]*Silent[\\s\\S]*Defect[\\s\\S]*Watcher",
+      "expected": "4: Ironclad, Silent, Defect, Watcher (derived by listing).",
+      "kind": "list",
+      "source": "packages/core/eval",
+      "rulebookRef": "Characters"
+    },
+    {
+      "q": "What happens if we run out of tokens?",
+      "must": "ignored|can't gain|cannot gain|can’t gain",
+      "expected": "You can't gain or apply more tokens; the effect is ignored.",
+      "kind": "fact",
+      "source": "(rulebook FAQ)",
+      "rulebookRef": "FAQs & Random Rules"
+    }
+  ]
 }
