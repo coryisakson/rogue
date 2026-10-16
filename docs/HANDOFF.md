@@ -1,15 +1,15 @@
 # Handoff (rewritten 2026-10-16). Keep this file under 3 KB; history lives in docs/archive/.
 
-Live: https://rogue.cisakson.olares.com, version 0.0.78 deployed. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
+Live: https://rogue.cisakson.olares.com, version 0.0.80 deployed. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
 Rulebook: AGENTS.md. Product principle: AI tasks -> Nanobot agents over MCP in background; plain code stays in app (ADR 0002).
 
 ## Next (ordered; do the first unfinished one)
 1. PAUSED (Cory 2026-10-16): content-quality validation, i.e. Ask evals/tuning, KB quality checks and OCR/page-text quality work. Resume only once Nanobot runs and can take it over. CODE quality is NOT paused: workers keep tests, types and scripts/qcheck.sh green.
-2. DONE: Nanobot sidecar + Librarian (0.0.78) + Terms Agent judgement (0.0.79). Next agents: Scout page judgement, Curator (ROADMAP Phase 1b). Librarian yield is low (1 of 5 drafted on StS); tuning counts as content quality = paused.
+2. DONE: Nanobot sidecar + Librarian (0.0.78) + Terms Agent (0.0.79) + Scout page judgement (0.0.80). Next agent: Curator (ROADMAP Phase 1b). Librarian yield is low (1 of 5 drafted on StS); tuning counts as content quality = paused.
 3. Q&A become facts, FAQ Curator, one-pager quality gate, printed-page detection, frontier judge (needs APPROVALS entry).
 
 ## Unverified live
-Terms Agent auto-approve on a fresh request; Scout publisher-first run (0.0.66).
+Terms Agent auto-approve and scout_judge on a fresh request; Scout publisher-first run (0.0.66).
 
 ## Not now
 BACKLOG.md items (BGG collection etc.) are not worked unless Cory names one. Off-box backups = Phase 7b.
