@@ -134,3 +134,41 @@ export function flagTerms(text: string, limit = 12): TermsFlag[] {
   }
   return out;
 }
+
+// ---- text variants of a rulebook (HTML / plain text / accessible versions that sit next to the PDF) ----------------
+
+export interface VariantCandidate extends PageLink { score: number; why: string }
+
+const VARIANT_WORDS = /\b(text version|plain ?text|accessible|accessibility|screen ?reader|html (version|rules)|web version|online (rules|rulebook|version)|read online|rules online|rules text|full rules|digital rules|rules (reference|wiki)|regeln online|r[eè]gles en ligne)\b/i;
+const VARIANT_PATH = /\.(txt|md|html?)$|\/(rules?|rulebook|how-to-play|howtoplay|regeln|regles)\/?$/i;
+
+/**
+ * Links that look like a TEXT version of the rulebook (so OCR of a scanned PDF is not the only copy). Pure heuristics:
+ * the Scout agent and the overlap gate decide. PDFs are skipped; web pages need a variant word in the label or a rules-like path.
+ */
+export function findTextVariantCandidates(links: PageLink[], gameName = '', pdfUrl = ''): VariantCandidate[] {
+  const words = gameName.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+  const out: VariantCandidate[] = [];
+  for (const l of links) {
+    let u: URL; try { u = new URL(l.url); } catch { continue; }
+    if (/\.pdf$/i.test(u.pathname) || l.url === pdfUrl) continue;
+    const label = `${l.text} ${fileName(l.url)}`.toLowerCase();
+    if (NOISE.test(label) && !VARIANT_WORDS.test(label)) continue;
+    let score = 0; const why: string[] = [];
+    if (VARIANT_WORDS.test(label)) { score += 60; why.push('label says it is a text/accessible/online version'); }
+    if (VARIANT_PATH.test(u.pathname)) { score += 25; why.push('rules-like page or text file'); }
+    if (/\.(txt|md)$/i.test(u.pathname)) { score += 20; why.push('plain text file'); }
+    if (/\b(rules?|rulebook|how to play|regeln|r[eè]gles?)\b/.test(label)) { score += 15; why.push('mentions rules'); }
+    if (/\b(faq|errata|scenario|puzzle|shop|buy|store)\b/.test(label)) score -= 30;
+    if (score < 40) continue;
+    if (words.some((w) => `${label} ${u.pathname.toLowerCase()}`.includes(w))) { score += 10; why.push('names the game'); }
+    out.push({ ...l, score, why: why.join(', ') });
+  }
+  return out.sort((a, b) => b.score - a.score || a.url.localeCompare(b.url)).slice(0, 10);
+}
+
+/** Search phrases for text versions of a rulebook (the playbook's step 2b). Publisher pages first, then generic. */
+export function variantQueries(name: string, publisher: string | null): string[] {
+  const p = publisher ? ` ${publisher}` : '';
+  return [`${name}${p} rules text version online`, `${name}${p} rulebook accessible html OR txt`, `${name} rules "read online" -pdf`];
+}

@@ -139,3 +139,38 @@ export function acceptRepair(original: string, repaired: string): RepairDecision
   if (fresh > maxFresh) return no(`too many new words (${(fresh * 100).toFixed(0)}%)`);
   return { accepted: true, reason: 'numbers kept, wording close, quality improved', before, after };
 }
+
+// ---- text variants -----------------------------------------------------------------------------------------------
+
+/** Letters-only 8-gram set of a text (spaces and punctuation ignored, so reflowed or re-hyphenated text still matches). */
+function gramSet(t: string, n = 8): Set<string> {
+  const flat = t.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  const s = new Set<string>();
+  for (let i = 0; i + n <= flat.length; i += 1) s.add(flat.slice(i, i + n));
+  return s;
+}
+
+export interface VariantOverlap { coverage: number; sizeRatio: number; sameDocument: boolean; basis: string }
+
+/**
+ * Is `candidate` a text version of the same document as `base` (usually an OCR'd PDF)?
+ * Coverage = share of the base's CLEAN pages' wording found in the candidate. Garbled base pages are ignored on purpose:
+ * they are the reason we look for a variant, and they would never match. A different book, an expansion or a marketing
+ * page share little wording with the base, so they land far below the bar.
+ */
+export function variantOverlap(basePages: Map<number, string>, candidate: string): VariantOverlap {
+  const clean = [...basePages.values()].filter((t) => scorePage(t).verdict === 'ok');
+  const usable = clean.length >= 3 ? clean : [...basePages.values()].filter((t) => t.length > 200);
+  const basis = clean.length >= 3 ? `${clean.length} clean pages` : `${usable.length} pages (few clean pages, lower confidence)`;
+  const baseText = usable.join(' ');
+  const cand = gramSet(candidate);
+  const baseGrams = gramSet(baseText);
+  if (!baseGrams.size || !cand.size) return { coverage: 0, sizeRatio: 0, sameDocument: false, basis };
+  let hit = 0;
+  for (const g of baseGrams) if (cand.has(g)) hit++;
+  const coverage = hit / baseGrams.size;
+  const allBase = [...basePages.values()].join(' ').length;
+  const sizeRatio = candidate.length / Math.max(allBase, 1);
+  // The variant should be about book-sized: a stub page or a 10x larger site dump is not "the same document".
+  return { coverage: Number(coverage.toFixed(3)), sizeRatio: Number(sizeRatio.toFixed(2)), sameDocument: coverage >= 0.55 && sizeRatio > 0.4 && sizeRatio < 3, basis };
+}

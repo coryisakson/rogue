@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acceptRepair, pagesNeedingReview, qualityWeight, scorePage } from './index.js';
+import { acceptRepair, pagesNeedingReview, qualityWeight, scorePage, variantOverlap } from './index.js';
 
 const CLEAN = 'On your turn, you perform four actions. You may move to an adjacent city, treat a disease, or share knowledge with another player in the same city. After your actions, draw two player cards and then infect cities. If you cannot draw, the game ends and all players lose.';
 const GARBLED = 'Qn y0ur tvrn, y ou p erf orm f0ur act i0ns. Y0u rnay rnove t0 an adjac ent c1ty, trcat a dis ease, 0r sh are kn0w ledge w1th an0th er p1ayer. Aftcr y0ur act1ons, dr aw tw0 pl ayer c ards # & @ ~ ^ then 1nfect c1t1es.';
@@ -67,5 +67,20 @@ describe('acceptRepair', () => {
     const ok = 'Draw 2 cards, then discard down to 7 cards in your hand at the end of the turn, and play an event card whenever you like. Events are not actions.';
     const d = acceptRepair(orig, ok);
     expect(d).toMatchObject({ accepted: true });
+  });
+});
+
+describe('variantOverlap', () => {
+  const rule = (n: number) => `Page ${n}. On your turn you perform ${n + 2} actions. You may move to an adjacent city, treat a disease, share knowledge, or build a research station. After your actions draw two player cards and infect cities as shown on the infection rate track number ${n}. If you cannot draw the game ends.`;
+  const base = new Map([[1, rule(1)], [2, rule(2)], [3, rule(3)], [4, rule(4)], [5, 'x1 z# ~~ q w e']]);
+  it('accepts a reflowed text version of the same book', () => {
+    const variant = [1, 2, 3, 4].map(rule).join('\n\n').replace(/\. /g, '.\n') + '\nSkip to content. Menu. Cookie settings.';
+    const o = variantOverlap(base, variant);
+    expect(o.sameDocument).toBe(true);
+    expect(o.coverage).toBeGreaterThan(0.9);
+  });
+  it('rejects an unrelated page', () => {
+    const o = variantOverlap(base, 'Buy the expansion now! Free shipping on orders over fifty dollars. Our newsletter brings you the best deals on dice, miniatures and sleeves every week. '.repeat(20));
+    expect(o.sameDocument).toBe(false);
   });
 });

@@ -52,3 +52,19 @@ describe('terms flags', () => {
     expect(flagTerms('We love games. Shipping takes five days.')).toEqual([]);
   });
 });
+
+import { findTextVariantCandidates, variantQueries } from './index.js';
+describe('text variants', () => {
+  it('finds text/online versions and skips PDFs and shops', () => {
+    const links = [
+      { url: 'https://pub.example/games/foo/rules.pdf', text: 'Rulebook' },
+      { url: 'https://pub.example/games/foo/rules-online', text: 'Read the rules online (text version)' },
+      { url: 'https://pub.example/games/foo/rules.txt', text: 'Plain text' },
+      { url: 'https://pub.example/shop/foo', text: 'Buy Foo' },
+      { url: 'https://pub.example/games/foo/faq', text: 'Foo FAQ' },
+    ];
+    const c = findTextVariantCandidates(links, 'Foo Game', 'https://pub.example/games/foo/rules.pdf');
+    expect(c.map((x) => x.url).sort()).toEqual(['https://pub.example/games/foo/rules-online', 'https://pub.example/games/foo/rules.txt'].sort());
+  });
+  it('builds queries', () => { expect(variantQueries('Foo', 'Bar Games')[0]).toContain('Bar Games'); });
+});
