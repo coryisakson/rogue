@@ -21,6 +21,10 @@ Agents see only the MCP server `rogue` at `${ROGUE_MCP_URL}/<agent>` (stateless 
 - terms-agent (8904): get_job, judge_sentences, finish_job. Job kind `terms_judge` (one game request, `agent_jobs.request_id`). Only
   for terms the code judged 'unclear' because of bot/AI sentences; the agent labels each sentence forbids/allows/unrelated/unsure and
   code (`decideTermsWithAgent`) sets the verdict when the job ends. Never changes a clear or restricted code verdict.
+- faq-curator (8905): get_job, list_faq_candidates, propose_canonical, finish_job. Job kind `faq_curate` (one game, `agent_jobs.game_slug`;
+  on demand via `POST /api/admin/faq-curate?game=<slug>`). Merges duplicate well-rated player questions into `faq_canonical` entries;
+  `judgeCanonical` (core) requires the game's own non-hidden questions, citations from their sources and no new numbers. A finished
+  job with entries replaces the game's older ones; without entries the public FAQ shows the rating tally.
 
 Web app calls `POST http://127.0.0.1:<port>/v1/chat/completions` with `Authorization: Bearer <api key>`, body `{messages:[{role:'user',content}], session_id:'job-<id>'}` (no `model`). `/health` is open. API timeout 1500s, MCP toolTimeout 60s, unless the spec raises them (the app waits `JOB_MINUTES` per job kind).
 

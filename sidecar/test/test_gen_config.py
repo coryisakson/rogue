@@ -30,6 +30,8 @@ def test_specs_and_tools():
     assert specs["librarian"]["tools"] == ["get_job", "get_page_text", "propose_claim", "finish_job"]
     assert specs["terms-agent"]["port"] == 8904
     assert specs["terms-agent"]["tools"] == ["get_job", "judge_sentences", "finish_job"]
+    assert specs["faq-curator"]["port"] == 8905
+    assert specs["faq-curator"]["tools"] == ["get_job", "list_faq_candidates", "propose_canonical", "finish_job"]
     assert len({s["port"] for s in specs.values()}) == len(specs)
 
 
