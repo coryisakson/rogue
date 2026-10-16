@@ -126,7 +126,7 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
   </main>
   <script is:inline>
     // Chat thread: asks go to /api/ask and answers are appended here, so earlier turns stay on screen.
-    // The last turns are kept in sessionStorage (this tab only; nothing new is stored on the server).
+    // The thread lives in page memory only: leaving or reloading the page clears it (Cory 2026-10-16). Nothing is stored in the browser or on the server.
     // Without JavaScript none of this runs and the form does a plain GET ?q= instead.
     (() => {
       const form = document.getElementById('ask-form');
@@ -142,8 +142,10 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
       const askBtn = form.querySelector('button[type="submit"]');
       const meter = document.getElementById('chat-meter');
 
-      const load = () => { try { return JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch { return []; } };
-      const save = (turns) => { try { sessionStorage.setItem(KEY, JSON.stringify(turns.slice(-MAX_TURNS))); } catch { /* storage full or blocked: thread just won't survive a reload */ } };
+      window.addEventListener("pageshow", (e) => { if (e.persisted) location.reload(); }); // back button must not resurrect an old thread
+      let memory = [];
+      const load = () => memory;
+      const save = (turns) => { memory = turns.slice(-MAX_TURNS); };
 
       // Small DOM builder; text always goes in via textContent, never as HTML.
       function el(tag, props = {}, ...kids) {
@@ -261,7 +263,7 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
       });
 
       if (clearBtn) clearBtn.addEventListener('click', () => {
-        sessionStorage.removeItem(KEY);
+        memory = [];
         thread.replaceChildren();
         clearBtn.hidden = true;
         if (location.search) history.replaceState(null, '', location.pathname);
