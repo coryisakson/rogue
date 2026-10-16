@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-16 (Hermes): 0.0.87: one-pager shows explicit 'No player-count changes recorded' instead of an empty gap when a game has no variants (first part of the quality gate). Check green. Print-fit check and card-size player aids still open.
 - 2026-10-16 (Hermes): 0.0.86: MinerU OCR provider (ROGUE_OCR_PROVIDER=mineru; tier=advanced, ocr_mode=ocr/ForceOCR, all pages). MinerU chart 0.0.4 now runs api-server (entrance mineruapi) plus webui. Offline run vs old chunks: Pandemic noise lines 53/814 -> 6/195, role headings now separate. Needs re-index to take effect.
 - 2026-10-16 (Hermes): Ran qa-facts live on Pandemic with admin token: 200, created 0, skipped 4 (not eligible; no well-rated cited answers yet). Endpoint verified working. Next: one-pager quality gate.
 

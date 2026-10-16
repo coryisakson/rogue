@@ -43,6 +43,7 @@ if (!claims.length) return new Response('No cited setup facts for this game yet.
         {variants.map((v) => <tr class={players === v.player_count ? 'on' : ''}><td>{v.player_count}</td><td>{v.body.match(/(\d+) cards/)?.[1]}</td></tr>)}
       </table>
     </>)}
+    {variants.length === 0 && (<p class="none"><em>No player-count changes recorded for this game.</em></p>)}
     {sheet.sections.filter((sec) => sec.lines.length).map((sec) => (<>
       <h2>{sec.title}</h2>
       <ol>{sec.lines.map((l) => <li>{l.text}{l.page && <sup> [{l.page}]</sup>}</li>)}</ol>
