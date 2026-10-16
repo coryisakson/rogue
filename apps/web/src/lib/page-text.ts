@@ -69,6 +69,24 @@ export async function scoreSource(sourceId: number): Promise<QualitySummary | nu
   };
 }
 
+/** Read-only quality summary for the extracts viewer: scores the effective text in memory, writes nothing (scoreSource stores). */
+export function summarizePages(sp: SourcePages): Omit<QualitySummary, 'open'> & { leftOut: number } {
+  const verdicts = [...sp.raw.keys()].filter((p) => !sp.unusable.has(p)).map((p) => scorePage(sp.pages.get(p) ?? '').verdict);
+  const count = (v: string) => verdicts.filter((x) => x === v).length;
+  return { pages: sp.raw.size, ok: count('ok'), suspect: count('suspect'), garbled: count('garbled'), empty: count('empty'), leftOut: sp.unusable.size };
+}
+
+/** Which pages of a source carry replacement text, and how it was made (agent repair or re-OCR). Same file hash only. */
+export async function loadOverrideMethods(sourceId: number, contentHash: string | null): Promise<Map<number, 'ocr' | 'agent'>> {
+  const pool = getPool(); if (!pool) return new Map();
+  const rows = (await pool.query('SELECT page, method FROM page_overrides WHERE source_id=$1 AND content_hash=$2', [sourceId, contentHash])).rows;
+  return new Map(rows.map((r) => [Number(r.page), r.method]));
+}
+
+/** The whole source as one markdown file, one '## Page N' section per page (for download and offline review). */
+export const pagesToMarkdown = (title: string, pages: Map<number, string>): string =>
+  `# ${title}\n` + [...pages].sort((a, b) => a[0] - b[0]).map(([n, t]) => `\n## Page ${n}\n\n${t.trim()}\n`).join('');
+
 /** Store better text for a page (re-OCR or an accepted agent repair). The caller has already run the safety gate. */
 export async function saveOverride(sourceId: number, page: number, text: string, method: 'ocr' | 'agent', actor: string, before: number, after: number): Promise<void> {
   const pool = getPool(); if (!pool) return;
