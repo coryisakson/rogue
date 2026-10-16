@@ -49,15 +49,25 @@ export async function enqueueRequestJob(kind: JobKind, requestId: number): Promi
   return r.rowCount ? Number(r.rows[0].id) : null;
 }
 
-/** source_id is 0 for jobs on a game request; request_id is null for jobs on a source. */
-export interface JobRow { id: number; kind: JobKind; source_id: number; request_id: number | null; status: string; attempts: number }
+/** Queue a job on a whole game (faq_curate) unless one is already open for it; returns the open one if so. */
+export async function enqueueGameJob(kind: JobKind, gameSlug: string): Promise<number | null> {
+  const pool = getPool(); if (!pool) return null;
+  await ensureMigrated();
+  const r = await pool.query("INSERT INTO agent_jobs(kind, source_id, game_slug) VALUES ($1, NULL, $2) ON CONFLICT DO NOTHING RETURNING id", [kind, gameSlug]);
+  if (r.rowCount) return Number(r.rows[0].id);
+  const open = (await pool.query("SELECT id FROM agent_jobs WHERE kind=$1 AND game_slug=$2 AND status IN ('queued','running') ORDER BY id DESC LIMIT 1", [kind, gameSlug])).rows[0];
+  return open ? Number(open.id) : null;
+}
+
+/** source_id is 0 for jobs on a game request or a game; request_id and game_slug are null unless the job is on one. */
+export interface JobRow { id: number; kind: JobKind; source_id: number; request_id: number | null; game_slug: string | null; status: string; attempts: number }
 
 /** Jobs a tool call may act on: this agent's kind, currently running. */
 export async function runningJob(agent: AgentName, jobId: number): Promise<JobRow | null> {
   const pool = getPool(); if (!pool) return null;
-  const r = (await pool.query("SELECT id, kind, source_id, request_id, status, attempts FROM agent_jobs WHERE id=$1 AND status='running'", [jobId])).rows[0];
+  const r = (await pool.query("SELECT id, kind, source_id, request_id, game_slug, status, attempts FROM agent_jobs WHERE id=$1 AND status='running'", [jobId])).rows[0];
   if (!agentMayActOn(agent, r)) return null;
-  return { id: Number(r.id), kind: r.kind, source_id: Number(r.source_id ?? 0), request_id: r.request_id === null ? null : Number(r.request_id), status: r.status, attempts: r.attempts };
+  return { id: Number(r.id), kind: r.kind, source_id: Number(r.source_id ?? 0), request_id: r.request_id === null ? null : Number(r.request_id), game_slug: r.game_slug ?? null, status: r.status, attempts: r.attempts };
 }
 
 /** Count a page change on a running job so the source is re-indexed afterwards. */
@@ -77,12 +87,12 @@ export async function bumpCounts(jobId: number, counts: Record<string, number>, 
   await pool.query(`UPDATE agent_jobs SET result = result${parts.map((p) => ` || ${p}`).join('')} || $2::jsonb WHERE id=$1 AND status='running'`, params);
 }
 
-export interface JobState { id: number; kind: JobKind; source_id: number; status: string; summary: string | null; error: string | null; result: Record<string, unknown>; created_at: string; finished_at: string | null }
+export interface JobState { id: number; kind: JobKind; source_id: number; game_slug: string | null; status: string; summary: string | null; error: string | null; result: Record<string, unknown>; created_at: string; finished_at: string | null }
 
 /** One job by id, for progress displays. */
 export async function getJob(jobId: number): Promise<JobState | null> {
-  const r = (await getPool()?.query('SELECT id, kind, source_id, status, summary, error, result, created_at, finished_at FROM agent_jobs WHERE id=$1', [jobId]))?.rows[0];
-  return r ? { ...r, id: Number(r.id), source_id: Number(r.source_id) } : null;
+  const r = (await getPool()?.query('SELECT id, kind, source_id, game_slug, status, summary, error, result, created_at, finished_at FROM agent_jobs WHERE id=$1', [jobId]))?.rows[0];
+  return r ? { ...r, id: Number(r.id), source_id: Number(r.source_id ?? 0) } : null;
 }
 
 /** Queue a job, or return the one already open for this kind and source. */
@@ -160,6 +170,7 @@ export async function runNextJob(): Promise<boolean> {
  * After a quality job changed page text, rebuild that source's chunks so search sees the better text.
  * After a terms job, code turns the agent's labels into the verdict and settles the game request.
  * After a scout judgement job, the gated picks are written into the request's scout report.
+ * After an FAQ curation job, its canonical entries replace the game's older ones.
  */
 async function afterJob(kind: JobKind, jobId: number): Promise<void> {
   const pool = getPool(); if (!pool) return;
@@ -175,6 +186,11 @@ async function afterJob(kind: JobKind, jobId: number): Promise<void> {
     if (!j?.request_id) return;
     const { applyScoutJudgement } = await import('./scout'); // scout imports this module; load it lazily
     await applyScoutJudgement(Number(j.request_id), { id: Number(j.id), status: j.status, result: j.result ?? {} });
+    return;
+  }
+  if (kind === 'faq_curate') {
+    const { replaceCanonicalFaq } = await import('./faq');
+    await replaceCanonicalFaq(jobId);
     return;
   }
   if (kind !== 'quality_curate') return;
