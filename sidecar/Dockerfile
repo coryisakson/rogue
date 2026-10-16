@@ -18,6 +18,6 @@ ENV ROGUE_WORK_DIR=/work ROGUE_AGENT_KEY_FILE=/agent-share/agent-key \
 
 # /health is open on each agent port (127.0.0.1 inside the pod).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
-  CMD python -c "import urllib.request as u;[u.urlopen('http://127.0.0.1:%d/health'%p,timeout=3) for p in (8901,8902,8903)]"
+  CMD python -c "import urllib.request as u;[u.urlopen('http://127.0.0.1:%d/health'%p,timeout=3) for p in (8901,8902,8903,8904)]"
 
 ENTRYPOINT ["/opt/rogue-agents/entrypoint.sh"]

@@ -15,6 +15,9 @@ Agents see only the MCP server `rogue` at `${ROGUE_MCP_URL}/<agent>` (stateless 
 - librarian (8903): get_job, get_page_text, propose_claim, finish_job. Job kind `librarian_draft` (one rulebook source). propose_claim runs
   the same gates as the in-process Librarian (verbatim quote, duplicate quote, verifier model) and publishes with a citation; counts
   drafted/published/rejected and lastPage in `agent_jobs.result`. Budget: 400 tool iterations, API timeout 10800s, toolTimeout 180s.
+- terms-agent (8904): get_job, judge_sentences, finish_job. Job kind `terms_judge` (one game request, `agent_jobs.request_id`). Only
+  for terms the code judged 'unclear' because of bot/AI sentences; the agent labels each sentence forbids/allows/unrelated/unsure and
+  code (`decideTermsWithAgent`) sets the verdict when the job ends. Never changes a clear or restricted code verdict.
 
 Web app calls `POST http://127.0.0.1:<port>/v1/chat/completions` with `Authorization: Bearer <api key>`, body `{messages:[{role:'user',content}], session_id:'job-<id>'}` (no `model`). `/health` is open. API timeout 1500s, MCP toolTimeout 60s, unless the spec raises them (the app waits `JOB_MINUTES` per job kind).
 
