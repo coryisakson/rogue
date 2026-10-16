@@ -1,13 +1,16 @@
-# Handoff (rewritten 2026-10-16). Keep this file under 3 KB; history lives in docs/archive/.
+# Handoff (rewritten 2026-10-16 evening). Keep this file under 3 KB; history lives in docs/archive/.
 
-Live: https://rogue.cisakson.olares.com, version 0.0.85. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
+Live: https://rogue.cisakson.olares.com, version 0.0.89. Repo /opt/data/repos/rogue, main. Games: Pandemic, Slay the Spire.
 Rulebook: AGENTS.md. Product principle: AI tasks -> Nanobot agents over MCP in background; plain code stays in app (ADR 0002).
 
 ## Next (ordered; do the first unfinished one)
-1. DONE 0.0.84 + Pandemic re-indexed, spot-checked clean (StS not re-indexed). OCR/page-text quality (UNPAUSED, Cory 2026-10-16). Pandemic chunks mix card art/map labels into rules text (see chunks src 1); design a cleanup pass (layout-aware extract or noise filter) via worker. Ask evals/tuning and KB quality checks RE-ENABLED by Cory (2026-10-16, with MinerU OCR 0.0.88).
-1b/1c. DONE 0.0.83 (button busy guard; unanswered asks in improvement queue). Cory to check in browser.
-2. DONE: Nanobot sidecar + Librarian (0.0.78) + Terms Agent (0.0.79) + Scout page judgement (0.0.80). FAQ Curator shipped (0.0.81, faq_curate). Librarian yield is low (1 of 5 drafted on StS); tuning counts as content quality = paused.
-3. Printed pages 0.0.82 shipped and re-indexed (Pandemic printed=physical; StS none). Q&A become facts DONE 0.0.85 (run live on Pandemic: 0 eligible of 4). Then one-pager quality gate + card-size player aids and a Player Aid Agent (Cory 2026-10-16; see BACKLOG), frontier judge (needs APPROVALS entry).
+1. SOURCE WEIGHTS (Cory 2026-10-16, from the original brief). Order: rulebooks HIGHEST, then clarifications from the publisher or author (FAQ, errata, designer posts), then everything else (community, forum, Reddit). Code today (core index/authority.ts) ranks errata 1.3 > faq 1.2 > rulebook 1.1, which CONTRADICTS this: change it, keep the tier-2 weights below rulebook, test it, re-run evals. Weights must be visible per source in admin.
+2. ASK EVALS to 10/10 on Pandemic and StS (re-enabled). State at 0.0.89 (MinerU OCR, re-indexed): Pandemic 8/10, StS 7/10 (single runs, ~1 question noise; baseline before MinerU 6 and 8). Fixes: (a) count questions ('how many roles') use the wide-retrieval + neighbour path list questions use (says 4, list says 7); (b) 'what carries over between acts' needs wider retrieval + prompt to cover what persists; (c) Pandemic Share Knowledge eval pattern wants the Researcher exception wording, answer is correct: fix the pattern and check the rulebook has the exception; (d) StS Retain/draw and Daze/exhaust expect BGG-forum answers that the rulebook lacks: solved by item 3, else change evals to expect a cited 'rulebook does not say'. StS p.5 is a picture, empty is correct.
+3. EXTRA SOURCES within terms (Cory): publisher sites often have extra info and FAQs (Scout already finds FAQ/errata links; use it for both games). BGG and Reddit answers only if NO terms violation: read BGG_NOTES.md (BGG blocks automated reads; API needs a registered app token, no re-exposing data) and Reddit API terms/robots first, record verdicts in REVIEW_LOG.md, and add an APPROVALS entry before ingesting. Forum/Reddit content gets the lowest weight and is only quoted briefly with citation.
+4. Then: one-pager quality gate, card-size player aids and a Player Aid Agent (see BACKLOG), frontier judge (needs APPROVALS entry). Q&A-to-facts shipped (0 of 4 eligible).
+
+## Done recently
+MinerU OCR 0.0.86-0.0.89 (docs/OCR.md); chart 0.0.4 api-server at http://75f353a31.cisakson.olares.local. Both games re-indexed.
 
 ## Unverified live
 FAQ Curator: POST /api/admin/faq-curate?game=pandemic, poll ?job=. Terms Agent auto-approve and scout_judge on a fresh request; Scout publisher-first run (0.0.66).
