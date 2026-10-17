@@ -7,7 +7,7 @@ import { buttonVariants } from '../components/ui/button';
 const { title } = Astro.props;
 const badges = await adminBadges();
 // Access is enforced in middleware.ts (a layout cannot return a redirect).
-const tabs = [['/admin', 'Overview'], ['/admin/backups', 'Backups'], ['/admin/claims', 'Claims'], ['/admin/faq', 'FAQ ratings'], ['/admin/quality', 'Text quality'], ['/admin/extracts', 'Extracts'],['/admin/requests', 'Game requests'], ['/admin/sources', 'Game sources'],['/admin/approvals', 'Approvals'], ['/admin/review-log', 'Review log'], ['/admin/users', 'Users'], ['/admin/design', 'Design']];
+const tabs = [['/admin', 'Overview'], ['/admin/backups', 'Backups'], ['/admin/claims', 'Claims'], ['/admin/faq', 'FAQ ratings'], ['/admin/quality', 'Text quality'], ['/admin/extracts', 'Extracts'],['/admin/requests', 'Game requests'], ['/admin/sources', 'Game sources'], ['/admin/settings', 'Settings'],['/admin/approvals', 'Approvals'], ['/admin/review-log', 'Review log'], ['/admin/users', 'Users'], ['/admin/design', 'Design']];
 // Section links look like tab buttons (plain links, no JavaScript); the current section is filled.
 const here = Astro.url.pathname.replace(/\/$/, '') || '/admin';
 ---

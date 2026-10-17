@@ -1,0 +1,99 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { SETTING_GROUPS, sameOrigin, settingDef, type SettingSource, type SettingTest } from '@rogue/core';
+import { isAdmin } from '../../lib/admin';
+import { getPool } from '../../lib/services';
+import { resetSetting, saveSetting, settingsView } from '../../lib/settings';
+import { routerModels, runCheck, type CheckResult } from '../../lib/settings-check';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { NativeSelect, NativeSelectOption } from '../../components/ui/native-select';
+// Middleware already limits /admin to signed-in admins; the check is repeated because this page also handles POST.
+if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
+if (!getPool()) return new Response('No database configured', { status: 503 });
+let msg: { ok: boolean; text: string } | null = null;
+const checks: Record<string, CheckResult> = {};
+if (Astro.request.method === 'POST') {
+  const h = Astro.request.headers;
+  if (!sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'))) return new Response('Bad origin', { status: 403 });
+  const f = await Astro.request.formData();
+  const action = String(f.get('action') ?? ''); const key = String(f.get('key') ?? '');
+  const me = Astro.locals.user!.id;
+  if (action === 'test') {
+    const group = SETTING_GROUPS.find((g) => g.id === f.get('group'));
+    if (group?.test) checks[group.id] = await runCheck(group.test as SettingTest);
+  } else if (!settingDef(key)) msg = { ok: false, text: 'Unknown setting.' };
+  else if (action === 'save') {
+    const err = await saveSetting(key, String(f.get('value') ?? ''), me);
+    msg = err ? { ok: false, text: `${key}: ${err}` } : { ok: true, text: `${key} saved.` };
+  } else if (action === 'reset') {
+    await resetSetting(key, me);
+    msg = { ok: true, text: `${key} reset: env or default applies again.` };
+  }
+}
+const view = new Map((await settingsView()).map((v) => [v.def.key, v]));
+const models = await routerModels();
+const sourceBadge: Record<SettingSource, 'info' | 'secondary' | 'outline'> = { setting: 'info', env: 'secondary', default: 'outline' };
+const id = (key: string) => `s-${key.toLowerCase()}`;
+---
+<Admin title="Settings">
+  <p class="text-muted-foreground">Models, endpoints and keys. A saved value beats the env var, which beats the code default; changes apply within seconds, no redeploy. Secrets are stored encrypted with the backup key and only their last 4 characters are shown. Every change is audit-logged (values only for non-secrets).</p>
+  {msg && <p role="status" class={msg.ok ? 'text-success' : 'text-destructive'}>{msg.text}</p>}
+  <datalist id="router-models">{models.map((m) => <option value={m} />)}</datalist>
+  <Card className="my-3">
+    <CardHeader><CardTitle>Models on the Router</CardTitle><CardDescription>GET {'{base}'}/models, cached 60 s. Model fields below suggest these ids.</CardDescription></CardHeader>
+    <CardContent>{models.length ? <p class="text-sm break-words">{models.join(' · ')}</p> : <p class="text-sm text-muted-foreground">None listed (Router not set or not reachable).</p>}</CardContent>
+  </Card>
+  {SETTING_GROUPS.map((g) => (
+    <Card className="my-3" id={`group-${g.id}`}>
+      <CardHeader>
+        <CardTitle><h2 class="text-lg">{g.title}</h2></CardTitle>
+        <CardDescription>{g.help}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {g.settings.map((d) => { const v = view.get(d.key)!; return (
+          <div class="flex flex-col gap-1">
+            <label for={id(d.key)} class="font-medium">{d.label} <code class="text-xs text-muted-foreground">{d.key}</code></label>
+            <p class="text-sm">
+              Effective: {v.shown ? <code>{v.shown}</code> : <span class="text-muted-foreground">{d.defaultNote}</span>}{' '}
+              <Badge variant={sourceBadge[v.source]}>{v.source}</Badge>
+              {v.updatedAt && <span class="text-muted-foreground"> · saved {v.updatedAt.slice(0, 16).replace('T', ' ')}{v.updatedBy ? ` by user ${v.updatedBy}` : ''}</span>}
+            </p>
+            {d.help && <p class="text-xs text-muted-foreground">{d.help}</p>}
+            <div class="flex flex-wrap items-center gap-2">
+              <form method="post" class="flex flex-1 flex-wrap items-center gap-2">
+                <input type="hidden" name="action" value="save" /><input type="hidden" name="key" value={d.key} />
+                {d.kind === 'reasoning' || d.kind === 'ocr-provider' ? (
+                  <NativeSelect id={id(d.key)} name="value" defaultValue={v.source === 'default' ? '' : v.shown ?? ''}>
+                    <NativeSelectOption value="" disabled>choose</NativeSelectOption>
+                    {(d.kind === 'reasoning' ? ['none', 'low', 'default'] : ['none', 'command', 'http', 'mineru']).map((o) => <NativeSelectOption value={o}>{o}</NativeSelectOption>)}
+                  </NativeSelect>
+                ) : d.kind === 'secret' ? (
+                  <Input id={id(d.key)} name="value" type="password" autoComplete="new-password" className="max-w-md" placeholder={v.shown ? `Replace (current ${v.shown})` : 'Set a value'} />
+                ) : (
+                  <Input id={id(d.key)} name="value" type={d.kind === 'url' ? 'url' : 'text'} className="max-w-md" defaultValue={v.shown ?? ''} placeholder={d.defaultNote} {...(d.kind === 'model' ? { list: 'router-models' } : {})} />
+                )}
+                <Button type="submit" size="sm">Save</Button>
+              </form>
+              {v.source === 'setting' && (
+                <form method="post">
+                  <input type="hidden" name="action" value="reset" /><input type="hidden" name="key" value={d.key} />
+                  <Button type="submit" size="sm" variant="outline">Reset to default</Button>
+                </form>
+              )}
+            </div>
+          </div>
+        ); })}
+        {g.test && (
+          <form method="post" class="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="action" value="test" /><input type="hidden" name="group" value={g.id} />
+            <Button type="submit" size="sm" variant="secondary">Test</Button>
+            {checks[g.id] && <span role="status" class="text-sm"><Badge variant={checks[g.id]!.ok ? 'success' : 'danger'}>{checks[g.id]!.ok ? 'ok' : 'error'}</Badge> {checks[g.id]!.ms} ms · {checks[g.id]!.detail}</span>}
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  ))}
+</Admin>
