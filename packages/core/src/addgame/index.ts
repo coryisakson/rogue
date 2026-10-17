@@ -123,3 +123,4 @@ export function assessRights(f: ProbeFacts, host: string): RightsAssessment {
   const blocked = out.some((x) => x.level === 'block');
   return { verdict: blocked ? 'blocked' : problem ? 'problem' : 'pass', findings: out };
 }
+export * from './sources.js';

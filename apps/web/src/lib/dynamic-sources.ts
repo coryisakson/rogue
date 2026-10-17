@@ -1,3 +1,4 @@
+import { runtimeSeed } from '@rogue/core';
 import { ensureMigrated, getPool } from './services';
 import { ALLOWED_HOSTS, SEEDS, type SourceSeed } from './source-seeds';
 
@@ -26,6 +27,8 @@ export async function allSeeds(): Promise<SourceSeed[]> {
   const vseeds: SourceSeed[] = variants.map((v) => ({
     gameSlug: v.slug, url: v.url, title: `${v.slug} rules (text version)`, publisher: v.publisher ?? '', language: v.language ?? 'en', kind: 'rulebook' as const, editionLabel: v.label, foundOn: v.url,
   }));
-  const all = [...SEEDS, ...dynamic, ...vseeds];
+  // Rules links an admin added to an existing game on /admin/sources (after the same rights gates, migration 0038).
+  const runtime: SourceSeed[] = (await pool.query('SELECT game_slug, url, title, publisher, language, kind, edition_label, found_on FROM runtime_sources ORDER BY id')).rows.map(runtimeSeed);
+  const all = [...SEEDS, ...dynamic, ...runtime, ...vseeds];
   return all.filter((x, i) => all.findIndex((y) => y.url === x.url) === i);
 }
