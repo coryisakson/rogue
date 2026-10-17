@@ -76,7 +76,7 @@ Target: Section 508 = WCAG 2.2 AA, plus an ACR/VPAT. Work these in order, one PR
 - [ ] A2 Quick fixes on the current CSS: colour contrast 4.5:1 (text) / 3:1 (UI), visible focus rings, skip-to-content link, labels for every input and emoji button (vote buttons), `aria-live="polite"` for new chat answers, heading order, table headers/captions, `lang` per language, reduced-motion for spinners, 200% zoom/reflow at 320px. Add an automated axe check to scripts/qcheck.sh or CI so regressions fail.
 - [ ] A3 Design tokens: move colours/spacing/type into CSS variables (light + dark); keep class names (.btn, .card, .pill) working.
 - [ ] A4 Pilot shadcn/ui: add Tailwind + `@astrojs/react` + shadcn init in apps/web; port ONE widget (language switcher as an accessible Select) and the chat input/thread as islands; measure JS size and page speed; write the result into ADR 0003 (accept or fall back to Zag.js/Ark UI).
-- [ ] A5 Migrate pages to the design system one at a time (game page, facts, account, login, then admin); axe must stay clean after each.
+- [x] A5 Migrate pages to the design system one at a time (game page, facts, account, login, then admin); axe must stay clean after each.
 - [ ] A6 Print/sheet accessibility: setup sheet, player aid and cut-out sheet have text alternatives, logical reading order, and a high-contrast print option.
 - [ ] A7 Manual pass: keyboard-only walkthrough of every flow; NVDA + VoiceOver notes in docs/a11y/manual-<date>.md. Cory (or a tester) confirms screen-reader behaviour.
 - [ ] A8 Publish docs/a11y/ACR.md (VPAT 2.5 WCAG edition) from the audits; link from /about and the footer, plus an accessibility statement page and a feedback contact.

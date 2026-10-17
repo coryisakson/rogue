@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): A5 done (0.0.108): home, games list, setup, FAQ, aid, MCP docs and all admin pages on shadcn components; old .btn/.card/.pill CSS trimmed. Print layouts unchanged by design but need Cory's print test. Admin pages need Cory's browser check.
 - 2026-10-17 (Hermes): Azul German rulebook (source 21, spielen.de, R32) ingested+indexed: 2 pages, 19 chunks embedded, Librarian published 7 cited facts (1 rejected), provenance 0 violations. PDF carries a 'Nicht komplett' watermark (portal copy is partial); English publisher PDF still 403.
 - 2026-10-17 (Hermes): A5 slice 1 (0.0.107): game page, chat, facts, login, request-game, account, about moved to shadcn components (Badge status variants, native select). Island JS unchanged; CSS +0.8 KB gz. Admin/home/setup/FAQ still on old CSS. Needs Cory's eyes on look.
 - 2026-10-17 (Hermes): Public read-only MCP (0.0.106): /mcp with 9 cited tools, per-IP limits, /docs/mcp page, server card, SDK e2e test. docs/MCP.md. Next: OAuth for signed-in MCP tools (migration 0033+).
