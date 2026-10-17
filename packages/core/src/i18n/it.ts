@@ -6,6 +6,7 @@ export const it: Record<keyof typeof en, string> = {
   'footer.preview': 'Anteprima MVP · bozza scritta dall’IA dai regolamenti degli editori, controlla sempre la fonte',
   'footer.how': 'come funziona',
   'lang.label': 'Lingua', 'lang.change': 'Cambia',
+  'theme.label': 'Tema', 'theme.auto': 'Automatico', 'theme.light': 'Chiaro', 'theme.dark': 'Scuro',
 
   'common.players': '{min}–{max} giocatori',
   'common.back': '← {name}',

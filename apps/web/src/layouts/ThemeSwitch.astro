@@ -1,0 +1,32 @@
+---
+// Colour theme switch (Auto/Light/Dark) for the footer. The choice lives in localStorage only (no cookie, no server),
+// so it needs JavaScript: the control stays hidden until the script below shows it. Base.astro applies the stored
+// choice in <head> before the first paint, so pages never flash the wrong theme.
+import { t, type Locale } from '@rogue/core';
+interface Props { locale: Locale; id: string }
+const { locale, id } = Astro.props;
+---
+<span class="theme-switch" hidden>
+  <label for={id}>{t(locale, 'theme.label')}</label>
+  <select id={id} data-theme-switch>
+    <option value="auto">{t(locale, 'theme.auto')}</option>
+    <option value="light">{t(locale, 'theme.light')}</option>
+    <option value="dark">{t(locale, 'theme.dark')}</option>
+  </select>
+</span>
+<script is:inline>
+  (() => {
+    const KEY = 'rogue-theme';
+    for (const select of document.querySelectorAll('[data-theme-switch]')) {
+      select.value = document.documentElement.dataset.theme || 'auto';
+      select.closest('.theme-switch').hidden = false;
+      select.addEventListener('change', () => {
+        const choice = select.value;
+        // Auto removes the attribute, so the CSS follows prefers-color-scheme again.
+        if (choice === 'light' || choice === 'dark') document.documentElement.dataset.theme = choice;
+        else delete document.documentElement.dataset.theme;
+        try { if (choice === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, choice); } catch {}
+      });
+    }
+  })();
+</script>

@@ -6,6 +6,7 @@ export const de: Record<keyof typeof en, string> = {
   'footer.preview': 'MVP-Vorschau · von KI aus Verlagsregeln erstellt, prüfe immer die Quelle',
   'footer.how': 'so funktioniert es',
   'lang.label': 'Sprache', 'lang.change': 'Ändern',
+  'theme.label': 'Farbschema', 'theme.auto': 'Automatisch', 'theme.light': 'Hell', 'theme.dark': 'Dunkel',
 
   'common.players': '{min}–{max} Spieler',
   'common.back': '← {name}',

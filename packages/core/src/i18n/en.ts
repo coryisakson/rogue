@@ -8,6 +8,7 @@ export const en = {
   'footer.preview': 'MVP preview · AI-drafted from publisher rulebooks, always check the source',
   'footer.how': 'how this works',
   'lang.label': 'Language', 'lang.change': 'Change',
+  'theme.label': 'Theme', 'theme.auto': 'Auto', 'theme.light': 'Light', 'theme.dark': 'Dark',
 
   // Shared bits
   'common.players': '{min}–{max} players',

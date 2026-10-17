@@ -6,6 +6,7 @@ export const zh: Record<keyof typeof en, string> = {
   'footer.preview': 'MVP 预览版 · 由 AI 根据出版商规则书起草，请务必核对原文',
   'footer.how': '工作原理',
   'lang.label': '语言', 'lang.change': '切换',
+  'theme.label': '主题', 'theme.auto': '自动', 'theme.light': '浅色', 'theme.dark': '深色',
 
   'common.players': '{min}–{max} 名玩家',
   'common.back': '← {name}',
