@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): A3 tokens + dark theme + Auto/Light/Dark footer switch (0.0.104). Dark passes 18 contrast pairs. 3 light pairs still fail (danger btn 3.26, focus ring on cards 1.96, rating star 1.90) plus footer ~3.2; needs light-colour change. Next: A4 shadcn pilot.
 - 2026-10-17 (Hermes): A2 remainder merged (0.0.103): skip link, labels, aria-busy chat, heading order, table captions, reduced motion, 320px reflow, scripts/a11y-check.mjs in npm run check. Non-en nav.skip needs native review. Next: A3 design tokens, A4 shadcn pilot.
 - 2026-10-17 (Hermes): A2 contrast fix live 0.0.102 (header links, .btn, ok pill). Live check: header/btn fails gone; pill hits are a crude-checker artefact (translucent bg), axe re-run still pending. Next: axe re-audit, keyboard/focus (A3).
 - 2026-10-17 (Hermes): A1 a11y audit (axe-core, 7 public pages, docs/a11y/A1-audit.md): only color-contrast fails (2-6 nodes/page); setup page clean. Not run: Lighthouse, admin, keyboard, dark theme. Next: A2 token fix for contrast.
