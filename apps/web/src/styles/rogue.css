@@ -13,7 +13,7 @@
       .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(15rem,1fr)); gap: 1rem; }
       .pill { display:inline-block; font-size:.75rem; padding:.1rem .55rem; border-radius:999px; background:#0002; margin-right:.3rem; }
       .pill.warn { background: #d9a44155; }
-      .pill.ok { background: #3b8a5a44; }
+      .pill.ok { background: #3b8a5a22; }
       .pill.bad { background: #b8442f44; }
       footer.site { text-align:center; opacity:.65; font-size:.8rem; padding:1.5rem 1rem; }
       h1,h2,h3 { font-family: 'Trebuchet MS', Georgia, serif; }
@@ -25,3 +25,7 @@
 @media print { body { background:#fff; color:#000; } header.site, footer.site { display:none; } }
 @media (prefers-reduced-motion: no-preference) { .btn { transition: transform .08s; } .btn:active { transform: translateY(1px); } }
 :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+/* A2 (WCAG AA contrast): gold on wood and rust on gold were under 4.5:1. */
+header.site a { color: var(--cream); }
+.card a.btn, a.btn { color: var(--ink); }
