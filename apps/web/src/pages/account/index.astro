@@ -32,6 +32,8 @@ const langSaved = Astro.url.searchParams.has('lang');
       </form>
       <h2>{t(L, 'account.collectionTitle')}</h2>
       <p>{t(L, 'account.collectionBody')} <a href="/account/collection">{t(L, 'account.collectionLink')}</a></p>
+      <h2>{t(L, 'oauth.appsTitle')}</h2>
+      <p>{t(L, 'oauth.appsIntro')} <a href="/oauth/apps">{t(L, 'oauth.appsTitle')}</a></p>
       <h2>{t(L, 'account.methods')}</h2>
       <p>{t(L, 'account.discordNote')}</p>
       <p>{t(L, 'account.sameAccount')}</p>

@@ -45,6 +45,9 @@ spec:
           value: '{{ .Values.rogueAiMultiBaseUrl | default "" }}'
         - name: ROGUE_AI_MULTI_MODEL
           value: '{{ .Values.rogueAiMultiModel | default "" }}'
+        # Signed-in MCP tools over OAuth (ADR 0004, RGE-A19 approved by Cory 2026-10-17).
+        - name: ROGUE_MCP_OAUTH
+          value: '1'
         - name: ROGUE_SEARCH_BASE_URL
           value: '{{ .Values.rogueSearchBaseUrl | default "" }}'
         - name: ROGUE_OCR_PROVIDER
