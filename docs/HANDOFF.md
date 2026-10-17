@@ -4,13 +4,13 @@ Live: https://rogue.cisakson.olares.com, version 0.0.101. Repo /opt/data/repos/r
 Rulebook: AGENTS.md. Product principle: AI tasks -> Nanobot agents over MCP in background; plain code stays in app (ADR 0002).
 
 ## Next (ordered; do the first unfinished one)
-0. MVP FOCUS (Cory 2026-10-16): answer-perfecting (item 2 remainder) is PAUSED. Work the one-pager gate: verify real print (browser print preview), card-size player aids, then item 3.
+0. DESIGN + COMPONENTS FOCUS (Cory 2026-10-17): printable work is closed. Work ROADMAP 'Accessibility and design system' now, in order: A2 remainder (worker cc/a11y-a2b running), A3 tokens, A4 shadcn/ui pilot, A5 page migration. Answer-perfecting stays PAUSED.
 1. DONE 0.0.90: source weights (rulebook > errata > faq > other > forum), visible on /admin/quality.
 2. ASK EVALS to 10/10 (PAUSED for MVP): remaining StS 'carries over between acts' retrieval; Retain/Daze are mayAbstain (Reddit/BGG ruled out, R29/R30). Pandemic 8/10, StS 7/10 at 0.0.89.
 3. EXTRA SOURCES (Reddit+BGG ruled out, R29/R30; remaining: run Scout for publisher FAQ/errata on both games) within terms (Cory): publisher sites often have extra info and FAQs (Scout already finds FAQ/errata links; use it for both games). BGG and Reddit answers only if NO terms violation: read BGG_NOTES.md (BGG blocks automated reads; API needs a registered app token, no re-exposing data) and Reddit API terms/robots first, record verdicts in REVIEW_LOG.md, and add an APPROVALS entry before ingesting. Forum/Reddit content gets the lowest weight and is only quoted briefly with citation.
 4. Then: aid page shipped 0.0.94 (needs print test, card_size unset), Player Aid Agent (see BACKLOG), frontier judge (needs APPROVALS entry). Q&A-to-facts shipped (0 of 4 eligible).
 
-5. UNATTENDED BACKGROUND TRACK (Cory 2026-10-16): Accessibility + design system, ROADMAP section 'Accessibility and design system' A1-A8, ADR 0003 (shadcn/ui, WCAG 2.2 AA). Work these when no MVP item is pending or Cory is away; start at A1 (audit only).
+5. (Promoted to item 0 on 2026-10-17; A1 and A2 contrast done.)
 
 ## Done recently
 MinerU OCR 0.0.86-0.0.89 (docs/OCR.md); chart 0.0.4 api-server at http://75f353a31.cisakson.olares.local. Both games re-indexed.
