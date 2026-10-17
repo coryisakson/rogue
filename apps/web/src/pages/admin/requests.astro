@@ -1,7 +1,7 @@
 ---
 import Admin from '../../layouts/Admin.astro';
 import { sameOrigin, parseGameRequest, googleLink, adminSearchQuery, BGG_TOP10_DATE } from '@rogue/core';
-import { approveGame, completeManual, queueTopGames, resumeQueue } from '../../lib/intake';
+import { approveGame, completeManual, editSource, queueTopGames, resumeQueue } from '../../lib/intake';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
 import { isAdmin } from '../../lib/admin';
 import { ensureMigrated, getPool } from '../../lib/services';
@@ -29,6 +29,12 @@ if (Astro.request.method === 'POST') {
   else if (action === 'reject') msg = (await rejectRequest(id, me, String(f.get('reason') ?? 'not accepted'))) ? `Request #${id} rejected.` : 'Request was not waiting.';
   else if (action === 'recheck') { await runChecks(id); msg = `Checks re-run for #${id}.`; }
   else if (action === 'approve-game') { const r = await approveGame(id, me); msg = r.ok ? `Game #${id} approved. It is in the queue; the Scout will look for the publisher's rules.` : (r.error ?? 'Could not approve.'); }
+  else if (action === 'edit-source') {
+    const cur = (await getPool()!.query('SELECT name FROM game_requests WHERE id=$1', [id])).rows[0];
+    const p = parseGameRequest({ name: f.get('name') || cur?.name, publisher: f.get('publisher'), rulebookUrl: f.get('rulebookUrl'), foundOn: f.get('foundOn'), language: 'en' });
+    if (!p.ok) msg = p.error;
+    else { const r = await editSource(id, me, p.value); msg = r.ok ? `Request #${id} source changed; rights checks re-run.` : (r.error ?? 'Could not save.'); }
+  }
   else if (action === 'manual') {
     const cur = (await getPool()!.query('SELECT name FROM game_requests WHERE id=$1', [id])).rows[0];
     const p = parseGameRequest({ name: f.get('name') || cur?.name, publisher: f.get('publisher'), rulebookUrl: f.get('rulebookUrl'), foundOn: f.get('foundOn'), language: 'en' });
@@ -83,6 +89,17 @@ const actionRow = 'mt-2 flex flex-wrap items-start gap-4';
           <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve-game" /><Button type="submit">Approve game (Scout looks for the rules)</Button></form>
           <form method="post" class="flex flex-wrap items-center gap-2"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><Input name="reason" aria-label="Reject reason" placeholder="reason" required maxLength={200} className="w-48 bg-background" /> <Button type="submit" variant="destructive">Reject</Button></form>
         </div>
+      )}
+      {['submitted', 'checked'].includes(r.status) && r.rulebook_url && (
+        <details class="mt-2"><summary>Edit source (wrong publisher site or rulebook?)</summary>
+          <form method="post" class="mt-2 grid max-w-[36rem] gap-1.5"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="edit-source" />
+            <label>Game title <Input name="name" defaultValue={r.name} maxLength={80} required className={field} /></label>
+            <label>Publisher <Input name="publisher" defaultValue={r.publisher} maxLength={80} required className={field} /></label>
+            <label>Rulebook link (publisher's own, https) <Input name="rulebookUrl" type="url" defaultValue={r.rulebook_url} required maxLength={400} className={field} /></label>
+            <label>Publisher page (optional, Scout scans it and reads the terms) <Input name="foundOn" type="url" defaultValue={r.found_on ?? ''} maxLength={400} className={field} /></label>
+            <Button type="submit" className="justify-self-start">Save and re-run rights checks</Button>
+            <small>Clears the old checks, terms verdict and scout report, which belong to the old site.</small></form>
+        </details>
       )}
       {r.status === 'manual' && (
         <div class="mt-2">

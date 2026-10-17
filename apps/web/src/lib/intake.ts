@@ -156,3 +156,22 @@ export async function completeManual(id: number, adminId: number, v: { name: str
   if (v.foundOn) await scoutRequest(id);
   return { ok: true };
 }
+
+/**
+ * Admin corrects the source the Scout picked (wrong publisher site or rulebook link) on a request that is still pending:
+ * the old checks, terms verdict and scout report belong to the old site, so they are cleared and the normal rights checks run again.
+ */
+export async function editSource(id: number, adminId: number, v: { name: string; publisher: string; rulebookUrl: string; foundOn: string | null }): Promise<{ ok: boolean; error?: string }> {
+  const pool = getPool(); if (!pool) return { ok: false, error: 'no database' };
+  try {
+    const r = await pool.query("UPDATE game_requests SET name=$2, slug=$3, publisher=$4, rulebook_url=$5, found_on=$6, report=NULL, terms_check=NULL, scout=NULL, status='submitted', stage='rights checks running (source edited by an admin)' WHERE id=$1 AND status IN ('submitted','checked') AND rulebook_url IS NOT NULL RETURNING id", [id, v.name, slugify(v.name), v.publisher, v.rulebookUrl, v.foundOn]);
+    if (!r.rowCount) return { ok: false, error: 'Request is not pending with a source to edit.' };
+  } catch (e) {
+    if ((e as { code?: string }).code === '23505') return { ok: false, error: 'That rulebook link is already requested.' };
+    throw e;
+  }
+  await audit(`admin:${adminId}`, 'game_request_source_edited', { id, url: v.rulebookUrl, foundOn: v.foundOn });
+  await runChecks(id);
+  if (v.foundOn) await scoutRequest(id);
+  return { ok: true };
+}

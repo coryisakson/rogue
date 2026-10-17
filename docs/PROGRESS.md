@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): 0.0.115: admin 'Edit source' on pending requests (submitted/checked) to change publisher/rulebook/site; clears old checks and re-runs rights checks. Needs Cory browser check.
 - 2026-10-17 (Hermes): 0.0.114: RGE-A19 approved; ROGUE_MCP_OAUTH=1 in chart; /account links to /oauth/apps. Needs live register->consent->token->tool test with a real client before announcing.
 - 2026-10-17 (Hermes): 0.0.113: MCP OAuth 2.1 (PKCE, DCR, consent, connected apps at /oauth/apps, signed-in tools) behind ROGUE_MCP_OAUTH (off). ADR 0004, RGE-A19 awaits Cory. Not tested against real Postgres/live connectors. Librarian ?source= fix, Azul EN 6 facts.
 - 2026-10-17 (Hermes): 0.0.111: /account/collection (BGG username + CSV import + compare; API import waits for ROGUE_BGG_TOKEN/A16), admin 'Queue BGG top 10' button, Librarian ?source=<id>. Azul EN seed ingested (R34). Needs Cory browser check + CSV test.
