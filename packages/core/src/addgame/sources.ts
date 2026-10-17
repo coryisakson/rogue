@@ -3,7 +3,7 @@
  * decision and the seed the ingest path reads. The network calls live in apps/web/src/lib/game-sources.ts.
  * Same principle as the add-game flow: code decides the gates, a human confirms the terms, nothing is fetched before.
  */
-import { hostProblem } from './index.js';
+import { hostProblem, slugify } from './index.js';
 
 export const SOURCE_LANGUAGES = ['en', 'de', 'zh', 'es', 'it'] as const;
 export const SOURCE_KINDS = ['rulebook', 'faq', 'errata', 'other'] as const;
@@ -75,4 +75,15 @@ export function runtimeEditionLabel(publisher: string, kind: SourceKind, languag
 export function runtimeSeed(r: RuntimeSourceRow): RuntimeSeed {
   const kind = (SOURCE_KINDS as readonly string[]).includes(r.kind) ? (r.kind as SourceKind) : 'other';
   return { gameSlug: r.game_slug, url: r.url, title: r.title, publisher: r.publisher, language: r.language, kind, editionLabel: r.edition_label, foundOn: r.found_on ?? r.url };
+}
+
+/**
+ * Admin title search: the slug of the game in Rogue that a search result points at (same BGG id, else same slug), or null.
+ * A hit means "open its sources page"; a miss means "start an approved request".
+ */
+export function libraryMatch(m: { bggId: number; title: string }, games: readonly { slug: string; bggId: number | null }[]): string | null {
+  const byId = games.find((g) => g.bggId !== null && g.bggId === m.bggId);
+  if (byId) return byId.slug;
+  const slug = slugify(m.title);
+  return games.find((g) => g.slug === slug)?.slug ?? null;
 }

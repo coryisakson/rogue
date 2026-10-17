@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSourceInput, parseSourceUrl, runtimeEditionLabel, runtimeSeed, sourceProbeGate, termsGate } from './sources.js';
+import { libraryMatch, parseSourceInput, parseSourceUrl, runtimeEditionLabel, runtimeSeed, sourceProbeGate, termsGate } from './sources.js';
 
 const base = { url: 'https://cdn.example.com/azul-faq.pdf#page=2', title: 'Azul FAQ', publisher: 'Plan B Games', language: 'en', kind: 'faq' };
 
@@ -61,5 +61,16 @@ describe('game sources: seeds', () => {
     const row = { game_slug: 'azul', url: 'https://cdn.example.com/a.pdf', title: 'Azul FAQ', publisher: 'Plan B Games', language: 'en', kind: 'faq', edition_label: label, found_on: null };
     expect(runtimeSeed(row)).toEqual({ gameSlug: 'azul', url: row.url, title: 'Azul FAQ', publisher: 'Plan B Games', language: 'en', kind: 'faq', editionLabel: label, foundOn: row.url });
     expect(runtimeSeed({ ...row, kind: 'weird', found_on: 'https://example.com/p' })).toMatchObject({ kind: 'other', foundOn: 'https://example.com/p' });
+  });
+});
+
+describe('game sources: admin title search', () => {
+  const games = [{ slug: 'azul', bggId: 230802 }, { slug: 'slay-the-spire', bggId: null }];
+  it('finds a game in Rogue by BGG id first, then by slug', () => {
+    expect(libraryMatch({ bggId: 230802, title: 'Azul (renamed)' }, games)).toBe('azul');
+    expect(libraryMatch({ bggId: 338960, title: 'Slay the Spire' }, games)).toBe('slay-the-spire');
+  });
+  it('returns null for a game not in Rogue', () => {
+    expect(libraryMatch({ bggId: 1, title: 'Brass: Birmingham' }, games)).toBeNull();
   });
 });

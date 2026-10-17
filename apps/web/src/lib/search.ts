@@ -1,4 +1,4 @@
-import type { SearchHit } from '@rogue/core';
+import { parseBggMatches, type GameMatch, type SearchHit } from '@rogue/core';
 import { ipv4Fetch } from './services';
 
 /**
@@ -27,4 +27,9 @@ export async function webSearch(query: string, limit = 12): Promise<SearchHit[]>
   if (cache.size > 200) cache.clear();
   cache.set(q, { at: Date.now(), hits });
   return hits.slice(0, limit);
+}
+
+/** The game pick list: BoardGameGeek game pages for a title. Shared by /request-game and the admin title search. */
+export async function searchGameMatches(title: string): Promise<GameMatch[]> {
+  return parseBggMatches(await webSearch(`site:boardgamegeek.com/boardgame ${title}`, 25));
 }

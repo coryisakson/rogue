@@ -1,9 +1,9 @@
 ---
 import Base from '../layouts/Base.astro';
-import { RateLimiter, parseBggMatches, parseDetails, parseGameRequest, parsePick, sameOrigin, type GameMatch } from '@rogue/core';
+import { RateLimiter, parseDetails, parseGameRequest, parsePick, sameOrigin, type GameMatch } from '@rogue/core';
 import { submitRequest } from '../lib/add-game';
 import { submitDetails, submitPick } from '../lib/intake';
-import { searchEnabled, webSearch } from '../lib/search';
+import { searchEnabled, searchGameMatches } from '../lib/search';
 import { ensureMigrated, getPool } from '../lib/services';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -46,7 +46,7 @@ if (Astro.request.method === 'POST') {
 } else if (q.length >= 2 && searchOn) {
   if (!searchLimiter.allow(String(user.id))) error = 'Too many searches this hour.';
   else {
-    try { matches = parseBggMatches(await webSearch(`site:boardgamegeek.com/boardgame ${q}`, 25)); }
+    try { matches = await searchGameMatches(q); }
     catch { error = 'Search is not answering right now. Describe the game below instead.'; matches = []; }
   }
 }
