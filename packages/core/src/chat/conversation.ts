@@ -113,7 +113,7 @@ export interface RewriteResult { standalone: string; translations: Record<string
  * `translateTo` lists rulebook languages that differ from the user's: the same call then also translates the question into them,
  * so retrieval can search the rulebook in its own words (searchRules queries the original and the translations).
  */
-export async function rewriteQuestion(ai: Pick<AiProvider, 'chat'> | null, history: ChatTurn[], question: string, opts: { translateTo?: string[] } = {}): Promise<RewriteResult> {
+export async function rewriteQuestion(ai: Pick<AiProvider, 'chat'> | null, history: ChatTurn[], question: string, opts: { translateTo?: string[]; reasoning?: 'none' | 'low' | 'default' } = {}): Promise<RewriteResult> {
   const langs = opts.translateTo ?? [];
   const none = { standalone: question, translations: {}, promptTokens: 0, completionTokens: 0, rewritten: false };
   if (!ai || (!history.length && !langs.length)) return none;
@@ -121,7 +121,8 @@ export async function rewriteQuestion(ai: Pick<AiProvider, 'chat'> | null, histo
     const r = await ai.chat({
       temperature: 0,
       maxTokens: 120 + 100 * langs.length,
-      reasoning: 'none',
+      // 'default' sends no reasoning_effort (the model decides); unset keeps the original 'none'.
+      ...(opts.reasoning === 'default' ? {} : { reasoning: opts.reasoning ?? 'none' }),
       messages: [
         { role: 'system', content: langs.length ? rewriteTranslateSystem(langs) : REWRITE_SYSTEM },
         { role: 'user', content: `${history.length ? `${historyBlock(history)}\n\n` : ''}Last question: ${question}` },

@@ -67,4 +67,37 @@ export class OpenAiCompatibleProvider implements AiProvider {
     if (vectors.length !== inputs.length) throw new Error('AI embeddings response size mismatch');
     return { vectors, model: j.model ?? m };
   }
+
+  /** Cohere/Jina-style rerank (POST {base}/rerank). Returns document indexes, best first. Throws on any failure (callers fall back). */
+  async rerank(query: string, documents: string[], model: string, topN?: number): Promise<number[]> {
+    const j = await this.post('/rerank', { model, query, documents, ...(topN ? { top_n: topN } : {}) });
+    return parseRerankResponse(j, documents.length);
+  }
+
+  /** Model ids the endpoint offers (GET {base}/models). */
+  async listModels(): Promise<string[]> {
+    const headers: Record<string, string> = { accept: 'application/json' };
+    if (this.o.apiKey) headers['authorization'] = `Bearer ${this.o.apiKey}`;
+    const res = await this.f(`${this.o.baseUrl.replace(/\/$/, '')}/models`, { headers, signal: AbortSignal.timeout(this.o.timeoutMs ?? 15_000) });
+    if (!res.ok) throw new Error(`AI request /models failed: HTTP ${res.status}`);
+    return parseModelList(await res.json());
+  }
+}
+
+/** Indexes from a rerank answer ({results:[{index, relevance_score}]}, or {data:[...]}), sorted by score when given. Unknown or repeated indexes are dropped. */
+export function parseRerankResponse(j: unknown, n: number): number[] {
+  const list = (j as { results?: unknown; data?: unknown })?.results ?? (j as { data?: unknown })?.data;
+  if (!Array.isArray(list)) throw new Error('rerank response has no results');
+  const rows = list
+    .map((r: { index?: unknown; relevance_score?: unknown; score?: unknown }, i: number) => ({ index: Number(r?.index), score: Number(r?.relevance_score ?? r?.score ?? -i) }))
+    .filter((r) => Number.isInteger(r.index) && r.index >= 0 && r.index < n);
+  rows.sort((a, b) => b.score - a.score);
+  return [...new Set(rows.map((r) => r.index))];
+}
+
+/** Model ids from an OpenAI-style /models answer ({data:[{id}]}), sorted, without duplicates. */
+export function parseModelList(j: unknown): string[] {
+  const data = (j as { data?: unknown })?.data;
+  if (!Array.isArray(data)) return [];
+  return [...new Set(data.map((m: { id?: unknown }) => (typeof m?.id === 'string' ? m.id : '')).filter(Boolean))].sort();
 }

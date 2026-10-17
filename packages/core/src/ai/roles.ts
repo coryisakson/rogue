@@ -20,8 +20,12 @@ export interface AiEndpoint {
 }
 
 export function loadAiRole(env: Record<string, string | undefined>, role: AiRole): AiEndpoint {
-  const p = `ROGUE_AI_${AI_ROLE_ENV[role]}_`;
-  const defaultModel = env['ROGUE_AI_CHAT_MODEL'] || 'default-chat';
+  return loadEndpoint(env, AI_ROLE_ENV[role], env['ROGUE_AI_CHAT_MODEL'] || 'default-chat');
+}
+
+/** One ROGUE_AI_<PREFIX>_* endpoint: own base URL with only its own key, else the default Router with the role key or the Router key. */
+export function loadEndpoint(env: Record<string, string | undefined>, prefix: string, defaultModel: string): AiEndpoint {
+  const p = `ROGUE_AI_${prefix}_`;
   const model = env[`${p}MODEL`] || defaultModel;
   const ownUrl = env[`${p}BASE_URL`] || null;
   // An own endpoint never inherits the default key: the local router's key must not be sent to a third party.

@@ -1,4 +1,4 @@
-import { loadAiRoles, type AiEndpoint, type AiRole } from './ai/roles.js';
+import { loadAiRoles, loadEndpoint, type AiEndpoint, type AiRole } from './ai/roles.js';
 
 /**
  * Instance profile (see design plan section 7f). Phase 0 only defines the shape and EU defaults.
@@ -41,8 +41,14 @@ export interface ServiceConfig {
   aiAnswerReasoning: 'none' | 'low' | 'default';
   /** Rules-chat questions per signed-in user per day (ROGUE_CHAT_DAILY_LIMIT); admins are exempt. */
   chatDailyLimit: number;
+  /** Thinking budget for the follow-up rewrite/translate call (ROGUE_AI_REWRITE_REASONING, default 'none'). */
+  aiRewriteReasoning: 'none' | 'low' | 'default';
   /** Per-role chat endpoints (ROGUE_AI_CHAT_* / ROGUE_AI_TRANSLATE_* / ROGUE_AI_MULTI_*), each falling back to the default. */
   aiRoles: Record<AiRole, AiEndpoint>;
+  /** Embedding endpoint (ROGUE_AI_EMBED_MODEL, optional own ROGUE_AI_EMBED_BASE_URL/_API_KEY). */
+  aiEmbed: AiEndpoint;
+  /** Rerank endpoint (ROGUE_AI_RERANK_*); null = no rerank model, the chat model ranks (the original behaviour). */
+  aiRerank: AiEndpoint | null;
 }
 
 export function loadServices(env: Record<string, string | undefined> = {}): ServiceConfig {
@@ -56,13 +62,16 @@ export function loadServices(env: Record<string, string | undefined> = {}): Serv
     aiEmbedModel: env['ROGUE_AI_EMBED_MODEL'] || 'default-embedding',
     aiAnswerReasoning: parseReasoning(env['ROGUE_AI_ANSWER_REASONING']),
     chatDailyLimit: positiveInt(env['ROGUE_CHAT_DAILY_LIMIT'], 60),
+    aiRewriteReasoning: parseReasoning(env['ROGUE_AI_REWRITE_REASONING'], 'none'),
     aiRoles: loadAiRoles(env),
+    aiEmbed: loadEndpoint(env, 'EMBED', env['ROGUE_AI_EMBED_MODEL'] || 'default-embedding'),
+    aiRerank: env['ROGUE_AI_RERANK_MODEL'] ? loadEndpoint(env, 'RERANK', env['ROGUE_AI_RERANK_MODEL']) : null,
   };
 }
 
 // 'low' keeps some thinking for rule answers (they need it) but cuts the ~430-token think the model does by default.
-function parseReasoning(v: string | undefined): 'none' | 'low' | 'default' {
-  return v === 'none' || v === 'default' ? v : 'low';
+function parseReasoning(v: string | undefined, fallback: 'none' | 'low' = 'low'): 'none' | 'low' | 'default' {
+  return v === 'none' || v === 'low' || v === 'default' ? v : fallback;
 }
 
 function positiveInt(v: string | undefined, fallback: number): number {
