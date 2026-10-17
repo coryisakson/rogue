@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): Public read-only MCP (0.0.106): /mcp with 9 cited tools, per-IP limits, /docs/mcp page, server card, SDK e2e test. docs/MCP.md. Next: OAuth for signed-in MCP tools (migration 0033+).
 - 2026-10-17 (Hermes): A4 design system (0.0.105): shadcn/ui + Tailwind v4 theme vars (:root/.dark) are the single theme source; language + theme switchers are shadcn islands (+120 KB gz JS, React/Radix). Chat not ported. New parchment/felt look, AA in both modes. docs/THEMING.md.
 - 2026-10-17 (Hermes): A3 tokens + dark theme + Auto/Light/Dark footer switch (0.0.104). Dark passes 18 contrast pairs. 3 light pairs still fail (danger btn 3.26, focus ring on cards 1.96, rating star 1.90) plus footer ~3.2; needs light-colour change. Next: A4 shadcn pilot.
 - 2026-10-17 (Hermes): A2 remainder merged (0.0.103): skip link, labels, aria-busy chat, heading order, table captions, reduced motion, 320px reflow, scripts/a11y-check.mjs in npm run check. Non-en nav.skip needs native review. Next: A3 design tokens, A4 shadcn pilot.
