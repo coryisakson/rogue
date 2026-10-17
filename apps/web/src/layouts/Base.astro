@@ -47,7 +47,7 @@ const THEME_SCRIPT = `(() => {
     )}
     {bare && <div class="lang-bare"><LangSwitch locale={L} id="lang-b" /></div>}
     <slot />
-    {!bare && <footer class="site">Rogue v{VERSION} · {t(L, 'footer.preview')} ·&nbsp;<a href="/about">{t(L, 'footer.how')}</a> ·&nbsp;<a href="/docs/mcp">{t(L, 'footer.mcp')}</a> ·&nbsp;<LangSwitch locale={L} id="lang-f" /> <ThemeSwitch locale={L} /></footer>}
+    {!bare && <footer class="site">Rogue v{VERSION} · {t(L, 'footer.preview')} ·&nbsp;<a href="/about">{t(L, 'footer.how')}</a> ·&nbsp;<a href="/accessibility">{t(L, 'footer.a11y')}</a> ·&nbsp;<a href="/docs/mcp">{t(L, 'footer.mcp')}</a> ·&nbsp;<LangSwitch locale={L} id="lang-f" /> <ThemeSwitch locale={L} /></footer>}
     <style is:global>
       .lang-switch { display: inline-flex; gap: .3rem; align-items: center; margin: 0; }
       .lang-switch select, .lang-switch button, .theme-switch { font: inherit; font-size: .85rem; }

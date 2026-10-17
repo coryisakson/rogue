@@ -1,0 +1,28 @@
+---
+import Base from '../layouts/Base.astro';
+import { Card, CardContent } from '../components/ui/card';
+---
+<Base title="Accessibility statement">
+  <main id="main">
+  <Card className="mt-6 text-base"><CardContent>
+    <h1>Accessibility statement</h1>
+    <p>We aim for WCAG 2.2 level AA on the public pages of Rogue. This is a self assessment, not an independent audit.</p>
+    <h2>What we do</h2>
+    <ul>
+      <li>Automated checks (axe-core) run against the public pages; text contrast, labels, headings and landmarks are tested in the build.</li>
+      <li>The setup sheet and player aid have a high-contrast print option (<code>?contrast=high</code> or the toggle button). Cut-out duplicates are hidden from screen readers.</li>
+      <li>Light and dark themes, keyboard operable controls, visible focus, and language switching (English, German, Spanish, Italian, Chinese; some labels are machine-translated).</li>
+    </ul>
+    <h2>Known gaps</h2>
+    <ul>
+      <li>A full manual keyboard and screen-reader pass has not been done yet.</li>
+      <li>Admin pages are not yet fully audited.</li>
+      <li>Publisher rulebooks we link to are not under our control and may not be accessible.</li>
+    </ul>
+    <h2>Conformance report</h2>
+    <p>The detailed report (VPAT 2.5, WCAG edition) is in the project repository at <code>docs/a11y/ACR.md</code>.</p>
+    <h2>Feedback</h2>
+    <p>If something is hard to use, email <a href="mailto:cory@isaksonfamily.net">cory@isaksonfamily.net</a> with the page and what went wrong. We aim to answer within 14 days.</p>
+  </CardContent></Card>
+  </main>
+</Base>

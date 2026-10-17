@@ -79,7 +79,7 @@ Target: Section 508 = WCAG 2.2 AA, plus an ACR/VPAT. Work these in order, one PR
 - [x] A5 Migrate pages to the design system one at a time (game page, facts, account, login, then admin); axe must stay clean after each.
 - [ ] A6 (high-contrast print DONE 0.0.120; reading-order/alt review left) Print/sheet accessibility: setup sheet, player aid and cut-out sheet have text alternatives, logical reading order, and a high-contrast print option.
 - [ ] A7 Manual pass: keyboard-only walkthrough of every flow; NVDA + VoiceOver notes in docs/a11y/manual-<date>.md. Cory (or a tester) confirms screen-reader behaviour.
-- [ ] A8 Publish docs/a11y/ACR.md (VPAT 2.5 WCAG edition) from the audits; link from /about and the footer, plus an accessibility statement page and a feedback contact.
+- [x] A8 (statement + ACR published 0.0.121; refresh after A7) Publish docs/a11y/ACR.md (VPAT 2.5 WCAG edition) from the audits; link from /about and the footer, plus an accessibility statement page and a feedback contact.
 - [ ] Acceptance: axe reports 0 serious/critical on all pages, keyboard-only works end to end, ACR published.
 
 ## Later phases (see plan §11)

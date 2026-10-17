@@ -5,6 +5,7 @@ export const zh: Record<keyof typeof en, string> = {
   'nav.games': '游戏', 'nav.about': '关于', 'nav.admin': '管理', 'nav.signin': '登录', 'nav.signout': '退出', 'nav.skip': '跳到主要内容',
   'footer.preview': 'MVP 预览版 · 由 AI 根据出版商规则书起草，请务必核对原文',
   'footer.how': '工作原理',
+  'footer.a11y': '无障碍',
   'footer.mcp': '面向 AI 助手的 MCP',
   'mcp.title': '面向 AI 助手的 Rogue（MCP）',
   'mcp.intro': '将 Claude、ChatGPT 或任何其他 MCP 客户端连接到 Rogue 只读、带引用的规则知识库。无需登录。',

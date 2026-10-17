@@ -7,6 +7,7 @@ export const en = {
   'nav.games': 'Games', 'nav.about': 'About', 'nav.admin': 'Admin', 'nav.signin': 'Sign in', 'nav.signout': 'Sign out', 'nav.skip': 'Skip to content',
   'footer.preview': 'MVP preview · AI-drafted from publisher rulebooks, always check the source',
   'footer.how': 'how this works',
+  'footer.a11y': 'accessibility',
   'footer.mcp': 'MCP for AI assistants',
   'mcp.title': 'Rogue for AI assistants (MCP)',
   'mcp.intro': "Connect Claude, ChatGPT or any other MCP client to Rogue's read-only, cited rules knowledge base. No sign-in needed.",

@@ -5,6 +5,7 @@ export const it: Record<keyof typeof en, string> = {
   'nav.games': 'Giochi', 'nav.about': 'Informazioni', 'nav.admin': 'Admin', 'nav.signin': 'Accedi', 'nav.signout': 'Esci', 'nav.skip': 'Vai al contenuto',
   'footer.preview': 'Anteprima MVP · bozza scritta dall’IA dai regolamenti degli editori, controlla sempre la fonte',
   'footer.how': 'come funziona',
+  'footer.a11y': 'accessibilità',
   'footer.mcp': 'MCP per assistenti IA',
   'mcp.title': 'Rogue per assistenti IA (MCP)',
   'mcp.intro': 'Collega Claude, ChatGPT o qualsiasi altro client MCP alla base di conoscenza delle regole di Rogue, in sola lettura e con citazioni. Non serve accedere.',
