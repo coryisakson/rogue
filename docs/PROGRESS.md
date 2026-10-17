@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): A6 closed by code review: setup sheet and player aid have no images (no alt needed), DOM order is toolbar > h1 > h2 > table/ol, table has caption and th scope. Docs only, no deploy. A7 manual pass still needs Cory.
 - 2026-10-17 (Hermes): 0.0.121: A8: /accessibility statement page (feedback contact), footer link in 5 languages, docs/a11y/ACR.md self-assessed VPAT. Manual keyboard/screen-reader pass (A7) still open; ACR marks unevaluated items.
 - 2026-10-17 (Hermes): 0.0.120: A6 part 1: high-contrast print option (?contrast=high, toggle button) on setup sheet and player aid; duplicate cut-sheet cards hidden from screen readers. Needs Cory print test. Left: A6 alt-text review, A8.
 - 2026-10-17 (Hermes): Ask answer cache now keyed by chat model so model bake-offs are not served stale answers.
