@@ -1,0 +1,83 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { compareCollection, formatNumber, t, type MessageKey } from '@rogue/core';
+import { bggTokenConfigured } from '../../../lib/bgg';
+import { BGG_CACHE_HOURS, COLLECTION_PAGE, getBggUsername, getCollection, rogueGamesWithBggId } from '../../../lib/collection';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent } from '../../../components/ui/card';
+import { Input } from '../../../components/ui/input';
+const L = Astro.locals.locale;
+const user = Astro.locals.user;
+if (!user) return Astro.redirect(`/login?next=${COLLECTION_PAGE}`);
+// Personal page: never cached by a shared cache.
+Astro.response.headers.set('cache-control', 'private, no-store');
+const username = await getBggUsername(user.id);
+const stored = await getCollection(user.id);
+const compared = stored ? compareCollection(stored.items, await rogueGamesWithBggId()) : null;
+const hasToken = bggTokenConfigured();
+const bggUser = (name: string) => `https://boardgamegeek.com/user/${encodeURIComponent(name)}`;
+
+// Status from the last POST (?msg=code&n=count). Only known codes are shown; problems use the destructive badge.
+const MESSAGES = ['username-saved', 'username-cleared', 'username-empty', 'username-too-long', 'username-bad-chars', 'imported', 'imported-cached',
+  'need-username', 'api-empty', 'api-bad-username', 'api-queued', 'api-rate-limited', 'api-no-token', 'api-error', 'csv-missing', 'csv-too-big',
+  'csv-not-bgg-csv', 'csv-no-owned', 'removed'] as const;
+const GOOD = new Set(['username-saved', 'username-cleared', 'imported', 'imported-cached', 'removed']);
+const code = MESSAGES.find((m) => m === Astro.url.searchParams.get('msg'));
+const n = Number(Astro.url.searchParams.get('n') ?? 0);
+const message = code ? t(L, `collection.msg.${code}` as MessageKey, { n: formatNumber(L, n), hours: BGG_CACHE_HOURS, name: username ?? '' }) : null;
+// A wrong-looking username sends the user back to the username field.
+const usernameProblem = code === 'api-bad-username' || code === 'api-empty' || code?.startsWith('username-') && !GOOD.has(code);
+const fmtDate = (d: Date) => new Intl.DateTimeFormat(L, { dateStyle: 'medium' }).format(d);
+---
+<Base title={t(L, 'collection.title')}>
+  <main id="main">
+    <h1>{t(L, 'collection.title')}</h1>
+    <p class="max-w-[40rem]">{t(L, 'collection.intro')}</p>
+    {message && <p role="status"><Badge variant={code && GOOD.has(code) ? 'secondary' : 'destructive'} className="h-auto whitespace-normal text-left">{message}</Badge></p>}
+
+    <Card className="max-w-[40rem] text-base"><CardContent>
+      <h2 class="mt-0">{t(L, 'collection.usernameTitle')}</h2>
+      {username && <p>{t(L, 'collection.usernameCurrent', { name: username })} <a href={bggUser(username)} rel="noopener nofollow">{t(L, 'collection.checkProfile')} ↗</a></p>}
+      <form method="post" action={`${COLLECTION_PAGE}/username`} class="grid gap-2">
+        <label for="bgg-username">{t(L, 'collection.usernameLabel')}</label>
+        <Input id="bgg-username" name="username" defaultValue={username ?? ''} required maxLength={64} pattern="[A-Za-z0-9 _\-]+" autoComplete="off" spellCheck={false}
+          aria-describedby="bgg-username-hint" aria-invalid={usernameProblem ? 'true' : undefined} className="max-w-80" />
+        <small id="bgg-username-hint" class="text-muted-foreground">{t(L, 'collection.usernameHint')}</small>
+        <p class="m-0 flex flex-wrap gap-2"><Button type="submit">{t(L, 'collection.usernameSave')}</Button></p>
+      </form>
+      {username && <form method="post" action={`${COLLECTION_PAGE}/username`} class="mt-2">
+        <input type="hidden" name="clear" value="1" />
+        <Button type="submit" variant="outline">{t(L, 'collection.usernameClear')}</Button>
+      </form>}
+
+      <h2>{t(L, 'collection.importTitle')}</h2>
+      {hasToken ? (username ? <form method="post" action={`${COLLECTION_PAGE}/import`}>
+        <p>{t(L, 'collection.importApiBody', { name: username, hours: BGG_CACHE_HOURS })}</p>
+        <Button type="submit">{t(L, 'collection.importApi')}</Button>
+      </form> : <p>{t(L, 'collection.importNeedsName')}</p>) : <p>{t(L, 'collection.noToken')}</p>}
+
+      <h3>{t(L, 'collection.csvTitle')}</h3>
+      <p>{t(L, 'collection.csvBody')}</p>
+      <form method="post" action={`${COLLECTION_PAGE}/upload`} enctype="multipart/form-data" class="grid gap-2">
+        <label for="bgg-csv">{t(L, 'collection.csvLabel')}</label>
+        <Input id="bgg-csv" type="file" name="file" accept=".csv,text/csv" required className="h-auto max-w-80" />
+        <p class="m-0"><Button type="submit">{t(L, 'collection.csvButton')}</Button></p>
+      </form>
+    </CardContent></Card>
+
+    <h2>{t(L, 'collection.resultTitle')}</h2>
+    {!stored || !compared ? <p>{t(L, 'collection.empty')}</p> : <>
+      <p>{t(L, 'collection.resultMeta', { n: formatNumber(L, stored.items.length), date: fmtDate(stored.fetchedAt), source: t(L, stored.source === 'api' ? 'collection.sourceApi' : 'collection.sourceCsv') })}</p>
+      <h3>{t(L, 'collection.inRogue', { n: formatNumber(L, compared.inRogue.length) })}</h3>
+      {compared.inRogue.length ? <ul>{compared.inRogue.map((g) => <li><a href={`/games/${g.slug}`}>{g.name}</a>{g.year && <> ({g.year})</>}</li>)}</ul>
+        : <p>{t(L, 'collection.noneInRogue')}</p>}
+      <h3>{t(L, 'collection.notInRogue', { n: formatNumber(L, compared.notInRogue.length) })}</h3>
+      {compared.notInRogue.length ? <ul>{compared.notInRogue.map((g) => <li>{g.name}{g.year && <> ({g.year})</>} · <a href={`/request-game?q=${encodeURIComponent(g.name)}`}>{t(L, 'collection.requestIt')}</a> · <a href={`https://boardgamegeek.com/boardgame/${g.bggId}`} rel="noopener nofollow">{t(L, 'collection.onBgg')} ↗</a></li>)}</ul>
+        : <p>{t(L, 'collection.allInRogue')}</p>}
+      <form method="post" action={`${COLLECTION_PAGE}/remove`}><Button type="submit" variant="outline">{t(L, 'collection.remove')}</Button></form>
+    </>}
+
+    <p class="mt-8"><small>{t(L, 'collection.poweredNote')} <a href="https://boardgamegeek.com" rel="noopener"><b>{t(L, 'collection.powered')}</b></a></small></p>
+  </main>
+</Base>
