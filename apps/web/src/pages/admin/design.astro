@@ -1,10 +1,11 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-const tokens = [['--felt', 'page background'], ['--felt2', 'raised background'], ['--wood', 'header'], ['--cream', 'card stock / text'], ['--ink', 'text on cards'], ['--gold', 'accent / links'], ['--red', 'danger']];
+// Semantic tokens; the old names (--felt, --cream, --gold ...) are aliases of these. Values follow the light/dark theme.
+const tokens = [['--color-bg', 'page background (--felt)'], ['--color-bg-raised', 'raised background (--felt2)'], ['--color-header-bg', 'header (--wood)'], ['--color-text', 'text on the page'], ['--color-muted', 'secondary text on the page'], ['--color-surface', 'card stock (--cream)'], ['--color-on-surface', 'text on cards (--ink)'], ['--color-link-on-surface', 'links on cards'], ['--color-accent', 'accent / links (--gold)'], ['--color-secondary', 'secondary button'], ['--color-btn-danger', 'danger button'], ['--color-danger', 'danger (--red)']];
 ---
 <Admin title="Design system">
   <p>Tokens and components live in <code>apps/web/src/styles/rogue.css</code>. Change a colour there once and the whole site follows.</p>
-  <div class="grid">{tokens.map(([name, use]) => <div class="card"><div style={`height:2.2rem;border-radius:6px;background:var(${name});border:1px solid #0004`}></div><b>{name}</b><br /><small>{use}</small></div>)}</div>
+  <div class="grid">{tokens.map(([name, use]) => <div class="card"><div style={`height:2.2rem;border-radius:var(--radius-1);background:var(${name});border:1px solid var(--color-border)`}></div><b>{name}</b><br /><small>{use}</small></div>)}</div>
   <h2>Components</h2>
   <div class="card">
     <p><a class="btn" href="/admin/design">Button</a> <span class="pill">pill</span> <span class="pill ok">ok</span> <span class="pill warn">warn</span> <span class="pill bad">bad</span></p>
