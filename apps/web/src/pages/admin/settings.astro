@@ -53,9 +53,9 @@ const id = (key: string) => `s-${key.toLowerCase()}`;
         <CardDescription>{g.help}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {g.settings.map((d) => { const v = view.get(d.key)!; return (
+        {g.settings.map((d) => { const v = view.get(d.key)!; const fid = id(d.key); return (
           <div class="flex flex-col gap-1">
-            <label for={id(d.key)} class="font-medium">{d.label} <code class="text-xs text-muted-foreground">{d.key}</code></label>
+            <label for={fid}class="font-medium">{d.label} <code class="text-xs text-muted-foreground">{d.key}</code></label>
             <p class="text-sm">
               Effective: {v.shown ? <code>{v.shown}</code> : <span class="text-muted-foreground">{d.defaultNote}</span>}{' '}
               <Badge variant={sourceBadge[v.source]}>{v.source}</Badge>
@@ -66,14 +66,14 @@ const id = (key: string) => `s-${key.toLowerCase()}`;
               <form method="post" class="flex flex-1 flex-wrap items-center gap-2">
                 <input type="hidden" name="action" value="save" /><input type="hidden" name="key" value={d.key} />
                 {d.kind === 'reasoning' || d.kind === 'ocr-provider' ? (
-                  <NativeSelect id={id(d.key)} name="value" defaultValue={v.source === 'default' ? '' : v.shown ?? ''}>
+                  <NativeSelect id={fid} name="value" defaultValue={v.source === 'default' ? '' : v.shown ?? ''}>
                     <NativeSelectOption value="" disabled>choose</NativeSelectOption>
                     {(d.kind === 'reasoning' ? ['none', 'low', 'default'] : ['none', 'command', 'http', 'mineru']).map((o) => <NativeSelectOption value={o}>{o}</NativeSelectOption>)}
                   </NativeSelect>
                 ) : d.kind === 'secret' ? (
-                  <Input id={id(d.key)} name="value" type="password" autoComplete="new-password" className="max-w-md" placeholder={v.shown ? `Replace (current ${v.shown})` : 'Set a value'} />
+                  <Input id={fid} name="value" type="password" autoComplete="new-password" className="max-w-md" placeholder={v.shown ? `Replace (current ${v.shown})` : 'Set a value'} />
                 ) : (
-                  <Input id={id(d.key)} name="value" type={d.kind === 'url' ? 'url' : 'text'} className="max-w-md" defaultValue={v.shown ?? ''} placeholder={d.defaultNote} {...(d.kind === 'model' ? { list: 'router-models' } : {})} />
+                  <Input id={fid} name="value" type={d.kind === 'url' ? 'url' : 'text'} className="max-w-md" defaultValue={v.shown ?? ''} placeholder={d.defaultNote} {...(d.kind === 'model' ? { list: 'router-models' } : {})} />
                 )}
                 <Button type="submit" size="sm">Save</Button>
               </form>
