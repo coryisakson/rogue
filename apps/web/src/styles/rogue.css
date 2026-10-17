@@ -1,108 +1,42 @@
-/* Rogue design system: tokens first, then components. Table-top look: felt background, cream card stock, wood header, gold accents. Change colours here only. */
+/* Rogue's hand-written classes (.btn, .card, .pill, header, footer ...). Imported by global.css into @layer components.
+   Colours come ONLY from the shadcn variables in global.css (var(--card), var(--primary) ...); no raw colours here,
+   scripts/a11y-check.mjs fails on them. Light/dark follows the .dark class on <html>, print is always light. */
 
-/* ---- Tokens (roadmap A3) ----
-   Light is the default 'game night' table and must look exactly as before. Dark is a darker night table.
-   Dark applies when the browser prefers it (unless the visitor picked Light), or when the visitor picked Dark.
-   The theme switch in the footer sets <html data-theme="light|dark"> (Base.astro); no attribute means Auto.
-   scripts/a11y-check.mjs reads these blocks and checks the contrast of every text/background pair in both themes,
-   that the two dark blocks are identical, and that print uses the light colours. Keep them in sync. */
-:root {
-  color-scheme: light;
-  --color-bg:#1d3a2a; --color-bg-raised:#27503a;
-  --color-text:#f6efdc; --color-muted:#cfc8b4;
-  --color-accent:#d9a441; --color-danger:#b8442f;
-  --color-header-bg:#6b4423; --color-header-border:#3f2812; --color-header-text:#f6efdc;
-  --color-surface:#f6efdc; --color-on-surface:#2a2118; --color-link-on-surface:#8a3a12;
-  --color-border:#0003; --color-shadow:#0006; --color-icon-off:#0004;
-  --color-btn-bg:#d9a441; --color-btn-text:#2a2118;
-  --color-secondary:#cdbf9b; --color-on-secondary:#222; --color-btn-danger:#b5544a;
-  --color-pill:#0002; --color-pill-ok:#3b8a5a22; --color-pill-warn:#d9a44155; --color-pill-bad:#b8442f44;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --color-bg:#121a15; --color-bg-raised:#1a241e;
-    --color-text:#ece5d2; --color-muted:#b7b09e;
-    --color-accent:#e0b25a; --color-danger:#e07a68;
-    --color-header-bg:#2b1d12; --color-header-border:#120b05; --color-header-text:#ece5d2;
-    --color-surface:#1f2a23; --color-on-surface:#ece5d2; --color-link-on-surface:#f0a476;
-    --color-border:#fff4; --color-shadow:#0009; --color-icon-off:#fff6;
-    --color-btn-bg:#d9a441; --color-btn-text:#2a2118;
-    --color-secondary:#cdbf9b; --color-on-secondary:#222; --color-btn-danger:#e07a68;
-    --color-pill:#fff2; --color-pill-ok:#3b8a5a55; --color-pill-warn:#d9a44144; --color-pill-bad:#b8442f66;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --color-bg:#121a15; --color-bg-raised:#1a241e;
-  --color-text:#ece5d2; --color-muted:#b7b09e;
-  --color-accent:#e0b25a; --color-danger:#e07a68;
-  --color-header-bg:#2b1d12; --color-header-border:#120b05; --color-header-text:#ece5d2;
-  --color-surface:#1f2a23; --color-on-surface:#ece5d2; --color-link-on-surface:#f0a476;
-  --color-border:#fff4; --color-shadow:#0009; --color-icon-off:#fff6;
-  --color-btn-bg:#d9a441; --color-btn-text:#2a2118;
-  --color-secondary:#cdbf9b; --color-on-secondary:#222; --color-btn-danger:#e07a68;
-  --color-pill:#fff2; --color-pill-ok:#3b8a5a55; --color-pill-warn:#d9a44144; --color-pill-bad:#b8442f66;
-}
-/* Paper is white: print always uses the light colours, whatever the screen theme. :root:root outranks both dark blocks. */
-@media print {
-  :root:root {
-    color-scheme: light;
-    --color-bg:#1d3a2a; --color-bg-raised:#27503a;
-    --color-text:#f6efdc; --color-muted:#cfc8b4;
-    --color-accent:#d9a441; --color-danger:#b8442f;
-    --color-header-bg:#6b4423; --color-header-border:#3f2812; --color-header-text:#f6efdc;
-    --color-surface:#f6efdc; --color-on-surface:#2a2118; --color-link-on-surface:#8a3a12;
-    --color-border:#0003; --color-shadow:#0006; --color-icon-off:#0004;
-    --color-btn-bg:#d9a441; --color-btn-text:#2a2118;
-    --color-secondary:#cdbf9b; --color-on-secondary:#222; --color-btn-danger:#b5544a;
-    --color-pill:#0002; --color-pill-ok:#3b8a5a22; --color-pill-warn:#d9a44155; --color-pill-bad:#b8442f44;
-  }
-}
-/* Theme-independent tokens: spacing, radius, type. */
-:root {
-  --space-1:.3rem; --space-2:.5rem; --space-3:1rem; --space-4:1.2rem; --space-5:1.5rem; --space-6:3rem;
-  --radius-1:6px; --radius-2:8px; --radius-3:12px; --radius-pill:999px;
-  --font-size-xs:.75rem; --font-size-sm:.8rem; --font-size-md:1rem; --font-size-lg:1.4rem;
-  --font-body: Georgia, 'Iowan Old Style', serif; --font-heading: 'Trebuchet MS', Georgia, serif;
-  /* Old names, kept so existing inline styles keep working. They follow the theme. */
-  --felt:var(--color-bg); --felt2:var(--color-bg-raised); --wood:var(--color-header-bg); --cream:var(--color-surface);
-  --ink:var(--color-on-surface); --gold:var(--color-accent); --red:var(--color-danger);
-}
-
-/* ---- Components ---- */
 * { box-sizing: border-box; }
-body { margin:0; font-family: var(--font-body); background: var(--color-bg); color: var(--color-text); line-height:1.5; }
-a { color: var(--color-accent); }
-header.site { background: var(--color-header-bg); border-bottom: 4px solid var(--color-header-border); padding: .6rem var(--space-3); display:flex; gap:var(--space-3); align-items:baseline; flex-wrap:wrap; }
-header.site a.brand { font-size:var(--font-size-lg); font-weight:bold; color: var(--color-header-text); text-decoration:none; letter-spacing:.04em; }
-header.site nav a { margin-right:var(--space-3); color: var(--color-header-text); }
-main { max-width: 62rem; margin: 0 auto; padding: var(--space-4) var(--space-3) var(--space-6); }
-.card { background: var(--color-surface); color: var(--color-on-surface); border-radius: var(--radius-3); padding: var(--space-3) var(--space-4); box-shadow: 0 3px 0 var(--color-shadow); }
-.card a { color: var(--color-link-on-surface); }
-.grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(15rem,1fr)); gap: var(--space-3); }
-.pill { display:inline-block; font-size:var(--font-size-xs); padding:.1rem .55rem; border-radius:var(--radius-pill); background:var(--color-pill); margin-right:var(--space-1); }
-.pill.warn { background: var(--color-pill-warn); }
-.pill.ok { background: var(--color-pill-ok); }
-.pill.bad { background: var(--color-pill-bad); }
-footer.site { text-align:center; opacity:.65; font-size:var(--font-size-sm); padding:var(--space-5) var(--space-3); }
+body { margin:0; line-height:1.5; }
+a { color: var(--primary); }
 h1,h2,h3 { font-family: var(--font-heading); }
-.btn { display:inline-block; background: var(--color-btn-bg); color:var(--color-btn-text); padding:var(--space-2) var(--space-3); border-radius:var(--radius-2); text-decoration:none; font-weight:bold; }
+header.site { background: var(--sidebar); color: var(--sidebar-foreground); border-bottom: 4px solid var(--sidebar-border); padding: .6rem 1rem; display:flex; gap:1rem; align-items:baseline; flex-wrap:wrap; }
+header.site a { color: var(--sidebar-foreground); }
+header.site a.brand { font-size:1.4rem; font-weight:bold; text-decoration:none; letter-spacing:.04em; }
+header.site nav a { margin-right:1rem; }
+header.site :focus-visible { outline-color: var(--sidebar-ring); }
+main { max-width: 62rem; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+.card { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5); padding: 1rem 1.2rem; box-shadow: 0 3px 0 color-mix(in oklch, var(--foreground) 20%, transparent); }
+.grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(15rem,1fr)); gap: 1rem; }
+.pill { display:inline-block; font-size:.75rem; padding:.1rem .55rem; border-radius:999px; background: var(--secondary); color: var(--secondary-foreground); margin-right:.3rem; }
+.pill.ok { background: var(--success); color: var(--success-foreground); }
+.pill.warn { background: var(--warning); color: var(--warning-foreground); }
+.pill.bad { background: var(--destructive); color: var(--destructive-foreground); }
+.pill.info { background: var(--info); color: var(--info-foreground); }
+footer.site { text-align:center; color: var(--muted-foreground); font-size:.8rem; padding:1.5rem 1rem; }
+/* Buttons: .btn is the primary action; .secondary and .destructive replace the old inline background styles. */
+.btn, a.btn { display:inline-block; background: var(--primary); color: var(--primary-foreground); border: 0; padding:.5rem 1rem; border-radius: var(--radius); text-decoration:none; font: inherit; font-weight:bold; cursor:pointer; }
+.btn.secondary, a.btn.secondary { background: var(--secondary); color: var(--secondary-foreground); }
+.btn.destructive { background: var(--destructive); color: var(--destructive-foreground); }
+/* A button that looks like a link (sign-out in the header). */
+.link-button { background:none; border:0; padding:0; color: inherit; cursor:pointer; text-decoration:underline; font:inherit; }
 table { border-collapse: collapse; }
-td, th { padding: var(--space-1) .7rem; border: 1px solid var(--color-border); text-align:left; }
+td, th { padding: .3rem .7rem; border: 1px solid var(--border); text-align:left; }
 
 @media print { body { background:#fff; color:#000; } header.site, footer.site { display:none; } }
 @media (prefers-reduced-motion: no-preference) { .btn { transition: transform .08s; } .btn:active { transform: translateY(1px); } }
-:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
-
-/* A2 (WCAG AA contrast): gold on wood and rust on gold were under 4.5:1. */
-header.site a { color: var(--color-header-text); }
-.card a.btn, a.btn { color: var(--color-btn-text); }
+:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
 
 /* A2 quick fixes (no redesign): skip link, hidden labels/captions, heading look, reflow, reduced motion. */
 /* Skip link: off screen until focused, then shown top-left above everything (keyboard users reach it first). */
-.skip-link { position:absolute; left:var(--space-2); top:-3rem; z-index:100; background: var(--color-surface); color: var(--color-on-surface); padding:.4rem .8rem; border-radius:var(--radius-1); font-weight:bold; }
-.skip-link:focus { top:var(--space-2); }
+.skip-link { position:absolute; left:.5rem; top:-3rem; z-index:100; background: var(--card); color: var(--card-foreground); padding:.4rem .8rem; border-radius: calc(var(--radius) * .75); font-weight:bold; }
+.skip-link:focus { top:.5rem; }
 /* Read by screen readers, not shown (captions, labels whose visible text is a placeholder or a nearby heading). */
 .sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
 /* An h2 that keeps the old h3 size, used where an h3 skipped a heading level. */

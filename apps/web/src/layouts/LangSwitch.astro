@@ -1,13 +1,11 @@
 ---
 // Language switcher shown on every page: a plain form POST to /account/language, so it works without JavaScript.
+// The React island (components/LanguageSelect.tsx) renders that form on the server and upgrades it to a shadcn Select.
 import { LANGUAGE_NAMES, LOCALES, t, type Locale } from '@rogue/core';
+import LanguageSelect from '../components/LanguageSelect';
 interface Props { locale: Locale; id: string }
 const { locale, id } = Astro.props;
 const here = Astro.url.pathname + Astro.url.search;
+const languages = LOCALES.map((l) => ({ value: l, name: LANGUAGE_NAMES[l] }));
 ---
-<form method="post" action="/account/language" class="lang-switch">
-  <input type="hidden" name="next" value={here} />
-  <label for={id}>{t(locale, 'lang.label')}</label>
-  <select id={id} name="lang">{LOCALES.map((l) => <option value={l} lang={l} selected={l === locale}>{LANGUAGE_NAMES[l]}</option>)}</select>
-  <button type="submit">{t(locale, 'lang.change')}</button>
-</form>
+<LanguageSelect client:idle id={id} locale={locale} next={here} label={t(locale, 'lang.label')} changeLabel={t(locale, 'lang.change')} languages={languages} />

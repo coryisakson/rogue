@@ -35,7 +35,7 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
           <form method="post" action="/rate" style="margin:.5rem 0 0;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap">
             <input type="hidden" name="claim" value={c.id} /><input type="hidden" name="next" value={here} />
             <small>{user ? t(L, 'facts.rate') : <a href={`/login?next=${encodeURIComponent(here)}`}>{t(L, 'facts.signInToRate')}</a>}</small>
-            {user && [1, 2, 3, 4, 5].map((n) => <button type="submit" name="stars" value={n} title={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} aria-label={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} style={`background:none;border:0;cursor:pointer;font-size:1.2rem;padding:0 .1rem;color:${(c.my_stars ?? 0) >= n ? 'var(--color-accent)' : 'var(--color-icon-off)'}`}>★</button>)}
+            {user && [1, 2, 3, 4, 5].map((n) => <button type="submit" name="stars" value={n} title={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} aria-label={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} style={`background:none;border:0;cursor:pointer;font-size:1.2rem;padding:0 .1rem;color:${(c.my_stars ?? 0) >= n ? 'var(--primary)' : 'var(--border)'}`}>★</button>)}
             {ratingLabel(c.avg_stars, c.rating_count) && <small>· {ratingLabel(c.avg_stars, c.rating_count)}</small>}
           </form>
         </div>

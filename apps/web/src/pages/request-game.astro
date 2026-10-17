@@ -78,7 +78,7 @@ const btn = 'border:0;cursor:pointer';
               {matches && matches.length > 0 && (
                 <ul style="list-style:none;padding:0;margin:1rem 0 0">
                   {matches.map((m) => (
-                    <li style="padding:.4rem 0;border-top:1px solid #8884">
+                    <li style="padding:.4rem 0;border-top:1px solid var(--border)">
                       <form method="post" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
                         <input type="hidden" name="action" value="pick" /><input type="hidden" name="bggId" value={m.bggId} /><input type="hidden" name="title" value={m.title} /><input type="hidden" name="year" value={m.year ?? ''} />
                         <span style="flex:1"><b>{m.title}</b>{m.year && <> ({m.year})</>} · <a href={m.url} rel="noopener nofollow" target="_blank">BoardGameGeek</a></span>

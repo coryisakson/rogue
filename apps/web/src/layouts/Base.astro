@@ -9,15 +9,28 @@ import { pickLocale, t } from '@rogue/core';
 const L = Astro.locals.locale ?? pickLocale(Astro.request.headers.get('accept-language'));
 import LangSwitch from './LangSwitch.astro';
 import ThemeSwitch from './ThemeSwitch.astro';
-import '../styles/rogue.css';
+import '../styles/global.css';
+// Pre-paint theme script (see the comment where it is used). A string, so Astro does not parse its braces.
+const THEME_SCRIPT = `(() => {
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  const apply = () => {
+    let c = null;
+    try { c = localStorage.getItem('rogue-theme'); } catch {}
+    document.documentElement.classList.toggle('dark', c === 'dark' || (c !== 'light' && mq.matches));
+  };
+  apply();
+  mq.addEventListener('change', apply);
+})();`;
 ---
 <html lang={L}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title} · Rogue</title>
-    <!-- Apply the stored theme choice (ThemeSwitch.astro) before the first paint, so there is no flash of the other theme. -->
-    <script is:inline>try { const c = localStorage.getItem('rogue-theme'); if (c === 'light' || c === 'dark') document.documentElement.dataset.theme = c; } catch {}</script>
+    <!-- Dark mode is the .dark class on <html> (shadcn). Set it before the first paint from the stored choice
+         (ThemeSwitch.astro: light/dark, nothing = Auto) or, on Auto, from the system setting, and follow that setting
+         while it changes. Bare pages (print sheets) are paper and always stay light. -->
+    {!bare && <script is:inline set:html={THEME_SCRIPT} />}
   </head>
   <body>
     <!-- First focusable element: keyboard users jump past the header. Every page puts its content in <main id="main">. -->
@@ -27,18 +40,18 @@ import '../styles/rogue.css';
         <a class="brand" href="/"><span aria-hidden="true">🎲 </span>Rogue</a>
         <nav><a href="/games">{t(L, 'nav.games')}</a><a href="/about">{t(L, 'nav.about')}</a>{isAdmin(user) && <a href="/admin">{t(L, 'nav.admin')}</a>}</nav>
         <span style="margin-left:auto;font-size:.9rem">
-          {user ? (<form method="post" action="/logout" style="display:inline"><a href="/account">{user.name}</a> <button type="submit" style="background:none;border:0;color:var(--color-header-text);cursor:pointer;text-decoration:underline;font:inherit">{t(L, 'nav.signout')}</button></form>)
+          {user ? (<form method="post" action="/logout" style="display:inline"><a href="/account">{user.name}</a> <button type="submit" class="link-button">{t(L, 'nav.signout')}</button></form>)
                 : (<a href={`/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`}>{t(L, 'nav.signin')}</a>)}
         </span>
       </header>
     )}
     {bare && <div class="lang-bare"><LangSwitch locale={L} id="lang-b" /></div>}
     <slot />
-    {!bare && <footer class="site">Rogue v{VERSION} · {t(L, 'footer.preview')} ·&nbsp;<a href="/about">{t(L, 'footer.how')}</a> ·&nbsp;<LangSwitch locale={L} id="lang-f" /> <ThemeSwitch locale={L} id="theme-f" /></footer>}
+    {!bare && <footer class="site">Rogue v{VERSION} · {t(L, 'footer.preview')} ·&nbsp;<a href="/about">{t(L, 'footer.how')}</a> ·&nbsp;<LangSwitch locale={L} id="lang-f" /> <ThemeSwitch locale={L} /></footer>}
     <style is:global>
       .lang-switch { display: inline-flex; gap: .3rem; align-items: center; margin: 0; }
-      .lang-switch select, .lang-switch button, .theme-switch select { font: inherit; font-size: .85rem; }
-      .theme-switch:not([hidden]) { display: inline-flex; gap: .3rem; align-items: center; margin-left: .6rem; }
+      .lang-switch select, .lang-switch button, .theme-switch { font: inherit; font-size: .85rem; }
+      .theme-switch { margin-left: .6rem; vertical-align: middle; }
       .lang-bare { text-align: right; padding: .3rem .6rem; font-family: system-ui; font-size: .85rem; }
       @media print { .lang-bare { display: none; } }
       /* Busy feedback for submitted forms (see the script below). */

@@ -22,9 +22,9 @@ const link = (p: number) => `/admin/claims?${new URLSearchParams({ ...(game ? { 
           <p style="margin:.3rem 0"><small>Source: <a href={c.source_url}>{c.source_title}</a> · {c.locator}</small></p>
           {c.quote && <blockquote style="margin:.2rem 0 .5rem;opacity:.85;font-size:.9rem">“{c.quote}”</blockquote>}
           <button class="btn" name="action" value="approve" style="border:0">Approve</button>
-          <button class="btn" name="action" value="edit" style="border:0;background:var(--color-secondary)">Save edit + approve</button>
+          <button class="btn secondary" name="action" value="edit">Save edit + approve</button>
           <input name="reason" aria-label="Reject reason" placeholder="Reject reason" style="padding:.4rem;border-radius:8px;border:0" />
-          <button class="btn" name="action" value="reject" style="border:0;background:var(--color-btn-danger)">Reject</button>
+          <button class="btn destructive" name="action" value="reject">Reject</button>
         </form>
       </div>
     ))}

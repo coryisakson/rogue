@@ -16,15 +16,15 @@ if (!claims.length) return new Response(t(L, 'sheet.none'), { status: 404, heade
 ---
 <Base title={t(L, 'sheet.title', { game: game.name })} bare>
   <style is:global>
-    body { background:#ccc; }
-    .sheet { background:#fff; color:#111; width:5.5in; min-height:8.5in; margin:1rem auto; padding:.3in; font-family: 'Helvetica Neue', Arial, sans-serif; font-size:8.6pt; line-height:1.28; box-shadow:0 2px 12px #0006; }
+    body { background:var(--muted); }
+    .sheet { background:var(--card); color:var(--card-foreground); width:5.5in; min-height:8.5in; margin:1rem auto; padding:.3in; font-family: 'Helvetica Neue', Arial, sans-serif; font-size:8.6pt; line-height:1.28; box-shadow:0 2px 12px color-mix(in oklch, var(--foreground) 40%, transparent); }
     .sheet h1 { font-size:15pt; margin:0; }
-    .sheet .sub { font-size:7.5pt; color:#555; border-bottom:2px solid #111; padding-bottom:3pt; margin-bottom:5pt; }
+    .sheet .sub { font-size:7.5pt; color:var(--muted-foreground); border-bottom:2px solid var(--card-foreground); padding-bottom:3pt; margin-bottom:5pt; }
     .sheet ol { margin:4pt 0 4pt 14pt; padding:0; } .sheet li { margin-bottom:2.5pt; }
-    .sheet table { width:100%; margin:4pt 0; font-size:9pt; } .sheet td, .sheet th { border:1.5px solid #111; text-align:center; padding:2pt; }
-    .sheet tr.on { background:#ffd54a; font-weight:bold; }
+    .sheet table { width:100%; margin:4pt 0; font-size:9pt; } .sheet td, .sheet th { border:1.5px solid var(--card-foreground); text-align:center; padding:2pt; }
+    .sheet tr.on { background:var(--warning); color:var(--warning-foreground); font-weight:bold; }
     .sheet h2 { font-size:9.5pt; margin:6pt 0 2pt; text-transform:uppercase; letter-spacing:.05em; }
-    .sheet .foot { font-size:6.5pt; color:#444; border-top:1px solid #999; margin-top:6pt; padding-top:3pt; }
+    .sheet .foot { font-size:6.5pt; color:var(--muted-foreground); border-top:1px solid var(--border); margin-top:6pt; padding-top:3pt; }
     .toolbar { text-align:center; padding:.6rem; font-family:system-ui; }
     .toolbar a, .toolbar button { margin:0 .4rem; }
     @page { size: 5.5in 8.5in; margin: 0; }

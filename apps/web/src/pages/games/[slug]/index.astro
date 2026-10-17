@@ -38,7 +38,7 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
   <style>
     .thread { display: grid; gap: .8rem; margin: 1rem 0; max-width: 46rem }
     .turn { display: grid; gap: .4rem }
-    .q-bubble { justify-self: end; max-width: 85%; background: var(--color-secondary); color: var(--color-on-secondary); padding: .55rem .85rem; border-radius: 14px 14px 2px 14px; white-space: pre-line }
+    .q-bubble { justify-self: end; max-width: 85%; background: var(--secondary); color: var(--secondary-foreground); padding: .55rem .85rem; border-radius: 14px 14px 2px 14px; white-space: pre-line }
     .a-bubble { max-width: 92%; margin: 0; border-radius: 14px 14px 14px 2px }
     .a-text { font-size: 1.05rem; margin-top: 0; white-space: pre-line }
     .a-docs { margin: .5rem 0 0; padding-left: 1.1rem }
@@ -94,13 +94,13 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
       <form id="ask-form" method="get" action={`/games/${slug}`} data-game={slug} data-max-turns={MAX_THREAD_TURNS} data-warn-turn={THREAD_WARN_TURN} style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap;max-width:46rem">
         <input name="q" aria-label={t(L, 'chat.placeholder', { game: game.name })} placeholder={t(L, 'chat.placeholder', { game: game.name })} maxlength="300" minlength="3" required autocomplete="off" style="padding:.7rem .9rem;font-size:1.05rem;flex:1;min-width:14rem;border-radius:8px;border:0" />
         <button class="btn" type="submit" style="border:0;cursor:pointer">{t(L, 'chat.ask')}</button>
-        <button class="btn" type="button" id="chat-clear" hidden style="border:0;cursor:pointer;background:var(--color-secondary)">{t(L, 'chat.newConversation')}</button>
+        <button class="btn secondary" type="button" id="chat-clear" hidden>{t(L, 'chat.newConversation')}</button>
       </form>
     )}
     {user && <p id="chat-meter" hidden aria-live="polite"><small></small></p>}
     <p><small style="opacity:.8">{t(L, 'chat.citesNote')}</small></p>
 
-    <p><a class="btn" href={`/games/${slug}/setup`}>{t(L, 'game.setup')}</a> <a class="btn" href={`/games/${slug}/aid`}>{t(L, 'game.aid')}</a> <a class="btn" href={`/games/${slug}/faq`} style="background:var(--color-secondary)">{t(L, 'game.faq')}</a></p>
+    <p><a class="btn" href={`/games/${slug}/setup`}>{t(L, 'game.setup')}</a> <a class="btn" href={`/games/${slug}/aid`}>{t(L, 'game.aid')}</a> <a class="btn secondary" href={`/games/${slug}/faq`}>{t(L, 'game.faq')}</a></p>
     {links.length > 0 && (
       <div class="card" id="links">
         <h2 style="margin-top:0">{t(L, 'game.linksTitle')}</h2>

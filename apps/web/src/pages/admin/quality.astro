@@ -21,15 +21,15 @@ const waiting = variants.filter((v) => v.status === 'needs_human');
   <p>Agents curate the text that gets indexed. Pages are scored by code; the <b>Quality Curator</b> repairs or re-reads weak pages and the <b>Scout</b> looks for a text version of each PDF rulebook. You only need to act on the yellow items. Agents are {agentsEnabled() ? 'on' : 'off (ROGUE_AGENTS_URL is not set or ROGUE_AGENTS=0)'}.</p>
   <p><small>Answer quality lives in one queue: poorly rated answers and questions the assistant could not answer are on <a href="/admin/faq">FAQ ratings</a>.</small></p>
 
-  {waiting.length > 0 && <div class="card" style="border:2px solid var(--color-secondary)">
+  {waiting.length > 0 && <div class="card" style="border:2px solid var(--secondary)">
     <h2 class="h3" style="margin-top:0">Text versions waiting for your decision ({waiting.length})</h2>
     {waiting.map((v) => (
       <form method="post" action="/admin/quality-decide" style="margin:.6rem 0">
         <b>{v.title}</b><br /><a href={v.url}>{v.url}</a><br /><small>{v.reason}</small><br />
         <input type="hidden" name="id" value={v.id} />
         <label><input type="checkbox" name="terms" value="1" /> I read this site's terms</label>
-        <button class="btn" name="action" value="approve" style="border:0;background:var(--color-secondary)">Use this text version</button>
-        <button class="btn" name="action" value="reject" style="border:0;background:var(--color-btn-danger)">Reject</button>
+        <button class="btn secondary" name="action" value="approve">Use this text version</button>
+        <button class="btn destructive" name="action" value="reject">Reject</button>
       </form>
     ))}
   </div>}

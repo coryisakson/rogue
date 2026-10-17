@@ -1,15 +1,15 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-// Semantic tokens; the old names (--felt, --cream, --gold ...) are aliases of these. Values follow the light/dark theme.
-const tokens = [['--color-bg', 'page background (--felt)'], ['--color-bg-raised', 'raised background (--felt2)'], ['--color-header-bg', 'header (--wood)'], ['--color-text', 'text on the page'], ['--color-muted', 'secondary text on the page'], ['--color-surface', 'card stock (--cream)'], ['--color-on-surface', 'text on cards (--ink)'], ['--color-link-on-surface', 'links on cards'], ['--color-accent', 'accent / links (--gold)'], ['--color-secondary', 'secondary button'], ['--color-btn-danger', 'danger button'], ['--color-danger', 'danger (--red)']];
+// The standard shadcn/ui theme variables plus Rogue's few extras. Values follow the light/dark theme (docs/THEMING.md).
+const vars = [['--background', 'page'], ['--foreground', 'text on the page'], ['--card', 'card stock'], ['--card-foreground', 'text on cards'], ['--primary', 'buttons, links'], ['--secondary', 'secondary button, question bubble'], ['--muted', 'quiet areas'], ['--muted-foreground', 'secondary text, footer'], ['--accent', 'menu hover, highlights'], ['--destructive', 'delete/reject, errors'], ['--border', 'borders, unselected star'], ['--ring', 'keyboard focus'], ['--sidebar', 'site header (wood)'], ['--success', 'ok pill'], ['--warning', 'warn pill, highlighted row'], ['--info', 'info pill']];
 ---
 <Admin title="Design system">
-  <p>Tokens and components live in <code>apps/web/src/styles/rogue.css</code>. Change a colour there once and the whole site follows.</p>
-  <div class="grid">{tokens.map(([name, use]) => <div class="card"><div style={`height:2.2rem;border-radius:var(--radius-1);background:var(${name});border:1px solid var(--color-border)`}></div><b>{name}</b><br /><small>{use}</small></div>)}</div>
+  <p>Colours live in <code>apps/web/src/styles/global.css</code> (shadcn/ui variables, light in <code>:root</code>, dark in <code>.dark</code>); the classes below are in <code>rogue.css</code>. Change a colour there once and the whole site follows. How to swap themes: <code>docs/THEMING.md</code>.</p>
+  <div class="grid">{vars.map(([name, use]) => <div class="card"><div style={`height:2.2rem;border-radius:var(--radius);background:var(${name});border:1px solid var(--border)`}></div><b>{name}</b><br /><small>{use}</small></div>)}</div>
   <h2>Components</h2>
   <div class="card">
-    <p><a class="btn" href="/admin/design">Button</a> <span class="pill">pill</span> <span class="pill ok">ok</span> <span class="pill warn">warn</span> <span class="pill bad">bad</span></p>
+    <p><a class="btn" href="/admin/design">Button</a> <a class="btn secondary" href="/admin/design">Secondary</a> <button class="btn destructive" type="button">Destructive</button> <span class="pill">pill</span> <span class="pill ok">ok</span> <span class="pill warn">warn</span> <span class="pill bad">bad</span> <span class="pill info">info</span></p>
     <table><caption class="sr-only">Sample table</caption><thead><tr><th scope="col">Table</th><th scope="col">Header</th></tr></thead><tbody><tr><td>cell</td><td>cell</td></tr></tbody></table>
-    <p>Link style: <a href="/admin/design">a link on card stock</a>. Keyboard focus shows a gold outline. Print hides the header and footer.</p>
+    <p>Link style: <a href="/admin/design">a link on card stock</a>. Keyboard focus shows a ring outline. Print hides the header and footer and is always light.</p>
   </div>
 </Admin>

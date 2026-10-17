@@ -20,7 +20,7 @@ const items = improvementQueue([
         <h2 class="h3" style="margin:.4rem 0">{f.question}</h2>
         <form method="post" action="/admin/faq-decide" style="margin:.5rem 0 0">
           <input type="hidden" name="kind" value="no_answer" /><input type="hidden" name="game" value={f.game_slug} /><input type="hidden" name="q" value={f.question_norm} />
-          <button class="btn" name="action" value="resolve" style="border:0;background:var(--color-secondary)">Resolved</button>
+          <button class="btn secondary" name="action" value="resolve">Resolved</button>
           <button class="btn" name="action" value="dismiss" style="border:0">Dismiss</button>
         </form>
       </div>
@@ -32,9 +32,9 @@ const items = improvementQueue([
         <small>{f.sources?.map((s) => <><a href={s.url}>p.{s.page}</a>{' '}</>)}</small>
         <form method="post" action="/admin/faq-decide" style="margin:.5rem 0 0">
           <input type="hidden" name="game" value={f.game_slug} /><input type="hidden" name="q" value={f.question_norm} />
-          <button class="btn" name="action" value="keep" style="border:0;background:var(--color-secondary)">Keep (fine)</button>
+          <button class="btn secondary" name="action" value="keep">Keep (fine)</button>
           <input name="reason" aria-label="Reason to remove" placeholder="Reason to remove" style="padding:.4rem;border-radius:8px;border:0" />
-          <button class="btn" name="action" value="hide" style="border:0;background:var(--color-btn-danger)">Remove from FAQ</button>
+          <button class="btn destructive" name="action" value="hide">Remove from FAQ</button>
         </form>
       </div>
     ))}

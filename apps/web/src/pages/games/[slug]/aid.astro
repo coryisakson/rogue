@@ -22,16 +22,16 @@ const link = (s: string, sh: boolean) => `?size=${s}${sh ? '&sheet=1' : ''}`;
 ---
 <Base title={t(L, 'aid.title', { game: game.name })} bare>
   <style is:global>
-    body { background:#ccc; }
-    .aid { background:#fff; color:#111; box-sizing:border-box; padding:.12in; overflow:hidden; font-family: 'Helvetica Neue', Arial, sans-serif; line-height:1.25; display:flex; flex-direction:column; }
-    .aid h1 { font-size:1.45em; margin:0; border-bottom:1.5px solid #111; padding-bottom:1.5pt; }
+    body { background:var(--muted); }
+    .aid { background:var(--card); color:var(--card-foreground); box-sizing:border-box; padding:.12in; overflow:hidden; font-family: 'Helvetica Neue', Arial, sans-serif; line-height:1.25; display:flex; flex-direction:column; }
+    .aid h1 { font-size:1.45em; margin:0; border-bottom:1.5px solid var(--card-foreground); padding-bottom:1.5pt; }
     .aid h2 { font-size:1.05em; margin:3pt 0 1pt; text-transform:uppercase; letter-spacing:.05em; }
     .aid ul { margin:0 0 0 1.1em; padding:0; } .aid li { margin-bottom:1.2pt; }
-    .aid sup { font-size:.75em; color:#444; }
-    .aid .foot { margin-top:auto; font-size:.72em; color:#444; border-top:1px solid #999; padding-top:1.5pt; }
-    .single .aid { margin:1rem auto; box-shadow:0 2px 12px #0006; }
-    .tiles { background:#fff; width:8.5in; height:11in; margin:1rem auto; box-sizing:border-box; padding:.25in; display:grid; align-content:start; justify-content:center; box-shadow:0 2px 12px #0006; }
-    .tiles .aid { outline:.5px dashed #888; } /* thin cut lines */
+    .aid sup { font-size:.75em; color:var(--muted-foreground); }
+    .aid .foot { margin-top:auto; font-size:.72em; color:var(--muted-foreground); border-top:1px solid var(--border); padding-top:1.5pt; }
+    .single .aid { margin:1rem auto; box-shadow:0 2px 12px color-mix(in oklch, var(--foreground) 40%, transparent); }
+    .tiles { background:var(--card); width:8.5in; height:11in; margin:1rem auto; box-sizing:border-box; padding:.25in; display:grid; align-content:start; justify-content:center; box-shadow:0 2px 12px color-mix(in oklch, var(--foreground) 40%, transparent); }
+    .tiles .aid { outline:.5px dashed var(--border); } /* thin cut lines */
     .toolbar { text-align:center; padding:.6rem; font-family:system-ui; }
     .toolbar a, .toolbar button { margin:0 .3rem; }
     @media print { body { background:#fff; } .toolbar { display:none; } .single .aid, .tiles { margin:0; box-shadow:none; } }
