@@ -38,3 +38,6 @@ See docs/BGG_NOTES.md for BGG API access rules (registration, bearer token, limi
 
 - First-player call-out (Cory 2026-10-17): game page shows who goes first, since many games have a fun rule for it (e.g. most recently travelled). Source from the rulebook with citation; omit if the game has none.
 - 3D prints and reference links (Cory 2026-10-17): start with links from https://bgg3dprints.homeskillet.org/ (link out only, no copying; check its terms first and log the verdict in REVIEW_LOG.md). Also link that author's small box jackets and reference guides next to ours when a game has one, so users can jump straight to them.
+
+- **Complex-role games: character guides** (Cory 2026-10-17). Games with many characters/roles (e.g. Grimcoven) need extracted facts per character AND one generated guide per character (abilities, setup, strategy notes), each cited to the rulebook. Librarian variant with a per-role pass; guide page per character; also an MCP tool.
+- **FAQ/errata become facts** (Cory 2026-10-17). The Librarian drafts only from rulebooks today; FAQ and errata sources are indexed for chat but yield no published facts. Extend the Librarian to draft cited facts from kind faq/errata sources (weighted above the rulebook where they correct it, per source weights).
