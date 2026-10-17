@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): 0.0.110: Azul English rulebook seed (publisher CDN, R34); R33 approved by Cory. Ingest pending after deploy.
 - 2026-10-17 (Hermes): 0.0.109: Pandemic German rulebook seed (Asmodee Germany CDN, host added, R33). Ingest/index pending after deploy. Fixed main node_modules (npm ci).
 - 2026-10-17 (Hermes): A5 done (0.0.108): home, games list, setup, FAQ, aid, MCP docs and all admin pages on shadcn components; old .btn/.card/.pill CSS trimmed. Print layouts unchanged by design but need Cory's print test. Admin pages need Cory's browser check.
 - 2026-10-17 (Hermes): Azul German rulebook (source 21, spielen.de, R32) ingested+indexed: 2 pages, 19 chunks embedded, Librarian published 7 cited facts (1 rejected), provenance 0 violations. PDF carries a 'Nicht komplett' watermark (portal copy is partial); English publisher PDF still 403.

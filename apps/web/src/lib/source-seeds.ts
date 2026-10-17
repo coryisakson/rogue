@@ -15,6 +15,17 @@ export const ALLOWED_HOSTS = ['cdn.svc.asmodee.net', 'www.zmangames.com', 'conte
 
 export const SEEDS: SourceSeed[] = [
   {
+    // English rulebook from the publisher's (Next Move / Plan B Games) CDN, already an allowed host. Found on nextmove-games.com/en/azul/azul-game/ (R34).
+    gameSlug: 'azul',
+    url: 'https://cdn.svc.asmodee.net/production-nextmove/uploads/sites/4/2024/06/EN-Azul-Rules-Next-Move-web.pdf',
+    title: 'Azul Rulebook (English)',
+    publisher: 'Plan B Games / Next Move',
+    language: 'en',
+    kind: 'rulebook',
+    editionLabel: 'English rulebook (Next Move, 2024-06 web upload)',
+    foundOn: 'https://www.nextmove-games.com/en/azul/azul-game/',
+  },
+  {
     // German rulebook hosted by Asmodee Germany's own download CDN (publisher host). Link supplied by Cory 2026-10-17 (R33).
     gameSlug: 'pandemic',
     url: 'https://asmodee-resources.azureedge.net/media/germanyprod/Produkte/Pandemic/Download/Pandemic_REGEL_DE.pdf',
