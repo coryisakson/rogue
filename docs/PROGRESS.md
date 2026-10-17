@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): print check via headless PDF emulation (A4): setup (Pandemic, StS) and aid page each render 1 page. Not yet checked on real paper or half-letter/poker sizes; card_size still unset.
 - 2026-10-16 (Hermes): 0.0.101: admin tab badges (claims, FAQ queue, text quality, game requests, approvals, review log) showing what waits for a human.
 - 2026-10-16 (Hermes): 0.0.100: languages en/de/zh/es/it (profile > cookie > browser), switcher on every page, users.language (0031), multilingual chat (question translated to rulebook language, answer in user language), per-role AI endpoints (Claude MULTI env unset until RGE-A18 key).
 - 2026-10-16 (Hermes): 0.0.99: Azul added (migration 0032, German rulebook seed from spielen.de per Cory, R32). Needs ingest + index; English publisher PDF blocked (403), still to source.
