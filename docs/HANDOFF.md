@@ -7,7 +7,7 @@ Product principle: AI tasks -> Nanobot agents over MCP in background; plain code
 0. Cory to click 'Queue BGG top 10' on /admin/requests, then watch the queue: expect terms-read gates and some manual research; use the new 'Edit source' when the Scout picks the wrong site. Hermes helps clear the queue.
 1. BGG: API import needs ROGUE_BGG_TOKEN (RGE-A16 pending). Until then CSV upload works at /account/collection. Cory to test with his cisakson export.
 2. A6 print/sheet accessibility, A7 manual keyboard/screen-reader pass (needs Cory), A8 ACR/VPAT + accessibility statement.
-3. MCP OAuth is LIVE (0.0.114, ADR 0004, A19 approved; revoke verified by Cory). Next: audit-log entries for revoke/token use; REVIEW_LOG line for non-en OAuth/collection strings (machine-translated, need native review).
+3. MCP OAuth LIVE with audit entries (done). Next: item 2 (accessibility A6-A8) or Cory-blocked items.
 4. Azul: DE copy is the partial 'Nicht komplett' portal PDF (R32). Cory may supply a full German rulebook.
 5. ASK EVALS to 10/10 and extra sources: PAUSED for MVP (Reddit/BGG ruled out R29/R30).
 

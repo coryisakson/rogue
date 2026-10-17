@@ -114,8 +114,15 @@ async function issue(g: Grant): Promise<TokenSet> {
   return { access_token: access, token_type: 'Bearer', expires_in: OAUTH_TTL.access, refresh_token: refresh, scope: g.scope };
 }
 
-export const revokeGrant = async (grantId: string): Promise<void> => {
-  await getPool()?.query('UPDATE oauth_tokens SET revoked_at=now() WHERE grant_id=$1 AND revoked_at IS NULL', [grantId]);
+/** Audit trail for OAuth events. Ids only (no tokens, no names); a failed audit write must never break the OAuth flow. */
+async function audit(action: string, detail: Record<string, unknown>): Promise<void> {
+  try { await getPool()?.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['oauth', action, detail]); } catch { /* best effort */ }
+}
+
+/** Revokes every live token of a grant and records why (revoked / reuse detected / user action). */
+export const revokeGrant = async (grantId: string, reason = 'client_revoke'): Promise<void> => {
+  const r = await getPool()?.query('UPDATE oauth_tokens SET revoked_at=now() WHERE grant_id=$1 AND revoked_at IS NULL', [grantId]);
+  if (r?.rowCount) await audit('oauth_grant_revoked', { grantId, reason, tokens: r.rowCount });
 };
 
 export type TokenResult = { ok: true; tokens: TokenSet } | { ok: false; error: string; description: string };
@@ -131,7 +138,7 @@ export async function exchangeCode(p: { code: string; clientId: string; redirect
     [hash])).rows[0];
   if (!spent) {
     const reused = (await pool.query('SELECT grant_id FROM oauth_codes WHERE code_hash=$1', [hash])).rows[0];
-    if (reused) await revokeGrant(reused.grant_id);
+    if (reused) await revokeGrant(reused.grant_id, 'code_reuse');
     return refuse('invalid_grant', 'authorization code is invalid, expired or already used');
   }
   if (!spent.live) return refuse('invalid_grant', 'authorization code expired');
@@ -139,7 +146,9 @@ export async function exchangeCode(p: { code: string; clientId: string; redirect
   if (spent.redirect_uri !== p.redirectUri) return refuse('invalid_grant', 'redirect_uri does not match the authorization request');
   if (p.resource !== null && p.resource !== spent.resource) return refuse('invalid_target', 'resource does not match the authorization request');
   if (!verifyPkce(p.verifier, spent.code_challenge)) return refuse('invalid_grant', 'PKCE code_verifier does not match');
-  return { ok: true, tokens: await issue({ grantId: spent.grant_id, clientId: spent.client_id, userId: Number(spent.user_id), scope: spent.scope, resource: spent.resource }) };
+  const tokens = await issue({ grantId: spent.grant_id, clientId: spent.client_id, userId: Number(spent.user_id), scope: spent.scope, resource: spent.resource });
+  await audit('oauth_grant_issued', { grantId: spent.grant_id, clientId: spent.client_id, userId: Number(spent.user_id), scope: spent.scope });
+  return { ok: true, tokens };
 }
 
 /** grant_type=refresh_token. Rotates: the old refresh token dies; presenting a dead one revokes the whole grant. */
@@ -152,10 +161,10 @@ export async function refreshTokens(p: { refreshToken: string; clientId: string;
     [hash])).rows[0];
   if (!row) {
     const dead = (await pool.query("SELECT grant_id FROM oauth_tokens WHERE token_hash=$1 AND kind='refresh'", [hash])).rows[0];
-    if (dead) await revokeGrant(dead.grant_id); // reuse detection
+    if (dead) await revokeGrant(dead.grant_id, 'refresh_reuse'); // reuse detection
     return refuse('invalid_grant', 'refresh token is invalid, expired or revoked');
   }
-  if (row.client_id !== p.clientId) { await revokeGrant(row.grant_id); return refuse('invalid_grant', 'refresh token was issued to another client'); }
+  if (row.client_id !== p.clientId) { await revokeGrant(row.grant_id, 'client_mismatch'); return refuse('invalid_grant', 'refresh token was issued to another client'); }
   if (p.resource !== null && p.resource !== row.resource) return refuse('invalid_target', 'resource does not match the grant');
   let scope: string = row.scope;
   if (p.scope) {
@@ -213,5 +222,6 @@ export async function listConnectedApps(userId: number): Promise<ConnectedApp[]>
 export async function revokeUserGrant(userId: number, grantId: string): Promise<boolean> {
   const pool = getPool(); if (!pool) return false;
   const r = await pool.query('UPDATE oauth_tokens SET revoked_at=now() WHERE grant_id=$1 AND user_id=$2 AND revoked_at IS NULL', [grantId, userId]);
+  if (r.rowCount) await audit('oauth_grant_revoked', { grantId, userId, reason: 'user_revoke', tokens: r.rowCount });
   return (r.rowCount ?? 0) > 0;
 }
