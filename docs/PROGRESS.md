@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): 0.0.113: MCP OAuth 2.1 (PKCE, DCR, consent, connected apps at /oauth/apps, signed-in tools) behind ROGUE_MCP_OAUTH (off). ADR 0004, RGE-A19 awaits Cory. Not tested against real Postgres/live connectors. Librarian ?source= fix, Azul EN 6 facts.
 - 2026-10-17 (Hermes): 0.0.111: /account/collection (BGG username + CSV import + compare; API import waits for ROGUE_BGG_TOKEN/A16), admin 'Queue BGG top 10' button, Librarian ?source=<id>. Azul EN seed ingested (R34). Needs Cory browser check + CSV test.
 - 2026-10-17 (Hermes): 0.0.110: Azul English rulebook seed (publisher CDN, R34); R33 approved by Cory. Ingest pending after deploy.
 - 2026-10-17 (Hermes): 0.0.109: Pandemic German rulebook seed (Asmodee Germany CDN, host added, R33). Ingest/index pending after deploy. Fixed main node_modules (npm ci).
