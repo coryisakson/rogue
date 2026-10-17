@@ -16,10 +16,11 @@ describe('security', () => {
     expect(safeEqual('abc', 'abcd')).toBe(false);
   });
   it('only front-end paths are public', () => {
-    for (const p of ['/', '/about', '/games', '/games/pandemic', '/games/pandemic/setup', '/games/pandemic/aid','/games/pandemic/facts','/admin/extracts','/healthz', '/_astro/x.js', '/admin', '/admin/backups', '/admin/run', '/admin/claims', '/admin/review', '/admin/requests', '/admin/faq', '/admin/faq-decide', '/admin/quality', '/admin/quality-decide', '/agent/mcp/scout', '/agent/mcp/quality-curator', '/games/pandemic/faq', '/request-game', '/api/ask', '/account/language']) expect(isPublicPath(p)).toBe(true);
-    for (const p of ['/mcp', '/api/games', '/api/search', '/api/rules/search', '/api/admin/ingest', '/admin/other', '/agent/mcp', '/agent/mcp/a/b', '/agent/other', '/admin/backups/x', '/api/ai-ping', '/readyz', '/games/pandemic/../../api', '/games/a/b/c', '/api/games/pandemic/claims', '/api/ask/x', '/api/asks']) expect(isPublicPath(p)).toBe(false);
+    for (const p of ['/', '/about', '/games', '/games/pandemic', '/games/pandemic/setup', '/games/pandemic/aid','/games/pandemic/facts','/admin/extracts','/healthz', '/_astro/x.js', '/admin', '/admin/backups', '/admin/run', '/admin/claims', '/admin/review', '/admin/requests', '/admin/faq', '/admin/faq-decide', '/admin/quality', '/admin/quality-decide', '/agent/mcp/scout', '/agent/mcp/quality-curator', '/games/pandemic/faq', '/request-game', '/api/ask', '/account/language', '/mcp', '/mcp/server-card', '/docs/mcp']) expect(isPublicPath(p)).toBe(true);
+    for (const p of ['/mcp/', '/mcp/x', '/mcp/../api/games', '/docs', '/docs/other', '/api/games', '/api/search', '/api/rules/search', '/api/admin/ingest', '/admin/other', '/agent/mcp', '/agent/mcp/a/b', '/agent/other', '/admin/backups/x', '/api/ai-ping', '/readyz', '/games/pandemic/../../api', '/games/a/b/c', '/api/games/pandemic/claims', '/api/ask/x', '/api/asks']) expect(isPublicPath(p)).toBe(false);
     expect(isCostlyPath('/games/pandemic')).toBe(true);
     expect(isCostlyPath('/')).toBe(false);
+    expect(isCostlyPath('/mcp')).toBe(false); // /mcp has its own per-IP buckets in the handler
     expect(isPublicPath('/games/pandemic/ask')).toBe(true);
     expect(isPublicPath('/discord/interactions')).toBe(true);
     for (const p of ['/discord', '/discord/', '/discord/interactions/', '/discord/interactions/x', '/discord/other', '/discord/interactions/../../api']) expect(isPublicPath(p)).toBe(false);
