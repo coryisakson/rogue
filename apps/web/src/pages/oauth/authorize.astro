@@ -1,0 +1,114 @@
+---
+/**
+ * OAuth consent screen (ADR 0004). GET shows what the app asks for; POST (Allow/Deny) issues a code or an error and
+ * sends the browser back to the app. Until client and redirect URI are verified, errors stay on this page (no open
+ * redirect). Signed out: the request is parked in a short HttpOnly cookie and the user signs in with the normal login.
+ */
+import Base from '../../layouts/Base.astro';
+import {
+  consentCsrf, cspSourceFor, OAUTH_TTL, parseAuthorizeRequest, pickAuthorizeParams, redirectLabel, safeEqual, sameOrigin, t, withParams,
+  AUTHORIZE_KEYS, type AuthorizeRequest,
+} from '@rogue/core';
+import { SESSION_COOKIE, cookieValue, setCookie } from '../../lib/auth';
+import { createCode, getClient, mcpResource, notFound, oauthEnabled, oauthLimits, oauthOrigin } from '../../lib/oauth';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+
+if (!oauthEnabled()) return notFound();
+const L = Astro.locals.locale;
+const PENDING = 'rogue_mcp_authz';
+const req = Astro.request;
+const user = Astro.locals.user;
+const isPost = req.method === 'POST';
+const form = isPost ? await req.formData() : null;
+const noStore = { 'cache-control': 'no-store' };
+
+// Where the request parameters come from: the form (POST), the parked cookie (back from /login), or the query.
+let raw: Record<string, string | undefined>;
+if (form) raw = pickAuthorizeParams((k) => { const v = form.get(k); return typeof v === 'string' ? v : null; });
+else if (Astro.url.searchParams.get('resume') === '1') {
+  let saved: Record<string, unknown> = {};
+  try { saved = JSON.parse(cookieValue(req, PENDING) ?? '{}'); } catch { /* expired or tampered: treated as empty */ }
+  raw = pickAuthorizeParams((k) => (typeof saved[k] === 'string' ? (saved[k] as string) : null));
+} else raw = pickAuthorizeParams((k) => Astro.url.searchParams.get(k));
+
+const client = await getClient(raw['client_id']);
+const parsed = parseAuthorizeRequest(raw, client?.redirectUris ?? null, mcpResource(req));
+const iss = oauthOrigin(req);
+const back = (uri: string, params: Record<string, string | undefined>) => {
+  const headers = new Headers({ location: withParams(uri, { ...params, iss }), ...noStore });
+  headers.append('set-cookie', setCookie(PENDING, '', 0));
+  return new Response(null, { status: 303, headers });
+};
+
+let pageError: string | null = null;
+let value: AuthorizeRequest | null = null;
+if (!parsed.ok) {
+  if (parsed.redirect && raw['redirect_uri']) return back(raw['redirect_uri'], { error: parsed.error, error_description: parsed.description, state: raw['state'] });
+  pageError = parsed.description;
+  Astro.response.status = 400;
+} else value = parsed.value;
+
+if (value && !user) {
+  // Park only the whitelisted keys; the login round trip returns to ?resume=1.
+  const parked = JSON.stringify(Object.fromEntries(AUTHORIZE_KEYS.filter((k) => raw[k] !== undefined).map((k) => [k, raw[k]])));
+  const headers = new Headers({ location: `/login?next=${encodeURIComponent('/oauth/authorize?resume=1')}`, ...noStore });
+  headers.append('set-cookie', setCookie(PENDING, parked.slice(0, 3000), OAUTH_TTL.pending));
+  return new Response(null, { status: 303, headers });
+}
+
+const session = cookieValue(req, SESSION_COOKIE) ?? '';
+const csrf = session ? consentCsrf(session) : '';
+if (value && user) {
+  if (!oauthLimits.authorize.allow(String(user.id))) { pageError = 'Too many authorization requests; wait a minute.'; Astro.response.status = 429; value = null; }
+}
+if (value && user && form) {
+  const h = req.headers;
+  const okOrigin = sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'));
+  if (!okOrigin || !csrf || !safeEqual(String(form.get('csrf') ?? ''), csrf)) return new Response('Bad origin', { status: 403, headers: noStore });
+  if (form.get('decision') !== 'allow') return back(value.redirectUri, { error: 'access_denied', error_description: 'The user denied access', state: value.state });
+  const code = await createCode({ clientId: value.clientId, userId: user.id, redirectUri: value.redirectUri, codeChallenge: value.codeChallenge, scopes: value.scopes, resource: value.resource });
+  return back(value.redirectUri, { code, state: value.state });
+}
+
+// The form's redirect after Allow/Deny goes to the app: CSP form-action must allow it (browsers check redirects).
+// frame-ancestors 'none': the consent screen must never be framed (clickjacking).
+const formTarget = value ? ` ${cspSourceFor(value.redirectUri)}` : '';
+Astro.response.headers.set('content-security-policy', `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'${formTarget}`);
+Astro.response.headers.set('cache-control', 'no-store');
+---
+<Base title={t(L, 'oauth.consentTitle')}>
+  <main id="main">
+    {pageError || !value || !client ? (
+      <>
+        <h1>{t(L, 'oauth.errorTitle')}</h1>
+        <Card className="max-w-[38rem] text-base"><CardContent>
+          <p class="mt-0">{t(L, 'oauth.errorBody')}</p>
+          <p class="mb-0"><Badge variant="danger">error</Badge> <span lang="en">{pageError}</span></p>
+        </CardContent></Card>
+      </>
+    ) : (
+      <>
+        <h1>{t(L, 'oauth.consentTitle')}</h1>
+        <Card className="max-w-[38rem] text-base">
+          <CardHeader><CardTitle><h2 class="m-0 text-lg">{t(L, 'oauth.appWants', { app: client.clientName, name: user!.name })}</h2></CardTitle></CardHeader>
+          <CardContent>
+            <p class="mt-0"><Badge variant="warning">{t(L, 'oauth.unverified')}</Badge> {t(L, 'oauth.unverifiedNote')}</p>
+            <p>{t(L, 'oauth.redirectTo', { host: redirectLabel(value.redirectUri) })}</p>
+            <p class="mb-1">{t(L, 'oauth.canDo')}</p>
+            <ul class="mt-0">{value.scopes.map((s) => <li>{t(L, `oauth.scope.${s}` as 'oauth.scope.profile:read')} <code>{s}</code></li>)}</ul>
+            <p>{t(L, 'oauth.cannot')}</p>
+            <form method="post" action="/oauth/authorize" class="flex flex-wrap gap-2">
+              {AUTHORIZE_KEYS.map((k) => raw[k] !== undefined && <input type="hidden" name={k} value={raw[k]} />)}
+              <input type="hidden" name="csrf" value={csrf} />
+              <Button type="submit" name="decision" value="allow" size="lg">{t(L, 'oauth.allow')}</Button>
+              <Button type="submit" name="decision" value="deny" variant="outline" size="lg">{t(L, 'oauth.deny')}</Button>
+            </form>
+            <p class="mb-0 text-muted-foreground"><small>{t(L, 'oauth.manage')} <a href="/oauth/apps">{t(L, 'oauth.appsTitle')}</a></small></p>
+          </CardContent>
+        </Card>
+      </>
+    )}
+  </main>
+</Base>

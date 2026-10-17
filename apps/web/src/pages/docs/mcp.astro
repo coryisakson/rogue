@@ -1,7 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { MCP_MAX_BODY_BYTES, MODERN_PROTOCOL_VERSIONS, LEGACY_PROTOCOL_VERSIONS, publicTools, t } from '@rogue/core';
+import { MCP_MAX_BODY_BYTES, MODERN_PROTOCOL_VERSIONS, LEGACY_PROTOCOL_VERSIONS, publicTools, t, userTools, type McpUserApi } from '@rogue/core';
 import { MCP_LIMITS, publicKb, publicOrigin } from '../../lib/mcp';
+import { oauthEnabled } from '../../lib/oauth';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent } from '../../components/ui/card';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
@@ -9,7 +10,10 @@ const L = Astro.locals.locale;
 const origin = publicOrigin(Astro.request);
 const endpoint = `${origin}/mcp`;
 // Tool metadata only (names, titles, descriptions): building the list runs no query.
-const tools = publicTools(publicKb(origin));
+const oauth = oauthEnabled();
+// Signed-in tools (ADR 0004) are listed only when OAuth is on. Their handlers never run here, so the API is a stub.
+const noApi = {} as McpUserApi;
+const tools = [...publicTools(publicKb(origin)), ...(oauth ? userTools(noApi) : [])];
 const versions = [...MODERN_PROTOCOL_VERSIONS, ...LEGACY_PROTOCOL_VERSIONS].join(', ');
 const claudeCode = `claude mcp add --transport http rogue ${endpoint}`;
 const genericJson = JSON.stringify({ mcpServers: { rogue: { type: 'http', url: endpoint } } }, null, 2);
@@ -51,7 +55,7 @@ const section = 'mt-4 text-base';
         <TableHeader><TableRow><TableHead scope="col">{t(L, 'mcp.toolName')}</TableHead><TableHead scope="col">{t(L, 'mcp.toolWhat')}</TableHead></TableRow></TableHeader>
         <TableBody>
           {tools.map((tool) => (
-            <TableRow><TableHead scope="row" className="h-auto py-2 align-top font-normal"><code>{tool.name}</code>{tool.costly && <> <Badge variant="secondary">{t(L, 'mcp.aiTool')}</Badge></>}</TableHead><TableCell className="align-top whitespace-normal" lang="en">{tool.description}</TableCell></TableRow>
+            <TableRow><TableHead scope="row" className="h-auto py-2 align-top font-normal"><code>{tool.name}</code>{tool.costly && <> <Badge variant="secondary">{t(L, 'mcp.aiTool')}</Badge></>}{tool.scopes?.length ? <> <Badge variant="outline">{t(L, 'mcp.needsSignIn')}</Badge></> : null}</TableHead><TableCell className="align-top whitespace-normal" lang="en">{tool.description}</TableCell></TableRow>
           ))}
         </TableBody>
       </Table>
@@ -65,8 +69,16 @@ const section = 'mt-4 text-base';
     <Card className={section} role="region" aria-labelledby="mcp-cited"><CardContent>
       <h2 id="mcp-cited" class="mt-0">{t(L, 'mcp.cited')}</h2>
       <p>{t(L, 'mcp.citedBody')}</p>
-      <p class="mb-0">{t(L, 'mcp.later')}</p>
+      {!oauth && <p class="mb-0">{t(L, 'mcp.later')}</p>}
     </CardContent></Card>
+
+    {oauth && (
+      <Card className={section} role="region" aria-labelledby="mcp-signed-in"><CardContent>
+        <h2 id="mcp-signed-in" class="mt-0">{t(L, 'mcp.signedIn')}</h2>
+        <p>{t(L, 'mcp.signedInBody')}</p>
+        <p class="mb-0">{t(L, 'mcp.signedInManage')} <a href="/oauth/apps">{t(L, 'oauth.appsTitle')}</a></p>
+      </CardContent></Card>
+    )}
   </main>
   <style>
     .mcp-doc { max-width: 60rem; }

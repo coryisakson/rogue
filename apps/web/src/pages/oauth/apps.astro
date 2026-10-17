@@ -1,0 +1,48 @@
+---
+/** Connected apps (ADR 0004): the MCP clients the user allowed, with Revoke. Signed-in only; 404 when OAuth is off. */
+import Base from '../../layouts/Base.astro';
+import { sameOrigin, t } from '@rogue/core';
+import { listConnectedApps, notFound, oauthEnabled, revokeUserGrant } from '../../lib/oauth';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+
+if (!oauthEnabled()) return notFound();
+const L = Astro.locals.locale;
+const user = Astro.locals.user;
+if (!user) return Astro.redirect('/login?next=/oauth/apps');
+let revoked = false;
+if (Astro.request.method === 'POST') {
+  const h = Astro.request.headers;
+  if (!sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'))) return new Response('Bad origin', { status: 403 });
+  const grant = String((await Astro.request.formData()).get('grant') ?? '').slice(0, 64);
+  revoked = grant ? await revokeUserGrant(user.id, grant) : false;
+}
+const apps = await listConnectedApps(user.id);
+const day = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : null);
+Astro.response.headers.set('cache-control', 'no-store');
+---
+<Base title={t(L, 'oauth.appsTitle')}>
+  <main id="main">
+    <h1>{t(L, 'oauth.appsTitle')}</h1>
+    <p>{t(L, 'oauth.appsIntro')}</p>
+    {revoked && <p role="status"><Badge variant="success">{t(L, 'oauth.revoked')}</Badge></p>}
+    {apps.length === 0 ? <p>{t(L, 'oauth.appsEmpty')}</p> : (
+      <ul class="m-0 grid max-w-[38rem] list-none gap-3 p-0">
+        {apps.map((a) => (
+          <li><Card className="text-base">
+            <CardHeader><CardTitle><h2 class="m-0 text-lg">{a.clientName} <Badge variant="warning">{t(L, 'oauth.unverified')}</Badge></h2></CardTitle></CardHeader>
+            <CardContent>
+              <ul class="mt-0">{a.scopes.map((s) => <li>{t(L, `oauth.scope.${s}` as 'oauth.scope.profile:read')} <code>{s}</code></li>)}</ul>
+              <p class="text-muted-foreground"><small>{t(L, 'oauth.appsSince', { date: day(a.since) ?? '' })} · {a.lastUsed ? t(L, 'oauth.appsLastUsed', { date: day(a.lastUsed) ?? '' }) : t(L, 'oauth.appsNever')}</small></p>
+              <form method="post" action="/oauth/apps" class="mb-0">
+                <input type="hidden" name="grant" value={a.grantId} />
+                <Button type="submit" variant="destructive" aria-label={`${t(L, 'oauth.revoke')}: ${a.clientName}`}>{t(L, 'oauth.revoke')}</Button>
+              </form>
+            </CardContent>
+          </Card></li>
+        ))}
+      </ul>
+    )}
+  </main>
+</Base>
