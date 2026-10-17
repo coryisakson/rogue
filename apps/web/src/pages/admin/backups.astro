@@ -1,25 +1,38 @@
 ---
 import Admin from '../../layouts/Admin.astro';
 import { getBackupState, listBackups } from '../../lib/backup-runner';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 const rows = await listBackups();
 const s = getBackupState();
 const done = Astro.url.searchParams.get('done');
 const mb = (n: number) => (n / 1048576).toFixed(2) + ' MB';
+const okBadge = (ok: boolean) => (ok ? 'success' : 'danger') as 'success' | 'danger';
 ---
 <Admin title="Backups">
-  {done && <p><span class="pill ok">{done} finished</span> see status below</p>}
-  <div class="card">
-    <p style="margin-top:0">Automatic: one backup a day after 03:00 UTC, restore test on Sundays. Retention 7 daily, 4 weekly, 6 monthly.</p>
-    <p>Last backup: {s.lastBackup ? <><span class={`pill ${s.lastBackup.ok ? 'ok' : 'bad'}`}>{s.lastBackup.ok ? 'ok' : 'failed'}</span> {s.lastBackup.at} {s.lastBackup.detail}</> : 'none since restart'}</p>
-    <p>Last restore test: {s.lastRestoreTest ? <><span class={`pill ${s.lastRestoreTest.ok ? 'ok' : 'bad'}`}>{s.lastRestoreTest.ok ? 'ok' : 'failed'}</span> {s.lastRestoreTest.at} {s.lastRestoreTest.detail}</> : 'none since restart'}</p>
-    {s.running && <p><span class="pill warn">a job is running</span></p>}
-    <form method="post" action="/admin/run" style="display:inline"><input type="hidden" name="action" value="backup" /><button class="btn" style="border:0;cursor:pointer">Back up now</button></form>
-    <form method="post" action="/admin/run" style="display:inline"><input type="hidden" name="action" value="restore-test" /><button class="btn" style="border:0;cursor:pointer">Run restore test</button></form>
-  </div>
+  {done && <p><Badge variant="success">{done} finished</Badge> see status below</p>}
+  <Card className="text-base"><CardContent>
+    <p class="mt-0">Automatic: one backup a day after 03:00 UTC, restore test on Sundays. Retention 7 daily, 4 weekly, 6 monthly.</p>
+    <p>Last backup: {s.lastBackup ? <><Badge variant={okBadge(s.lastBackup.ok)}>{s.lastBackup.ok ? 'ok' : 'failed'}</Badge> {s.lastBackup.at} {s.lastBackup.detail}</> : 'none since restart'}</p>
+    <p>Last restore test: {s.lastRestoreTest ? <><Badge variant={okBadge(s.lastRestoreTest.ok)}>{s.lastRestoreTest.ok ? 'ok' : 'failed'}</Badge> {s.lastRestoreTest.at} {s.lastRestoreTest.detail}</> : 'none since restart'}</p>
+    {s.running && <p><Badge variant="warning">a job is running</Badge></p>}
+    <div class="flex flex-wrap gap-2">
+      <form method="post" action="/admin/run"><input type="hidden" name="action" value="backup" /><Button type="submit">Back up now</Button></form>
+      <form method="post" action="/admin/run"><input type="hidden" name="action" value="restore-test" /><Button type="submit">Run restore test</Button></form>
+    </div>
+  </CardContent></Card>
   <h2>Backups on disk</h2>
-  <table class="card" style="width:100%"><caption class="sr-only">Backups on disk</caption><thead><tr><th scope="col">Date</th><th scope="col">Version</th><th scope="col">Schema</th><th scope="col">Files</th><th scope="col">Integrity</th></tr></thead><tbody>
-    {rows.map((r) => <tr><td>{r.date}</td><td>{r.appVersion}</td><td>{r.schemaVersion}</td><td>{r.files.map((f) => `${f.name} ${mb(f.size)}`).join(', ')}</td><td>{r.problems.length ? <span class="pill bad">{r.problems.join('; ')}</span> : <span class="pill ok">checksums match</span>}</td></tr>)}
-    {rows.length === 0 && <tr><td colspan="5">No backups yet.</td></tr>}
-  </tbody></table>
+  <Card className="py-1"><CardContent>
+    <Table>
+      <TableCaption className="sr-only">Backups on disk</TableCaption>
+      <TableHeader><TableRow><TableHead scope="col">Date</TableHead><TableHead scope="col">Version</TableHead><TableHead scope="col">Schema</TableHead><TableHead scope="col">Files</TableHead><TableHead scope="col">Integrity</TableHead></TableRow></TableHeader>
+      <TableBody>
+        {rows.map((r) => <TableRow><TableCell>{r.date}</TableCell><TableCell>{r.appVersion}</TableCell><TableCell>{r.schemaVersion}</TableCell><TableCell className="whitespace-normal">{r.files.map((f) => `${f.name} ${mb(f.size)}`).join(', ')}</TableCell><TableCell>{r.problems.length ? <Badge variant="danger" className="h-auto whitespace-normal">{r.problems.join('; ')}</Badge> : <Badge variant="success">checksums match</Badge>}</TableCell></TableRow>)}
+        {rows.length === 0 && <TableRow><TableCell colSpan={5}>No backups yet.</TableCell></TableRow>}
+      </TableBody>
+    </Table>
+  </CardContent></Card>
   <p><small>Restoring production is intentionally not a button: it needs an approval (plan §1a). The automated restore test runs into a scratch database.</small></p>
 </Admin>

@@ -4,6 +4,8 @@ import { getPool, ensureMigrated } from '../../lib/services';
 import { getBackupState } from '../../lib/backup-runner';
 import { readApprovals, readReviewLog } from '../../lib/admin';
 import { VERSION } from '../../lib/version';
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../../components/ui/card';
 await ensureMigrated();
 const pool = getPool();
 const n = async (sql: string) => pool ? Number((await pool.query(sql)).rows[0].n) : 0;
@@ -15,14 +17,14 @@ const openApprovals = readApprovals().filter((a) => a.status === 'OPEN').length;
 const open = readReviewLog().filter((r) => r.status === 'open').length;
 ---
 <Admin title="Overview">
-  <div class="grid">
-    <div class="card"><b>Version</b><br />{VERSION}</div>
-    <div class="card"><b>Published facts</b><br />{stats.claims}</div>
-    <div class="card"><b>Users / ratings</b><br />{stats.users} / {stats.ratings}</div>
-    <div class="card"><b>Provenance</b><br />{stats.violations === 0 ? <span class="pill ok">0 violations</span> : <span class="pill bad">{stats.violations} violations</span>}</div>
-    <div class="card"><b>Last backup (since restart)</b><br />{b.lastBackup ? <span class={`pill ${b.lastBackup.ok ? 'ok' : 'bad'}`}>{b.lastBackup.ok ? 'ok' : 'failed'}</span> : 'none yet'} <a href="/admin/backups">details</a></div>
-    <div class="card"><b>Open approvals</b><br />{openApprovals} <a href="/admin/approvals">view</a></div>
-    <div class="card"><b>Chat tokens today</b><br />{Number(tok.p).toLocaleString('en')} in / {Number(tok.c).toLocaleString('en')} out · {Number(tok.n)} answers</div>
-    <div class="card"><b>Open review items</b><br />{open} <a href="/admin/review-log">view</a></div>
+  <div class="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
+    <Card className="text-base"><CardContent><b>Version</b><br />{VERSION}</CardContent></Card>
+    <Card className="text-base"><CardContent><b>Published facts</b><br />{stats.claims}</CardContent></Card>
+    <Card className="text-base"><CardContent><b>Users / ratings</b><br />{stats.users} / {stats.ratings}</CardContent></Card>
+    <Card className="text-base"><CardContent><b>Provenance</b><br />{stats.violations === 0 ? <Badge variant="success">0 violations</Badge> : <Badge variant="danger">{stats.violations} violations</Badge>}</CardContent></Card>
+    <Card className="text-base"><CardContent><b>Last backup (since restart)</b><br />{b.lastBackup ? <Badge variant={b.lastBackup.ok ? 'success' : 'danger'}>{b.lastBackup.ok ? 'ok' : 'failed'}</Badge> : 'none yet'} <a href="/admin/backups">details</a></CardContent></Card>
+    <Card className="text-base"><CardContent><b>Open approvals</b><br />{openApprovals} <a href="/admin/approvals">view</a></CardContent></Card>
+    <Card className="text-base"><CardContent><b>Chat tokens today</b><br />{Number(tok.p).toLocaleString('en')} in / {Number(tok.c).toLocaleString('en')} out · {Number(tok.n)} answers</CardContent></Card>
+    <Card className="text-base"><CardContent><b>Open review items</b><br />{open} <a href="/admin/review-log">view</a></CardContent></Card>
   </div>
 </Admin>

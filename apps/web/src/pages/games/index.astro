@@ -2,55 +2,63 @@
 import Base from '../../layouts/Base.astro';
 import { listPopularGames } from '../../lib/kb';
 import { clientStrings, t } from '@rogue/core';
+import GameCard from '../../components/GameCard.astro';
+import { Card, CardContent } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
 const L = Astro.locals.locale;
 const games = await listPopularGames();
 const POPULAR = 6; // shown without scrolling; everything else is reached by typing
 const data = games.map((g) => ({ slug: g.slug, name: g.name, publisher: g.publisher, year: g.year, players: t(L, 'common.players', { min: g.min_players, max: g.max_players }), ready: g.claim_count > 0 }));
+const labels = { readyLabel: t(L, 'games.ready'), noSourcesLabel: t(L, 'games.noSources') };
 // Strings for the search script below; {n}/{term} are filled in the browser, numbers with Intl in the page language.
-const strings = JSON.stringify({ ...clientStrings(L, ['games.popular', 'games.ready', 'games.noSources', 'games.matchOne', 'games.matchMany', 'games.missing']), locale: L });
+const strings = JSON.stringify({ ...clientStrings(L, ['games.popular', 'games.matchOne', 'games.matchMany', 'games.missing']), locale: L });
 ---
 <Base title={t(L, 'games.title')}>
   <main id="main">
     <h1>{t(L, 'games.title')}</h1>
-    <label for="gs" class="sr-only" style="position:absolute;left:-9999px">{t(L, 'games.search')}</label>
-    <input id="gs" type="search" placeholder={t(L, 'games.placeholder')} autocomplete="off" data-i18n={strings} style="width:100%;max-width:36rem;padding:.6rem .8rem;font-size:1.05rem" />
-    <p id="gs-count" aria-live="polite" style="margin:.4rem 0"><small>{t(L, 'games.popular')}</small></p>
-    <div id="gs-grid" class="grid">
-      {data.slice(0, POPULAR).map((g) => (
-        <div class="card">
-          <h2 class="h3" style="margin:.1rem 0"><a href={`/games/${g.slug}`}>{g.name}</a></h2>
-          <div>{g.publisher} · {g.year} · {g.players}</div>
-          <p>{g.ready ? <span class="pill ok">{t(L, 'games.ready')}</span> : <span class="pill">{t(L, 'games.noSources')}</span>}</p>
-        </div>
-      ))}
+    <label for="gs" class="sr-only">{t(L, 'games.search')}</label>
+    <Input id="gs" type="search" placeholder={t(L, 'games.placeholder')} autoComplete="off" data-i18n={strings} className="h-11 max-w-[36rem] bg-card px-3 text-[1.05rem] md:text-[1.05rem]" />
+    <p id="gs-count" aria-live="polite" class="my-1.5"><small>{t(L, 'games.popular')}</small></p>
+    <div id="gs-grid" class="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
+      {data.slice(0, POPULAR).map((g) => <GameCard slug={g.slug} name={g.name} meta={`${g.publisher} · ${g.year} · ${g.players}`} ready={g.ready} {...labels} />)}
     </div>
-    <div id="gs-missing" class="card" hidden style="margin-top:1rem">
+    <Card id="gs-missing" className="mt-4 text-base" hidden><CardContent>
       <b id="gs-term"></b>
-      <p style="margin:.4rem 0">{t(L, 'games.wantIt')} <a id="gs-link" href="/request-game">{t(L, 'games.requestThis')}</a> {t(L, 'games.requestNote')}</p>
-    </div>
-    <p id="gs-foot" style="margin-top:1.5rem">{t(L, 'games.missingFoot')} <a href="/request-game">{t(L, 'games.requestIt')}</a>.</p>
+      <p class="mt-1.5 mb-0">{t(L, 'games.wantIt')} <a id="gs-link" href="/request-game">{t(L, 'games.requestThis')}</a> {t(L, 'games.requestNote')}</p>
+    </CardContent></Card>
+    <p id="gs-foot" class="mt-6">{t(L, 'games.missingFoot')} <a href="/request-game">{t(L, 'games.requestIt')}</a>.</p>
   </main>
+  {/* An empty game card the search script copies (GameCard.astro), so browser-built cards match the server ones. */}
+  <template id="gs-card"><GameCard {...labels} /></template>
   <script type="application/json" id="gs-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')}></script>
   <script is:inline>
     (function () {
       var all = JSON.parse(document.getElementById('gs-data').textContent);
       var input = document.getElementById('gs'), grid = document.getElementById('gs-grid'), count = document.getElementById('gs-count');
       var missing = document.getElementById('gs-missing'), term = document.getElementById('gs-term'), link = document.getElementById('gs-link'), foot = document.getElementById('gs-foot');
+      var proto = document.getElementById('gs-card').content.firstElementChild;
       var S = JSON.parse(input.dataset.i18n || '{}');
       var POPULAR = 6;
       function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
       function norm(s) { return String(s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+      // A copy of the empty card with this game filled in; text goes in via textContent, never as HTML.
       function card(g) {
-        return '<div class="card"><h2 class="h3" style="margin:.1rem 0"><a href="/games/' + encodeURIComponent(g.slug) + '">' + esc(g.name) + '</a></h2><div>' + esc(g.publisher) + ' · ' + esc(g.year) + ' · ' + esc(g.players) + '</div><p>' +
-          (g.ready ? '<span class="pill ok">' + esc(S['games.ready']) + '</span>' : '<span class="pill">' + esc(S['games.noSources']) + '</span>') + '</p></div>';
+        var n = proto.cloneNode(true), a = n.querySelector('[data-f="link"]');
+        a.href = '/games/' + encodeURIComponent(g.slug);
+        a.textContent = g.name;
+        n.querySelector('[data-f="meta"]').textContent = g.publisher + ' · ' + g.year + ' · ' + g.players;
+        n.querySelector('[data-f="ready"]').hidden = !g.ready;
+        n.querySelector('[data-f="none"]').hidden = g.ready;
+        return n;
       }
+      function show(list) { grid.replaceChildren.apply(grid, list.map(card)); }
       function render() {
         var raw = input.value.replace(/\s+/g, ' ').trim(), q = norm(raw);
-        if (!q) { grid.innerHTML = all.slice(0, POPULAR).map(card).join(''); count.innerHTML = '<small>' + esc(S['games.popular']) + '</small>'; missing.hidden = true; foot.hidden = false; return; }
+        if (!q) { show(all.slice(0, POPULAR)); count.innerHTML = '<small>' + esc(S['games.popular']) + '</small>'; missing.hidden = true; foot.hidden = false; return; }
         var words = q.split(' ');
         var hits = all.filter(function (g) { var hay = norm(g.name + ' ' + (g.publisher || '')); return words.every(function (w) { return hay.indexOf(w) !== -1; }); });
         hits.sort(function (a, b) { return Number(norm(b.name).indexOf(q) === 0) - Number(norm(a.name).indexOf(q) === 0); });
-        grid.innerHTML = hits.map(card).join('');
+        show(hits);
         var n = new Intl.NumberFormat(S.locale).format(hits.length);
         count.innerHTML = '<small>' + esc((hits.length === 1 ? S['games.matchOne'] : S['games.matchMany']).replace('{n}', n)) + '</small>';
         missing.hidden = hits.length > 0; foot.hidden = hits.length === 0;

@@ -2,24 +2,27 @@
 import Base from '../layouts/Base.astro';
 import { listGames } from '../lib/kb';
 import { formatNumber, t } from '@rogue/core';
+import { Badge } from '../components/ui/badge';
+import { buttonVariants } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
 const L = Astro.locals.locale;
 const games = await listGames();
 const ready = games.filter((g) => g.claim_count > 0);
 ---
 <Base title={t(L, 'home.title')}>
   <main id="main">
-    <h1 style="font-size:2.4rem;margin-bottom:.2rem">{t(L, 'home.h1')}</h1>
-    <p style="max-width:42rem">{t(L, 'home.intro')}</p>
+    <h1 class="mb-1 text-[2.4rem]">{t(L, 'home.h1')}</h1>
+    <p class="max-w-[42rem]">{t(L, 'home.intro')}</p>
     <h2>{t(L, 'home.ready')}</h2>
-    <div class="grid">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
       {ready.map((g) => (
-        <div class="card">
-          <h3 style="margin:.1rem 0"><a href={`/games/${g.slug}`}>{g.name}</a></h3>
+        <Card className="text-base"><CardContent>
+          <h3 class="mt-0 mb-1"><a href={`/games/${g.slug}`}>{g.name}</a></h3>
           <div>{g.publisher} · {g.year}</div>
           <div>{t(L, 'common.players', { min: g.min_players, max: g.max_players })}</div>
-          <p><span class="pill ok">{t(L, 'home.facts', { n: formatNumber(L, g.claim_count) })}</span></p>
-          <a class="btn" href={`/games/${g.slug}/setup`}>{t(L, 'game.setup')}</a>
-        </div>
+          <p><Badge variant="success">{t(L, 'home.facts', { n: formatNumber(L, g.claim_count) })}</Badge></p>
+          <a data-slot="button" class={buttonVariants({ size: 'lg' })} href={`/games/${g.slug}/setup`}>{t(L, 'game.setup')}</a>
+        </CardContent></Card>
       ))}
     </div>
     <h2>{t(L, 'home.soon')}</h2>

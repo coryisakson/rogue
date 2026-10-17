@@ -1,4 +1,5 @@
-/* Rogue's hand-written classes (.btn, .card, .pill, header, footer ...). Imported by global.css into @layer components.
+/* Rogue's hand-written page styles (element defaults, site header/footer, skip link ...). Cards, buttons, badges and
+   tables are shadcn/ui components (src/components/ui), not classes here. Imported by global.css into @layer components.
    Colours come ONLY from the shadcn variables in global.css (var(--card), var(--primary) ...); no raw colours here,
    scripts/a11y-check.mjs fails on them. Light/dark follows the .dark class on <html>, print is always light. */
 
@@ -12,25 +13,12 @@ header.site a.brand { font-size:1.4rem; font-weight:bold; text-decoration:none; 
 header.site nav a { margin-right:1rem; }
 header.site :focus-visible { outline-color: var(--sidebar-ring); }
 main { max-width: 62rem; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
-.card { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5); padding: 1rem 1.2rem; box-shadow: 0 3px 0 color-mix(in oklch, var(--foreground) 20%, transparent); }
-.grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(15rem,1fr)); gap: 1rem; }
-.pill { display:inline-block; font-size:.75rem; padding:.1rem .55rem; border-radius:999px; background: var(--secondary); color: var(--secondary-foreground); margin-right:.3rem; }
-.pill.ok { background: var(--success); color: var(--success-foreground); }
-.pill.warn { background: var(--warning); color: var(--warning-foreground); }
-.pill.bad { background: var(--destructive); color: var(--destructive-foreground); }
-.pill.info { background: var(--info); color: var(--info-foreground); }
 footer.site { text-align:center; color: var(--muted-foreground); font-size:.8rem; padding:1.5rem 1rem; }
-/* Buttons: .btn is the primary action; .secondary and .destructive replace the old inline background styles. */
-.btn, a.btn { display:inline-block; background: var(--primary); color: var(--primary-foreground); border: 0; padding:.5rem 1rem; border-radius: var(--radius); text-decoration:none; font: inherit; font-weight:bold; cursor:pointer; }
-.btn.secondary, a.btn.secondary { background: var(--secondary); color: var(--secondary-foreground); }
-.btn.destructive { background: var(--destructive); color: var(--destructive-foreground); }
-/* A button that looks like a link (sign-out in the header). */
-.link-button { background:none; border:0; padding:0; color: inherit; cursor:pointer; text-decoration:underline; font:inherit; }
+/* Plain tables (the setup sheet, rendered extract markdown). shadcn <Table> cells (data-slot) style themselves. */
 table { border-collapse: collapse; }
-td, th { padding: .3rem .7rem; border: 1px solid var(--border); text-align:left; }
+:is(td, th):not([data-slot]) { padding: .3rem .7rem; border: 1px solid var(--border); text-align:left; }
 
 @media print { body { background:#fff; color:#000; } header.site, footer.site { display:none; } }
-@media (prefers-reduced-motion: no-preference) { .btn { transition: transform .08s; } .btn:active { transform: translateY(1px); } }
 :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
 
 /* A2 quick fixes (no redesign): skip link, hidden labels/captions, heading look, reflow, reduced motion. */
@@ -39,8 +27,6 @@ td, th { padding: .3rem .7rem; border: 1px solid var(--border); text-align:left;
 .skip-link:focus { top:.5rem; }
 /* Read by screen readers, not shown (captions, labels whose visible text is a placeholder or a nearby heading). */
 .sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
-/* An h2 that keeps the old h3 size, used where an h3 skipped a heading level. */
-.h3 { font-size:1.17em; margin-block:1em; }
 /* Landmark around the print sheets: no box of its own, so the fit scripts and print layout are unchanged. */
 main.bare { max-width:none; margin:0; padding:0; }
 /* Reflow at 320px: long URLs and titles wrap instead of pushing the page sideways; media never wider than the screen. */

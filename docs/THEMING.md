@@ -8,7 +8,8 @@ Rogue uses the standard shadcn/ui theme system: Tailwind v4 + CSS variables, dar
 - Standard variables (`--background`, `--primary`, `--card`, `--sidebar-*` ...) plus Rogue's extras:
   `--success`, `--warning`, `--info` (+ `-foreground`) and `--destructive-foreground`.
 - `@theme inline` maps them to Tailwind classes (`bg-primary`, `text-muted-foreground`).
-- `rogue.css` holds the hand-written classes (`.btn`, `.card`, `.pill` ...), which read these variables only.
+- `rogue.css` holds the few hand-written page styles (site header/footer, skip link, plain tables), which read these
+  variables only. Cards, buttons, badges, inputs and tables are the shadcn components in `src/components/ui/`.
 
 ## Switch to another theme
 1. Pick one from shadcn themes or tweakcn and copy its CSS.

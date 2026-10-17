@@ -3,6 +3,8 @@ import Base from '../../../layouts/Base.astro';
 import { getGame } from '../../../lib/kb';
 import { publicFaq } from '../../../lib/faq';
 import { formatNumber, t } from '@rogue/core';
+import { Badge } from '../../../components/ui/badge';
+import { Card, CardContent } from '../../../components/ui/card';
 const L = Astro.locals.locale;
 const { slug } = Astro.params;
 const game = await getGame(slug!);
@@ -14,15 +16,15 @@ try { items = await publicFaq(slug!); } catch (e) { console.warn('[faq]', (e as 
   <main id="main">
     <h1>{t(L, 'faq.h1', { game: game.name })}</h1>
     <p><a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a> · <a href={`/games/${slug}/ask`}>{t(L, 'faq.askOwn')}</a></p>
-    <p style="opacity:.8"><small>{t(L, 'faq.note')}</small></p>
-    {items.length === 0 && <div class="card">{t(L, 'faq.empty')}</div>}
-    <div style="display:grid;gap:.8rem">
+    <p class="text-muted-foreground"><small>{t(L, 'faq.note')}</small></p>
+    {items.length === 0 && <Card className="text-base"><CardContent>{t(L, 'faq.empty')}</CardContent></Card>}
+    <div class="grid gap-3">
       {items.map((f) => (
-        <div class="card">
-          <h2 class="h3" style="margin:0 0 .4rem">{f.question}</h2>
-          <p style="margin:.2rem 0">{f.answer}</p>
-          <small><span class="pill">{t(L, 'faq.helpful', { up: formatNumber(L, f.up), total: formatNumber(L, f.total) })}</span> {f.sources && f.sources.length > 0 && <>· {t(L, 'common.sources')} {f.sources.slice(0, 3).map((s, i) => <>{i > 0 && ', '}<a href={s.url}>{s.section ?? `p.${s.page}`}</a></>)}</>}</small>
-        </div>
+        <Card className="text-base"><CardContent>
+          <h2 class="mt-0 mb-1.5 text-lg">{f.question}</h2>
+          <p class="my-1">{f.answer}</p>
+          <small><Badge variant="secondary">{t(L, 'faq.helpful', { up: formatNumber(L, f.up), total: formatNumber(L, f.total) })}</Badge> {f.sources && f.sources.length > 0 && <>· {t(L, 'common.sources')} {f.sources.slice(0, 3).map((s, i) => <>{i > 0 && ', '}<a href={s.url}>{s.section ?? `p.${s.page}`}</a></>)}</>}</small>
+        </CardContent></Card>
       ))}
     </div>
   </main>

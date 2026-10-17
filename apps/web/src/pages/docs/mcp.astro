@@ -2,6 +2,9 @@
 import Base from '../../layouts/Base.astro';
 import { MCP_MAX_BODY_BYTES, MODERN_PROTOCOL_VERSIONS, LEGACY_PROTOCOL_VERSIONS, publicTools, t } from '@rogue/core';
 import { MCP_LIMITS, publicKb, publicOrigin } from '../../lib/mcp';
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../../components/ui/card';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 const L = Astro.locals.locale;
 const origin = publicOrigin(Astro.request);
 const endpoint = `${origin}/mcp`;
@@ -11,21 +14,23 @@ const versions = [...MODERN_PROTOCOL_VERSIONS, ...LEGACY_PROTOCOL_VERSIONS].join
 const claudeCode = `claude mcp add --transport http rogue ${endpoint}`;
 const genericJson = JSON.stringify({ mcpServers: { rogue: { type: 'http', url: endpoint } } }, null, 2);
 const inspector = 'npx @modelcontextprotocol/inspector';
+// Each section is a card with role=region (what <section> was); its h2 is the region's accessible name.
+const section = 'mt-4 text-base';
 ---
 <Base title={t(L, 'mcp.title')}>
   <main id="main" class="mcp-doc">
     <h1>{t(L, 'mcp.title')}</h1>
     <p>{t(L, 'mcp.intro')}</p>
 
-    <section class="card" aria-labelledby="mcp-endpoint">
-      <h2 id="mcp-endpoint">{t(L, 'mcp.endpoint')}</h2>
+    <Card className={section} role="region" aria-labelledby="mcp-endpoint"><CardContent>
+      <h2 id="mcp-endpoint" class="mt-0">{t(L, 'mcp.endpoint')}</h2>
       <pre><code>{endpoint}</code></pre>
       <p>{t(L, 'mcp.endpointNote', { versions })}</p>
-      <p><small>{t(L, 'mcp.card')} <a href="/mcp/server-card">{`${origin}/mcp/server-card`}</a></small></p>
-    </section>
+      <p class="mb-0"><small>{t(L, 'mcp.card')} <a href="/mcp/server-card">{`${origin}/mcp/server-card`}</a></small></p>
+    </CardContent></Card>
 
-    <section class="card" aria-labelledby="mcp-connect">
-      <h2 id="mcp-connect">{t(L, 'mcp.connect')}</h2>
+    <Card className={section} role="region" aria-labelledby="mcp-connect"><CardContent>
+      <h2 id="mcp-connect" class="mt-0">{t(L, 'mcp.connect')}</h2>
       <h3>Claude Code</h3>
       <pre><code>{claudeCode}</code></pre>
       <h3>Claude, ChatGPT</h3>
@@ -35,43 +40,37 @@ const inspector = 'npx @modelcontextprotocol/inspector';
       <pre><code>{genericJson}</code></pre>
       <h3>MCP Inspector</h3>
       <pre><code>{inspector}</code></pre>
-      <p>{t(L, 'mcp.inspector')}</p>
-    </section>
+      <p class="mb-0">{t(L, 'mcp.inspector')}</p>
+    </CardContent></Card>
 
-    <section class="card" aria-labelledby="mcp-tools">
-      <h2 id="mcp-tools">{t(L, 'mcp.tools')}</h2>
+    <Card className={section} role="region" aria-labelledby="mcp-tools"><CardContent>
+      <h2 id="mcp-tools" class="mt-0">{t(L, 'mcp.tools')}</h2>
       <p><small>{t(L, 'mcp.toolsNote')}</small></p>
-      <div class="table-wrap">
-        <table>
-          <caption>{t(L, 'mcp.toolsCaption', { n: tools.length })}</caption>
-          <thead><tr><th scope="col">{t(L, 'mcp.toolName')}</th><th scope="col">{t(L, 'mcp.toolWhat')}</th></tr></thead>
-          <tbody>
-            {tools.map((tool) => (
-              <tr><th scope="row"><code>{tool.name}</code>{tool.costly && <> <span class="pill">{t(L, 'mcp.aiTool')}</span></>}</th><td lang="en">{tool.description}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+      <Table className="text-base">
+        <TableCaption className="mt-0 mb-2 caption-top text-left">{t(L, 'mcp.toolsCaption', { n: tools.length })}</TableCaption>
+        <TableHeader><TableRow><TableHead scope="col">{t(L, 'mcp.toolName')}</TableHead><TableHead scope="col">{t(L, 'mcp.toolWhat')}</TableHead></TableRow></TableHeader>
+        <TableBody>
+          {tools.map((tool) => (
+            <TableRow><TableHead scope="row" className="h-auto py-2 align-top font-normal"><code>{tool.name}</code>{tool.costly && <> <Badge variant="secondary">{t(L, 'mcp.aiTool')}</Badge></>}</TableHead><TableCell className="align-top whitespace-normal" lang="en">{tool.description}</TableCell></TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </CardContent></Card>
 
-    <section class="card" aria-labelledby="mcp-limits">
-      <h2 id="mcp-limits">{t(L, 'mcp.limits')}</h2>
-      <p>{t(L, 'mcp.limitsBody', { general: MCP_LIMITS.general, model: MCP_LIMITS.model, kb: MCP_MAX_BODY_BYTES / 1024 })}</p>
-    </section>
+    <Card className={section} role="region" aria-labelledby="mcp-limits"><CardContent>
+      <h2 id="mcp-limits" class="mt-0">{t(L, 'mcp.limits')}</h2>
+      <p class="mb-0">{t(L, 'mcp.limitsBody', { general: MCP_LIMITS.general, model: MCP_LIMITS.model, kb: MCP_MAX_BODY_BYTES / 1024 })}</p>
+    </CardContent></Card>
 
-    <section class="card" aria-labelledby="mcp-cited">
-      <h2 id="mcp-cited">{t(L, 'mcp.cited')}</h2>
+    <Card className={section} role="region" aria-labelledby="mcp-cited"><CardContent>
+      <h2 id="mcp-cited" class="mt-0">{t(L, 'mcp.cited')}</h2>
       <p>{t(L, 'mcp.citedBody')}</p>
-      <p>{t(L, 'mcp.later')}</p>
-    </section>
+      <p class="mb-0">{t(L, 'mcp.later')}</p>
+    </CardContent></Card>
   </main>
   <style>
     .mcp-doc { max-width: 60rem; }
-    .mcp-doc section { margin-top: 1rem; }
     .mcp-doc pre { background: var(--muted); color: var(--foreground); border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; overflow-x: auto; white-space: pre; }
     .mcp-doc h3 { margin: .8rem 0 .3rem; font-size: 1rem; }
-    .mcp-doc .table-wrap { overflow-x: auto; }
-    .mcp-doc td, .mcp-doc th { vertical-align: top; text-align: left; padding: .35rem .5rem; }
-    .mcp-doc tbody th { white-space: nowrap; font-weight: normal; }
   </style>
 </Base>

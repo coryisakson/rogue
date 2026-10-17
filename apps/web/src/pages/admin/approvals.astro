@@ -1,6 +1,9 @@
 ---
 import Admin from '../../layouts/Admin.astro';
 import { readApprovals } from '../../lib/admin';
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../../components/ui/card';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 const items = readApprovals();
 const open = items.filter((a) => a.status === 'OPEN');
 const done = items.filter((a) => a.status !== 'OPEN');
@@ -8,8 +11,14 @@ const done = items.filter((a) => a.status !== 'OPEN');
 <Admin title="Approvals">
   <p>Things agents cannot do alone. Reply with IDs (for example "approve RGE-A13"); an agent then updates <code>docs/APPROVALS.md</code>. This page shows the copy shipped in the image.</p>
   <h2>Open ({open.length})</h2>
-  {open.length === 0 && <div class="card">Nothing is waiting on you.</div>}
-  {open.map((a) => <div class="card" style="margin-bottom:.8rem"><b>{a.id}</b> <span class="pill warn">open</span> <small>blocks: {a.blocks}</small><p>{a.need}</p>{a.recommendation && <p><i>Recommendation: {a.recommendation}</i></p>}</div>)}
+  {open.length === 0 && <Card className="text-base"><CardContent>Nothing is waiting on you.</CardContent></Card>}
+  {open.map((a) => <Card className="mb-3 text-base"><CardContent><b>{a.id}</b> <Badge variant="warning">open</Badge> <small>blocks: {a.blocks}</small><p>{a.need}</p>{a.recommendation && <p class="mb-0"><i>Recommendation: {a.recommendation}</i></p>}</CardContent></Card>)}
   <h2>Resolved ({done.length})</h2>
-  <table class="card" style="width:100%"><caption class="sr-only">Resolved approvals</caption><thead class="sr-only"><tr><th scope="col">ID</th><th scope="col">Status</th><th scope="col">Need</th></tr></thead><tbody>{done.map((a) => <tr><td>{a.id}</td><td>{a.status}</td><td>{a.need}</td></tr>)}</tbody></table>
+  <Card className="py-1"><CardContent>
+    <Table className="text-base">
+      <TableCaption className="sr-only">Resolved approvals</TableCaption>
+      <TableHeader className="sr-only"><TableRow><TableHead scope="col">ID</TableHead><TableHead scope="col">Status</TableHead><TableHead scope="col">Need</TableHead></TableRow></TableHeader>
+      <TableBody>{done.map((a) => <TableRow><TableCell className="align-top">{a.id}</TableCell><TableCell className="align-top">{a.status}</TableCell><TableCell className="whitespace-normal">{a.need}</TableCell></TableRow>)}</TableBody>
+    </Table>
+  </CardContent></Card>
 </Admin>

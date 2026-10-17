@@ -1,6 +1,11 @@
 ---
 import Admin from '../../layouts/Admin.astro';
 import { reviewQueue } from '../../lib/claim-review';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
 const game = Astro.url.searchParams.get('game');
 const page = Math.max(0, Number(Astro.url.searchParams.get('page') ?? 0) || 0);
 const PER = 15;
@@ -11,22 +16,24 @@ const link = (p: number) => `/admin/claims?${new URLSearchParams({ ...(game ? { 
 ---
 <Admin title="Claim review">
   <p>{total} exception{total === 1 ? '' : 's'} need a human (claims flagged needs_review by an agent or a source change, or rated low by users). Everything else is checked by agents and not shown here. <b>Approve</b> marks it human-reviewed; <b>Edit</b> fixes the wording (citation kept) and approves; <b>Reject</b> hides it with a reason. Check the quote against the cited page.</p>
-  {items.length === 0 && <div class="card">Nothing to review.</div>}
-  <div style="display:grid;gap:.8rem">
+  {items.length === 0 && <Card className="text-base"><CardContent>Nothing to review.</CardContent></Card>}
+  <div class="grid gap-3">
     {items.map((c) => (
-      <div class="card">
-        <span class="pill">{c.game}</span> <span class="pill">{c.topic.replace('_', ' ')}</span>{c.player_count && <span class="pill warn">{c.player_count} players</span>} <small>#{c.id} · {c.created_by}</small>
-        <form method="post" action="/admin/review" style="margin:.5rem 0 0">
+      <Card className="text-base"><CardContent>
+        <div class="flex flex-wrap items-center gap-1"><Badge variant="secondary">{c.game}</Badge> <Badge variant="secondary">{c.topic.replace('_', ' ')}</Badge>{c.player_count && <Badge variant="warning">{c.player_count} players</Badge>} <small>#{c.id} · {c.created_by}</small></div>
+        <form method="post" action="/admin/review" class="mt-2">
           <input type="hidden" name="claim" value={c.id} /><input type="hidden" name="next" value={here} />
-          <textarea name="body" aria-label="Claim text" rows="3" maxlength="600" style="width:100%;padding:.4rem;border-radius:8px;border:0">{c.body}</textarea>
-          <p style="margin:.3rem 0"><small>Source: <a href={c.source_url}>{c.source_title}</a> · {c.locator}</small></p>
-          {c.quote && <blockquote style="margin:.2rem 0 .5rem;opacity:.85;font-size:.9rem">“{c.quote}”</blockquote>}
-          <button class="btn" name="action" value="approve" style="border:0">Approve</button>
-          <button class="btn secondary" name="action" value="edit">Save edit + approve</button>
-          <input name="reason" aria-label="Reject reason" placeholder="Reject reason" style="padding:.4rem;border-radius:8px;border:0" />
-          <button class="btn destructive" name="action" value="reject">Reject</button>
+          <Textarea name="body" aria-label="Claim text" rows={3} maxLength={600} className="bg-background text-base md:text-base" defaultValue={c.body} />
+          <p class="my-1.5"><small>Source: <a href={c.source_url}>{c.source_title}</a> · {c.locator}</small></p>
+          {c.quote && <blockquote class="mt-1 mb-2 text-sm text-muted-foreground">“{c.quote}”</blockquote>}
+          <div class="flex flex-wrap items-center gap-2">
+            <Button type="submit" name="action" value="approve">Approve</Button>
+            <Button type="submit" variant="secondary" name="action" value="edit">Save edit + approve</Button>
+            <Input name="reason" aria-label="Reject reason" placeholder="Reject reason" className="w-56 bg-background" />
+            <Button type="submit" variant="destructive" name="action" value="reject">Reject</Button>
+          </div>
         </form>
-      </div>
+      </CardContent></Card>
     ))}
   </div>
   <p>{page > 0 && <a href={link(page - 1)}>← Newer</a>} {page + 1 < pages && <a href={link(page + 1)}>More →</a>}</p>

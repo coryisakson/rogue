@@ -1,0 +1,14 @@
+---
+// One game in the /games search grid. The page renders the popular games with it on the server, and once more
+// empty inside a <template> that the search script copies, so cards built in the browser match exactly.
+// data-f marks the parts the script fills in.
+import { Badge } from './ui/badge';
+import { Card, CardContent } from './ui/card';
+interface Props { slug?: string; name?: string; meta?: string; ready?: boolean; readyLabel: string; noSourcesLabel: string }
+const { slug = '', name = '', meta = '', ready = false, readyLabel, noSourcesLabel } = Astro.props;
+---
+<Card className="text-base"><CardContent>
+  <h2 class="mt-0 mb-1 text-lg"><a data-f="link" href={`/games/${slug}`}>{name}</a></h2>
+  <div data-f="meta">{meta}</div>
+  <p class="mb-0"><Badge data-f="ready" variant="success" hidden={!ready}>{readyLabel}</Badge><Badge data-f="none" variant="secondary" hidden={ready}>{noSourcesLabel}</Badge></p>
+</CardContent></Card>

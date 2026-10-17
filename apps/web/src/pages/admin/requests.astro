@@ -5,6 +5,10 @@ import { approveGame, completeManual, resumeQueue } from '../../lib/intake';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
 import { isAdmin } from '../../lib/admin';
 import { ensureMigrated, getPool } from '../../lib/services';
+import { Badge } from '../../components/ui/badge';
+import { Button, buttonVariants } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
 // Middleware already limits /admin to signed-in admins; the check is repeated because this page also handles POST.
 if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
 await ensureMigrated();
@@ -30,24 +34,28 @@ if (Astro.request.method === 'POST') {
   else msg = 'Unknown action.';
 }
 const rows = (await getPool()!.query(`SELECT r.*, u.display_name requester FROM game_requests r LEFT JOIN users u ON u.id=r.user_id ORDER BY (r.status IN ('submitted','checked','manual')) DESC, r.id DESC LIMIT 50`)).rows;
-const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'bad' };
+type Status = 'success' | 'warning' | 'danger' | 'secondary';
+const verdictBadge: Record<string, Status> = { pass: 'success', problem: 'warning', blocked: 'danger' };
+const termsBadge: Record<string, Status> = { clear: 'success', restricted: 'danger' };
+const field = 'mt-1 bg-background';
+const actionRow = 'mt-2 flex flex-wrap items-start gap-4';
 ---
 <Admin title="Game requests">
   <p>Users pick a game from a search list (or describe it). Approving the game puts it in the Scout's queue; when the Scout cannot find a publisher rulebook, or search is off, the request lands here for manual research with a Google link. The Scout searches publisher-first (who makes it, their site, their rules or downloads page) and only then falls back to a direct rulebook PDF hit. It hands the rulebook link to the Rights Officer (code), which runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). The Terms Agent then finds and reads the <b>publisher's</b> terms (not a CDN's); when rights pass and the terms are clearly fine, the source approves itself (audit-logged, kill switch ROGUE_AUTO_APPROVE_SOURCES=0). <b>You</b> only decide the cases it cannot clear. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
-  {msg && <p><span class="pill">{msg}</span></p>}
-  {rows.length === 0 && <div class="card">No requests yet.</div>}
+  {msg && <p><Badge variant="secondary" className="h-auto whitespace-normal">{msg}</Badge></p>}
+  {rows.length === 0 && <Card className="text-base"><CardContent>No requests yet.</CardContent></Card>}
   {rows.map((r) => (
-    <div class="card" style="margin-bottom:.8rem">
-      <b>#{r.id} {r.name}</b> <span class="pill">{r.status}</span> {r.report && <span class={`pill ${pill[r.report.verdict] ?? ''}`}>auto check: {r.report.verdict}</span>}
+    <Card className="mb-3 text-base"><CardContent>
+      <b>#{r.id} {r.name}</b> <Badge variant="secondary">{r.status}</Badge> {r.report && <Badge variant={verdictBadge[r.report.verdict] ?? 'secondary'}>auto check: {r.report.verdict}</Badge>}
       <div><small>{r.publisher} · {r.year ?? 'year ?'} · {r.language} · by {r.requester ?? 'deleted user'} · slug <code>{r.slug}</code></small></div>
       {r.bgg_id && <div><small>Picked from the list: <a href={`https://boardgamegeek.com/boardgame/${r.bgg_id}`} rel="noopener nofollow">BGG {r.bgg_id}</a></small></div>}
-      {r.details && <div style="white-space:pre-wrap;margin:.3rem 0"><b>User's description:</b> {r.details}</div>}
+      {r.details && <div class="my-1 whitespace-pre-wrap"><b>User's description:</b> {r.details}</div>}
       {r.rulebook_url ? <div>Rulebook: <a href={r.rulebook_url} rel="noopener nofollow">{r.rulebook_url}</a>{r.found_on && <> · found on <a href={r.found_on} rel="noopener nofollow">{r.found_on}</a></>}</div> : <div><small>No rulebook link yet.</small></div>}
       {r.stage && !['approved','rejected'].includes(r.status) && <div><small>Stage: {r.stage}</small></div>}
       {r.report && <ul>{r.report.findings.map((x: { level: string; text: string }) => <li>{x.level === 'ok' ? '✅' : x.level === 'warn' ? '⚠️' : '⛔'} {x.text}</li>)}</ul>}
       {r.terms_check && (
-        <div style="margin:.4rem 0">
-          <span class={`pill ${r.terms_check.verdict === 'clear' ? 'ok' : r.terms_check.verdict === 'restricted' ? 'bad' : 'warn'}`}>Terms Agent: {r.terms_check.verdict}</span>
+        <div class="my-1.5">
+          <Badge variant={termsBadge[r.terms_check.verdict] ?? 'warning'}>Terms Agent: {r.terms_check.verdict}</Badge>
           {r.terms_check.termsUrl && <> read <a href={r.terms_check.termsUrl} rel="noopener nofollow">{r.terms_check.termsUrl}</a></>}
           <ul>{r.terms_check.reasons.map((n: string) => <li>{n}</li>)}</ul>
           {r.terms_check.flags.length > 0 && <ul>{r.terms_check.flags.map((f: { kind: string; excerpt: string }) => <li>🚩 <b>{f.kind}</b>: {f.excerpt}</li>)}</ul>}
@@ -55,7 +63,7 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
         </div>
       )}
       {r.scout && (
-        <details style="margin:.4rem 0"><summary>Scout report for the Rights Officer and you: {r.scout.candidates.length} documents on the publisher page, {r.scout.termsFlags.length} terms flags</summary>
+        <details class="my-1.5"><summary>Scout report for the Rights Officer and you: {r.scout.candidates.length} documents on the publisher page, {r.scout.termsFlags.length} terms flags</summary>
           {r.scout.candidates.length > 0 && <ul>{r.scout.candidates.map((c: { url: string; text: string; role: string; why: string }) => <li><b>{c.role}</b> <a href={c.url} rel="noopener nofollow">{c.text || c.url}</a> <small>({c.why})</small></li>)}</ul>}
           {r.scout.termsUrl && <div>Terms page: <a href={r.scout.termsUrl} rel="noopener nofollow">{r.scout.termsUrl}</a></div>}
           {r.scout.termsFlags.length > 0 && <ul>{r.scout.termsFlags.map((f: { kind: string; excerpt: string }) => <li>🚩 <b>{f.kind}</b>: {f.excerpt}</li>)}</ul>}
@@ -66,34 +74,34 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
       {r.progress && <div><small>Pipeline: {r.progress}</small></div>}
       {r.reject_reason && <div><small>Rejected: {r.reject_reason}</small></div>}
       {r.status === 'submitted' && r.mode === 'pick' && !r.rulebook_url && (
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;margin-top:.5rem">
-          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve-game" /><button class="btn" style="border:0;cursor:pointer">Approve game (Scout looks for the rules)</button></form>
-          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" aria-label="Reject reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
+        <div class={actionRow}>
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve-game" /><Button type="submit">Approve game (Scout looks for the rules)</Button></form>
+          <form method="post" class="flex flex-wrap items-center gap-2"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><Input name="reason" aria-label="Reject reason" placeholder="reason" required maxLength={200} className="w-48 bg-background" /> <Button type="submit" variant="destructive">Reject</Button></form>
         </div>
       )}
       {r.status === 'manual' && (
-        <div style="margin-top:.5rem">
-          <a class="btn" href={googleLink(adminSearchQuery(r.details ?? `${r.name} ${r.year ?? ''}`))} target="_blank" rel="noopener noreferrer">Search Google for the rulebook</a>
-          <form method="post" style="display:grid;gap:.4rem;margin-top:.5rem;max-width:36rem"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="manual" />
-            <label>Game title <input name="name" value={r.name} maxlength="80" required /></label>
-            <label>Publisher <input name="publisher" maxlength="80" required /></label>
-            <label>Rulebook link (publisher's own, https) <input name="rulebookUrl" type="url" required maxlength="400" /></label>
-            <label>Publisher page (optional, Scout scans it and reads the terms) <input name="foundOn" type="url" maxlength="400" /></label>
-            <button class="btn" style="border:0;cursor:pointer;justify-self:start">Save and run rights checks</button></form>
-          <form method="post" style="margin-top:.4rem"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" aria-label="Reject reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
+        <div class="mt-2">
+          <a data-slot="button" class={buttonVariants()} href={googleLink(adminSearchQuery(r.details ?? `${r.name} ${r.year ?? ''}`))} target="_blank" rel="noopener noreferrer">Search Google for the rulebook</a>
+          <form method="post" class="mt-2 grid max-w-[36rem] gap-1.5"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="manual" />
+            <label>Game title <Input name="name" defaultValue={r.name} maxLength={80} required className={field} /></label>
+            <label>Publisher <Input name="publisher" maxLength={80} required className={field} /></label>
+            <label>Rulebook link (publisher's own, https) <Input name="rulebookUrl" type="url" required maxLength={400} className={field} /></label>
+            <label>Publisher page (optional, Scout scans it and reads the terms) <Input name="foundOn" type="url" maxLength={400} className={field} /></label>
+            <Button type="submit" className="justify-self-start">Save and run rights checks</Button></form>
+          <form method="post" class="mt-2 flex flex-wrap items-center gap-2"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><Input name="reason" aria-label="Reject reason" placeholder="reason" required maxLength={200} className="w-48 bg-background" /> <Button type="submit" variant="destructive">Reject</Button></form>
         </div>
       )}
       {r.status === 'checked' && (
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;margin-top:.5rem">
+        <div class={actionRow}>
           {r.report?.verdict !== 'blocked' && (
-            <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve" />
-              <label><input type="checkbox" name="terms" value="yes" required /> I read the publisher's terms{r.terms_check?.site ? ` (${r.terms_check.site})` : ` (${r.report?.host})`}</label>
-              <button class="btn" style="border:0;cursor:pointer">Approve</button></form>
+            <form method="post" class="flex flex-wrap items-center gap-2"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve" />
+              <label class="flex items-center gap-2"><input type="checkbox" name="terms" value="yes" required class="size-4 accent-primary" /> I read the publisher's terms{r.terms_check?.site ? ` (${r.terms_check.site})` : ` (${r.report?.host})`}</label>
+              <Button type="submit">Approve</Button></form>
           )}
-          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" aria-label="Reject reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
-          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="recheck" /><button class="btn" style="border:0;cursor:pointer">Re-run checks</button></form>
+          <form method="post" class="flex flex-wrap items-center gap-2"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><Input name="reason" aria-label="Reject reason" placeholder="reason" required maxLength={200} className="w-48 bg-background" /> <Button type="submit" variant="destructive">Reject</Button></form>
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="recheck" /><Button type="submit" variant="secondary">Re-run checks</Button></form>
         </div>
       )}
-    </div>
+    </CardContent></Card>
   ))}
 </Admin>

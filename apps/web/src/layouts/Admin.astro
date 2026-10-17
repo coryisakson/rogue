@@ -2,15 +2,23 @@
 import Base from './Base.astro';
 interface Props { title: string }
 import { adminBadges } from '../lib/admin-badges';
+import { Badge } from '../components/ui/badge';
+import { buttonVariants } from '../components/ui/button';
 const { title } = Astro.props;
 const badges = await adminBadges();
 // Access is enforced in middleware.ts (a layout cannot return a redirect).
 const tabs = [['/admin', 'Overview'], ['/admin/backups', 'Backups'], ['/admin/claims', 'Claims'], ['/admin/faq', 'FAQ ratings'], ['/admin/quality', 'Text quality'], ['/admin/extracts', 'Extracts'],['/admin/requests', 'Game requests'], ['/admin/approvals', 'Approvals'], ['/admin/review-log', 'Review log'], ['/admin/users', 'Users'], ['/admin/design', 'Design']];
+// Section links look like tab buttons (plain links, no JavaScript); the current section is filled.
+const here = Astro.url.pathname.replace(/\/$/, '') || '/admin';
 ---
 <Base title={`Admin: ${title}`}>
   <main id="main">
     <h1>Admin · {title}</h1>
-    <nav aria-label="Admin sections" style="margin:.6rem 0">{tabs.map(([href, label]) => <a href={href} style="margin-right:1rem;white-space:nowrap">{label}{badges[href] ? <span class="pill bad" style="margin-left:.3rem" title={`${badges[href]} waiting`}>{badges[href]}<span style="position:absolute;left:-9999px"> waiting</span></span> : null}</a>)}</nav>
+    <nav aria-label="Admin sections" class="my-2.5 flex flex-wrap gap-1">{tabs.map(([href, label]) => (
+      <a data-slot="button" href={href} aria-current={href === here ? 'page' : undefined} class={buttonVariants({ variant: href === here ? 'secondary' : 'ghost' })}>
+        {label}{badges[href] ? <Badge variant="danger" title={`${badges[href]} waiting`}>{badges[href]}<span class="sr-only"> waiting</span></Badge> : null}
+      </a>
+    ))}</nav>
     <slot />
   </main>
 </Base>

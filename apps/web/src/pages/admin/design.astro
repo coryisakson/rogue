@@ -1,15 +1,21 @@
 ---
 import Admin from '../../layouts/Admin.astro';
+import { Badge } from '../../components/ui/badge';
+import { Button, buttonVariants } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 // The standard shadcn/ui theme variables plus Rogue's few extras. Values follow the light/dark theme (docs/THEMING.md).
-const vars = [['--background', 'page'], ['--foreground', 'text on the page'], ['--card', 'card stock'], ['--card-foreground', 'text on cards'], ['--primary', 'buttons, links'], ['--secondary', 'secondary button, question bubble'], ['--muted', 'quiet areas'], ['--muted-foreground', 'secondary text, footer'], ['--accent', 'menu hover, highlights'], ['--destructive', 'delete/reject, errors'], ['--border', 'borders, unselected star'], ['--ring', 'keyboard focus'], ['--sidebar', 'site header (wood)'], ['--success', 'ok pill'], ['--warning', 'warn pill, highlighted row'], ['--info', 'info pill']];
+const vars = [['--background', 'page'], ['--foreground', 'text on the page'], ['--card', 'card stock'], ['--card-foreground', 'text on cards'], ['--primary', 'buttons, links'], ['--secondary', 'secondary button, question bubble'], ['--muted', 'quiet areas'], ['--muted-foreground', 'secondary text, footer'], ['--accent', 'menu hover, highlights'], ['--destructive', 'delete/reject, errors'], ['--border', 'borders, unselected star'], ['--ring', 'keyboard focus'], ['--sidebar', 'site header (wood)'], ['--success', 'success badge'], ['--warning', 'warning badge, highlighted row'], ['--info', 'info badge']];
 ---
 <Admin title="Design system">
-  <p>Colours live in <code>apps/web/src/styles/global.css</code> (shadcn/ui variables, light in <code>:root</code>, dark in <code>.dark</code>); the classes below are in <code>rogue.css</code>. Change a colour there once and the whole site follows. How to swap themes: <code>docs/THEMING.md</code>.</p>
-  <div class="grid">{vars.map(([name, use]) => <div class="card"><div style={`height:2.2rem;border-radius:var(--radius);background:var(${name});border:1px solid var(--border)`}></div><b>{name}</b><br /><small>{use}</small></div>)}</div>
+  <p>Colours live in <code>apps/web/src/styles/global.css</code> (shadcn/ui variables, light in <code>:root</code>, dark in <code>.dark</code>); the components below are the shadcn/ui ones in <code>apps/web/src/components/ui</code>. Change a colour there once and the whole site follows. How to swap themes: <code>docs/THEMING.md</code>.</p>
+  <div class="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">{vars.map(([name, use]) => <Card className="text-base"><CardContent><div class="mb-1 h-9 rounded-lg border" style={`background:var(${name})`}></div><b>{name}</b><br /><small>{use}</small></CardContent></Card>)}</div>
   <h2>Components</h2>
-  <div class="card">
-    <p><a class="btn" href="/admin/design">Button</a> <a class="btn secondary" href="/admin/design">Secondary</a> <button class="btn destructive" type="button">Destructive</button> <span class="pill">pill</span> <span class="pill ok">ok</span> <span class="pill warn">warn</span> <span class="pill bad">bad</span> <span class="pill info">info</span></p>
-    <table><caption class="sr-only">Sample table</caption><thead><tr><th scope="col">Table</th><th scope="col">Header</th></tr></thead><tbody><tr><td>cell</td><td>cell</td></tr></tbody></table>
-    <p>Link style: <a href="/admin/design">a link on card stock</a>. Keyboard focus shows a ring outline. Print hides the header and footer and is always light.</p>
-  </div>
+  <Card className="text-base"><CardContent>
+    <p class="mt-0 flex flex-wrap items-center gap-2"><a data-slot="button" class={buttonVariants()} href="/admin/design">Button</a> <a data-slot="button" class={buttonVariants({ variant: 'secondary' })} href="/admin/design">Secondary</a> <Button variant="outline" type="button">Outline</Button> <Button variant="destructive" type="button">Destructive</Button> <Badge variant="secondary">badge</Badge> <Badge variant="success">success</Badge> <Badge variant="warning">warning</Badge> <Badge variant="danger">danger</Badge> <Badge variant="info">info</Badge></p>
+    <p><Input aria-label="Sample input" placeholder="Input" className="max-w-xs bg-background" /></p>
+    <Table className="w-auto text-base"><TableCaption className="sr-only">Sample table</TableCaption><TableHeader><TableRow><TableHead scope="col">Table</TableHead><TableHead scope="col">Header</TableHead></TableRow></TableHeader><TableBody><TableRow><TableCell>cell</TableCell><TableCell>cell</TableCell></TableRow></TableBody></Table>
+    <p class="mb-0">Link style: <a href="/admin/design">a link on card stock</a>. Keyboard focus shows a ring outline. Print hides the header and footer and is always light.</p>
+  </CardContent></Card>
 </Admin>

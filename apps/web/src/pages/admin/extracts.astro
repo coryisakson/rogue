@@ -4,6 +4,10 @@ import { renderMarkdown, scorePage } from '@rogue/core';
 import { isAdmin } from '../../lib/admin';
 import { getPool, ensureMigrated } from '../../lib/services';
 import { loadSourcePages, loadOverrideMethods, pagesToMarkdown, summarizePages } from '../../lib/page-text';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
 // Read-only review of extracted page text. Middleware already limits /admin to admins; repeated here because the
 // ?format=md download returns the whole extracted text and must never leak.
 if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
@@ -21,7 +25,7 @@ const OCR_SQL = `(SELECT CASE WHEN jsonb_array_length(COALESCE(a.detail->'ocrPag
   FROM (SELECT 1) x LEFT JOIN LATERAL (SELECT id, detail FROM audit_log WHERE action='fetched' AND detail->>'url'=s.url ORDER BY id DESC LIMIT 1) a ON true)`;
 
 type Source = { id: number; title: string; publisher: string | null; page_count: number | null; content_type: string | null; ocr: string; game: string | null; slug: string | null };
-const verdictClass = (v: string) => (v === 'ok' ? '' : 'bad');
+const verdictBadge = (v: string) => (v === 'ok' ? 'secondary' : 'danger') as 'secondary' | 'danger';
 
 let source: Source | null = null;
 let view: { n: number; text: string; verdict: string; score: number; override?: string; leftOut: boolean }[] = [];
@@ -74,17 +78,17 @@ const base = `/admin/extracts?source=${sourceId}`;
 
   {source === null && <>
     <p>Review what the extractor (text layer, OCR, agent repairs) produced for each source. Read-only; quality is scored live by code and nothing is stored.</p>
-    {groups.size === 0 && <div class="card">No sources with stored text yet.</div>}
+    {groups.size === 0 && <Card className="text-base"><CardContent>No sources with stored text yet.</CardContent></Card>}
     {[...groups].map(([game, list]) => (
       <section>
-        <h2 class="h3">{game}</h2>
-        <div style="display:grid;gap:.5rem">
+        <h2 class="text-lg">{game}</h2>
+        <div class="grid gap-2">
           {list.map((s) => (
-            <div class="card">
-              <a href={`/admin/extracts?source=${s.id}`}><b>{s.title ?? `Source ${s.id}`}</b></a> <span class="pill">{String(s.content_type ?? '').split(';')[0] || 'unknown type'}</span>
+            <Card className="text-base"><CardContent>
+              <a href={`/admin/extracts?source=${s.id}`}><b>{s.title ?? `Source ${s.id}`}</b></a> <Badge variant="secondary">{String(s.content_type ?? '').split(';')[0] || 'unknown type'}</Badge>
               <div><small>{s.publisher ?? 'publisher unknown'} · {s.page_count ?? s.summary?.pages ?? '?'} pages · {s.ocr}</small></div>
               <div><small>{s.summary ? `${s.summary.ok} ok · ${s.summary.suspect} suspect · ${s.summary.garbled} garbled · ${s.summary.empty} empty · ${s.summary.leftOut} left out` : 'stored text not found'}</small></div>
-            </div>
+            </CardContent></Card>
           ))}
         </div>
       </section>
@@ -96,24 +100,24 @@ const base = `/admin/extracts?source=${sourceId}`;
     <h2 style="margin-bottom:.2rem">{source.title ?? `Source ${source.id}`}</h2>
     <p><small>{source.publisher ?? 'publisher unknown'} · {source.page_count ?? allPages.length} pages · {source.ocr}</small></p>
     <p class="jump"><small>Pages: {allPages.map((n) => <a href={onlyPage === null ? `#p${n}` : `${base}#p${n}`}>{n}</a>)}</small></p>
-    <form method="get" action="/admin/extracts" style="margin:.4rem 0">
+    <form method="get" action="/admin/extracts" class="my-1.5 flex flex-wrap items-center gap-2">
       <input type="hidden" name="source" value={source.id} />
-      <label>Only page <input type="number" name="page" min="1" value={onlyPage ?? ''} style="width:5rem" /></label> <button class="btn">Show</button>
+      <label class="flex items-center gap-2">Only page <Input type="number" name="page" min={1} defaultValue={onlyPage ?? ''} className="w-20 bg-background" /></label> <Button type="submit">Show</Button>
     </form>
 
     <input type="radio" name="mode" id="mode-rendered" checked /> <label for="mode-rendered">Rendered</label>
     <input type="radio" name="mode" id="mode-raw" /> <label for="mode-raw">Raw</label>
-    <div class="pages" style="display:grid;gap:.6rem;margin-top:.6rem">
-      {view.length === 0 && <div class="card">No such page.</div>}
+    <div class="pages mt-2.5 grid gap-2.5">
+      {view.length === 0 && <Card className="text-base"><CardContent>No such page.</CardContent></Card>}
       {view.map((p) => (
-        <section class="card" id={`p${p.n}`}>
-          <b>Page {p.n}</b> <span class={`pill ${verdictClass(p.verdict)}`} title={`score ${p.score.toFixed(2)}`}>{p.verdict}</span>
-          {p.override && <span class="pill">override: {p.override}</span>}
-          {p.leftOut && <span class="pill bad">left out of the index</span>}
-          <a href={`${base}&page=${p.n}`} style="margin-left:.5rem"><small>link</small></a>
+        <Card className="text-base" id={`p${p.n}`}><CardContent>
+          <b>Page {p.n}</b> <Badge variant={verdictBadge(p.verdict)} title={`score ${p.score.toFixed(2)}`}>{p.verdict}</Badge>
+          {p.override && <Badge variant="secondary">override: {p.override}</Badge>}
+          {p.leftOut && <Badge variant="danger">left out of the index</Badge>}
+          <a href={`${base}&page=${p.n}`} class="ml-2"><small>link</small></a>
           <div class="md" set:html={renderMarkdown(p.text)} />
           <pre class="raw">{p.text}</pre>
-        </section>
+        </CardContent></Card>
       ))}
     </div>
   </>}

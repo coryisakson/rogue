@@ -3,40 +3,45 @@ import Admin from '../../layouts/Admin.astro';
 import { lowRatedFaq } from '../../lib/faq';
 import { openUnanswered } from '../../lib/unanswered';
 import { helpfulLabel, improvementQueue } from '@rogue/core';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
 const KIND_LABEL: Record<string, string> = { refusal: 'the rulebook excerpts did not say', no_sources: 'no rulebook passage found', error: 'the assistant failed', empty: 'empty answer' };
 // One improvement queue: low-rated answers and questions that got no answer, most-affected first.
 const items = improvementQueue([
   ...(await lowRatedFaq()).map((f) => ({ ...f, reason: 'low_rating' as const, count: f.total })),
   ...(await openUnanswered()).map((u) => ({ ...u, reason: 'no_answer' as const, count: u.ask_count })),
 ]);
+const actions = 'mt-2 flex flex-wrap items-center gap-2';
 ---
 <Admin title="FAQ ratings">
   <p>{items.length} question{items.length === 1 ? '' : 's'} to improve: answers most voters found unhelpful (at least 3 votes, under 50% helpful) and questions the assistant could not answer. Well-rated questions are published in each game's FAQ automatically and need nothing from you. <b>Remove from FAQ</b> hides it publicly (reason required, logged). <b>Keep</b> means you checked it and it is fine; it will not be flagged again. For an unanswered question, <b>Resolved</b> means you fixed the cause (it comes back if it fails again); <b>Dismiss</b> means it needs nothing (not a rules question). To fix the cause, check the rulebook page cited, and improve or reject the underlying fact on the Claims page.</p>
-  {items.length === 0 && <div class="card">Nothing to review.</div>}
-  <div style="display:grid;gap:.8rem">
+  {items.length === 0 && <Card className="text-base"><CardContent>Nothing to review.</CardContent></Card>}
+  <div class="grid gap-3">
     {items.map((f) => f.reason === 'no_answer' ? (
-      <div class="card">
-        <span class="pill">{f.game_slug}</span> <span class="pill bad">no answer</span> <small>asked {f.ask_count}× via {f.channels.join(', ')} · last {f.last_seen.toISOString().slice(0, 16).replace('T', ' ')} · {KIND_LABEL[f.last_kind] ?? f.last_kind}</small>
-        <h2 class="h3" style="margin:.4rem 0">{f.question}</h2>
-        <form method="post" action="/admin/faq-decide" style="margin:.5rem 0 0">
+      <Card className="text-base"><CardContent>
+        <Badge variant="secondary">{f.game_slug}</Badge> <Badge variant="danger">no answer</Badge> <small>asked {f.ask_count}× via {f.channels.join(', ')} · last {f.last_seen.toISOString().slice(0, 16).replace('T', ' ')} · {KIND_LABEL[f.last_kind] ?? f.last_kind}</small>
+        <h2 class="my-1.5 text-lg">{f.question}</h2>
+        <form method="post" action="/admin/faq-decide" class={actions}>
           <input type="hidden" name="kind" value="no_answer" /><input type="hidden" name="game" value={f.game_slug} /><input type="hidden" name="q" value={f.question_norm} />
-          <button class="btn secondary" name="action" value="resolve">Resolved</button>
-          <button class="btn" name="action" value="dismiss" style="border:0">Dismiss</button>
+          <Button type="submit" variant="secondary" name="action" value="resolve">Resolved</Button>
+          <Button type="submit" name="action" value="dismiss">Dismiss</Button>
         </form>
-      </div>
+      </CardContent></Card>
     ) : (
-      <div class="card">
-        <span class="pill">{f.game_slug}</span> <span class="pill bad">{helpfulLabel(f.up, f.total)}</span>
-        <h2 class="h3" style="margin:.4rem 0">{f.question}</h2>
-        <p style="margin:.2rem 0">{f.answer}</p>
+      <Card className="text-base"><CardContent>
+        <Badge variant="secondary">{f.game_slug}</Badge> <Badge variant="danger">{helpfulLabel(f.up, f.total)}</Badge>
+        <h2 class="my-1.5 text-lg">{f.question}</h2>
+        <p class="my-1">{f.answer}</p>
         <small>{f.sources?.map((s) => <><a href={s.url}>p.{s.page}</a>{' '}</>)}</small>
-        <form method="post" action="/admin/faq-decide" style="margin:.5rem 0 0">
+        <form method="post" action="/admin/faq-decide" class={actions}>
           <input type="hidden" name="game" value={f.game_slug} /><input type="hidden" name="q" value={f.question_norm} />
-          <button class="btn secondary" name="action" value="keep">Keep (fine)</button>
-          <input name="reason" aria-label="Reason to remove" placeholder="Reason to remove" style="padding:.4rem;border-radius:8px;border:0" />
-          <button class="btn destructive" name="action" value="hide">Remove from FAQ</button>
+          <Button type="submit" variant="secondary" name="action" value="keep">Keep (fine)</Button>
+          <Input name="reason" aria-label="Reason to remove" placeholder="Reason to remove" className="w-56 bg-background" />
+          <Button type="submit" variant="destructive" name="action" value="hide">Remove from FAQ</Button>
         </form>
-      </div>
+      </CardContent></Card>
     ))}
   </div>
 </Admin>

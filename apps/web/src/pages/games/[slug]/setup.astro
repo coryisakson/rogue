@@ -1,6 +1,7 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
+import { buttonVariants } from '../../../components/ui/button';
 import { buildSheet, t } from '@rogue/core';
 const L = Astro.locals.locale;
 const { slug } = Astro.params;
@@ -12,6 +13,8 @@ const setup = claims.filter((c) => c.topic === 'goal' || c.topic === 'lose' || c
 const variants = claims.filter((c) => c.topic === 'player_count_variant' && c.player_count != null).sort((a, b) => (a.player_count ?? 0) - (b.player_count ?? 0));
 const sheet = buildSheet(claims);
 const srcs = [...new Map(claims.map((c) => [c.source_url, c])).values()];
+// Toolbar links styled as small buttons; the current choice is filled. The toolbar never prints.
+const tool = (on: boolean) => buttonVariants({ variant: on ? 'default' : 'outline', size: 'sm' });
 if (!claims.length) return new Response(t(L, 'sheet.none'), { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 ---
 <Base title={t(L, 'sheet.title', { game: game.name })} bare>
@@ -32,8 +35,8 @@ if (!claims.length) return new Response(t(L, 'sheet.none'), { status: 404, heade
   </style>
   <div class="toolbar">
     <a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a>
-    {t(L, 'sheet.players')} {[2,3,4].map((n) => <a href={`?players=${n}`} style={players===n?'font-weight:bold':''}>{n}</a>)} <a href="?">{t(L, 'sheet.all')}</a>
-    <button onclick="window.print()">{t(L, 'sheet.print')}</button>
+    {t(L, 'sheet.players')} {[2,3,4].map((n) => <a data-slot="button" class={tool(players === n)} aria-current={players === n ? 'true' : undefined} href={`?players=${n}`}>{n}</a>)} <a data-slot="button" class={tool(false)} href="?">{t(L, 'sheet.all')}</a>
+    <button data-slot="button" class={buttonVariants({ size: 'sm' })} onclick="window.print()">{t(L, 'sheet.print')}</button>
   </div>
   <main id="main" class="bare"><div class="sheet">
     <h1>{t(L, 'sheet.heading', { game: game.name })}</h1>

@@ -1,13 +1,23 @@
 ---
 import Admin from '../../layouts/Admin.astro';
 import { readReviewLog } from '../../lib/admin';
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../../components/ui/card';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 const items = readReviewLog();
 const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
 items.sort((a, b) => (order[a.risk] ?? 3) - (order[b.risk] ?? 3) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+const riskBadge = (risk: string) => (risk === 'high' ? 'danger' : risk === 'medium' ? 'warning' : 'secondary') as 'danger' | 'warning' | 'secondary';
 ---
 <Admin title="Review log">
   <p>{items.length} items that need legal or expert review. Edit <code>docs/REVIEW_LOG.md</code> in the repo; this page reads the copy shipped in the image. No formal legal review has happened yet.</p>
-  <table class="card" style="width:100%"><caption class="sr-only">Review log entries</caption><thead><tr><th scope="col">ID</th><th scope="col">Risk</th><th scope="col">Question</th><th scope="col">Status</th></tr></thead><tbody>
-    {items.map((r) => <tr><td>{r.id}</td><td><span class={`pill ${r.risk === 'high' ? 'bad' : r.risk === 'medium' ? 'warn' : ''}`}>{r.risk}</span></td><td>{r.question}</td><td>{r.status}</td></tr>)}
-  </tbody></table>
+  <Card className="py-1"><CardContent>
+    <Table className="text-base">
+      <TableCaption className="sr-only">Review log entries</TableCaption>
+      <TableHeader><TableRow><TableHead scope="col">ID</TableHead><TableHead scope="col">Risk</TableHead><TableHead scope="col">Question</TableHead><TableHead scope="col">Status</TableHead></TableRow></TableHeader>
+      <TableBody>
+        {items.map((r) => <TableRow><TableCell className="align-top">{r.id}</TableCell><TableCell className="align-top"><Badge variant={riskBadge(r.risk)}>{r.risk}</Badge></TableCell><TableCell className="whitespace-normal">{r.question}</TableCell><TableCell className="align-top">{r.status}</TableCell></TableRow>)}
+      </TableBody>
+    </Table>
+  </CardContent></Card>
 </Admin>

@@ -3,6 +3,9 @@ import Admin from '../../layouts/Admin.astro';
 import { getPool, ensureMigrated } from '../../lib/services';
 import { sourceWeight } from '@rogue/core';
 import { agentsEnabled } from '../../lib/agent-jobs';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
 await ensureMigrated();
 const pool = getPool();
 const q = async (sql: string) => (pool ? (await pool.query(sql)).rows : []);
@@ -21,44 +24,48 @@ const waiting = variants.filter((v) => v.status === 'needs_human');
   <p>Agents curate the text that gets indexed. Pages are scored by code; the <b>Quality Curator</b> repairs or re-reads weak pages and the <b>Scout</b> looks for a text version of each PDF rulebook. You only need to act on the yellow items. Agents are {agentsEnabled() ? 'on' : 'off (ROGUE_AGENTS_URL is not set or ROGUE_AGENTS=0)'}.</p>
   <p><small>Answer quality lives in one queue: poorly rated answers and questions the assistant could not answer are on <a href="/admin/faq">FAQ ratings</a>.</small></p>
 
-  {waiting.length > 0 && <div class="card" style="border:2px solid var(--secondary)">
-    <h2 class="h3" style="margin-top:0">Text versions waiting for your decision ({waiting.length})</h2>
+  {waiting.length > 0 && <Card className="text-base ring-2 ring-secondary"><CardContent>
+    <h2 class="mt-0 text-lg">Text versions waiting for your decision ({waiting.length})</h2>
     {waiting.map((v) => (
-      <form method="post" action="/admin/quality-decide" style="margin:.6rem 0">
+      <form method="post" action="/admin/quality-decide" class="my-2.5">
         <b>{v.title}</b><br /><a href={v.url}>{v.url}</a><br /><small>{v.reason}</small><br />
         <input type="hidden" name="id" value={v.id} />
-        <label><input type="checkbox" name="terms" value="1" /> I read this site's terms</label>
-        <button class="btn secondary" name="action" value="approve">Use this text version</button>
-        <button class="btn destructive" name="action" value="reject">Reject</button>
+        <div class="mt-1.5 flex flex-wrap items-center gap-2">
+          <label class="flex items-center gap-2"><input type="checkbox" name="terms" value="1" class="size-4 accent-primary" /> I read this site's terms</label>
+          <Button type="submit" variant="secondary" name="action" value="approve">Use this text version</Button>
+          <Button type="submit" variant="destructive" name="action" value="reject">Reject</Button>
+        </div>
       </form>
     ))}
-  </div>}
+  </CardContent></Card>}
 
-  <h2 class="h3">Sources</h2>
-  {sources.length === 0 && <div class="card">No scored sources yet. Scoring runs when a source is indexed.</div>}
-  <div style="display:grid;gap:.5rem">
+  <h2 class="text-lg">Sources</h2>
+  {sources.length === 0 && <Card className="text-base"><CardContent>No scored sources yet. Scoring runs when a source is indexed.</CardContent></Card>}
+  <div class="grid gap-2">
     {sources.map((s) => (
-      <div class="card">
-        <b>{s.title}</b> <span class="pill">{String(s.content_type).split(';')[0]}</span> <span class="pill" title="Retrieval weight: rulebook highest, then publisher/author clarifications, then everything else">weight {sourceWeight(s.kind, s.authority).toFixed(2)} ({s.kind ?? 'other'}, {s.authority ?? 'other'})</span>
+      <Card className="text-base"><CardContent>
+        <b>{s.title}</b> <Badge variant="secondary">{String(s.content_type).split(';')[0]}</Badge> <Badge variant="secondary" title="Retrieval weight: rulebook highest, then publisher/author clarifications, then everything else">weight {sourceWeight(s.kind, s.authority).toFixed(2)} ({s.kind ?? 'other'}, {s.authority ?? 'other'})</Badge>
         <div><small>{s.pages} pages · average score {s.avg} · {s.ok} clean · {s.weak} weak · {s.repaired} repaired · {s.reviewed} reviewed, kept · {s.unusable} left out</small></div>
-      </div>
+      </CardContent></Card>
     ))}
   </div>
 
-  <h2 class="h3">Agent jobs</h2>
-  <div style="display:grid;gap:.4rem">
+  <h2 class="text-lg">Agent jobs</h2>
+  <div class="grid gap-1.5">
     {jobs.map((j) => (
-      <div class="card">
-        <span class={`pill ${j.status === 'needs_human' || j.status === 'failed' ? 'bad' : ''}`}>{j.status}</span> #{j.id} {JOB_LABEL[j.kind] ?? j.kind} ·{j.title} <small>{j.fin ?? ''}</small>
+      <Card className="text-base"><CardContent>
+        <Badge variant={j.status === 'needs_human' || j.status === 'failed' ? 'danger' : 'secondary'}>{j.status}</Badge> #{j.id} {JOB_LABEL[j.kind] ?? j.kind} ·{j.title} <small>{j.fin ?? ''}</small>
         {j.summary && <div><small>{j.summary}</small></div>}
         {j.error && <div><small>Error: {j.error}</small></div>}
-      </div>
+      </CardContent></Card>
     ))}
-    {jobs.length === 0 && <div class="card">No jobs yet.</div>}
+    {jobs.length === 0 && <Card className="text-base"><CardContent>No jobs yet.</CardContent></Card>}
   </div>
 
-  <h2 class="h3">Text versions found</h2>
-  {variants.filter((v) => v.status !== 'needs_human').map((v) => (
-    <div class="card"><span class={`pill ${v.status === 'rejected' ? 'bad' : ''}`}>{v.status}</span> {v.title}: <a href={v.url}>{v.url}</a><br /><small>{v.reason}</small></div>
-  ))}
+  <h2 class="text-lg">Text versions found</h2>
+  <div class="grid gap-1.5">
+    {variants.filter((v) => v.status !== 'needs_human').map((v) => (
+      <Card className="text-base"><CardContent><Badge variant={v.status === 'rejected' ? 'danger' : 'secondary'}>{v.status}</Badge> {v.title}: <a href={v.url}>{v.url}</a><br /><small>{v.reason}</small></CardContent></Card>
+    ))}
+  </div>
 </Admin>

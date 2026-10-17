@@ -1,6 +1,7 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
+import { buttonVariants } from '../../../components/ui/button';
 import { buildAid, CARD_SIZES, nUp, resolveCardSize, t } from '@rogue/core';
 const L = Astro.locals.locale;
 const { slug } = Astro.params;
@@ -19,6 +20,8 @@ const grid = nUp(size);
 const copies = sheet ? grid.count : 1;
 const pageCss = sheet ? '@page { size: 8.5in 11in; margin: 0; }' : `@page { size: ${size.width} ${size.height}; margin: 0; }`;
 const link = (s: string, sh: boolean) => `?size=${s}${sh ? '&sheet=1' : ''}`;
+// Toolbar links styled as small buttons; the current size is filled. The toolbar never prints.
+const tool = (on: boolean) => buttonVariants({ variant: on ? 'default' : 'outline', size: 'sm' });
 ---
 <Base title={t(L, 'aid.title', { game: game.name })} bare>
   <style is:global>
@@ -39,9 +42,9 @@ const link = (s: string, sh: boolean) => `?size=${s}${sh ? '&sheet=1' : ''}`;
   <style is:inline set:html={pageCss}></style>
   <div class="toolbar">
     <a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a>
-    {t(L, 'aid.size')} {Object.values(CARD_SIZES).map((s) => <a href={link(s.key, sheet && s.card)} style={s.key === size.key ? 'font-weight:bold' : ''} title={s.label}>{s.key}</a>)}
-    {size.card && (sheet ? <a href={link(size.key, false)}>{t(L, 'aid.oneCard')}</a> : <a href={link(size.key, true)}>{t(L, 'aid.cutSheet', { n: grid.count })}</a>)}
-    <button onclick="window.print()">{t(L, 'aid.print', { what: sheet ? t(L, 'aid.printSheet', { n: grid.count }) : size.label })}</button>
+    {t(L, 'aid.size')} {Object.values(CARD_SIZES).map((s) => <a data-slot="button" class={tool(s.key === size.key)} aria-current={s.key === size.key ? 'true' : undefined} href={link(s.key, sheet && s.card)} title={s.label}>{s.key}</a>)}
+    {size.card && (sheet ? <a data-slot="button" class={tool(false)} href={link(size.key, false)}>{t(L, 'aid.oneCard')}</a> : <a data-slot="button" class={tool(false)} href={link(size.key, true)}>{t(L, 'aid.cutSheet', { n: grid.count })}</a>)}
+    <button data-slot="button" class={buttonVariants({ size: 'sm' })} onclick="window.print()">{t(L, 'aid.print', { what: sheet ? t(L, 'aid.printSheet', { n: grid.count }) : size.label })}</button>
   </div>
   <main id="main" class="bare"><div class={sheet ? 'tiles' : 'single'} style={sheet ? `grid-template-columns:repeat(${grid.cols}, ${size.width});grid-auto-rows:${size.height}` : ''}>
     {Array.from({ length: copies }, () => (

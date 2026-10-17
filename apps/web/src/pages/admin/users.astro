@@ -2,6 +2,8 @@
 import Admin from '../../layouts/Admin.astro';
 import { adminIds } from '../../lib/admin';
 import { ensureMigrated, getPool } from '../../lib/services';
+import { Card, CardContent } from '../../components/ui/card';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 await ensureMigrated();
 const rows = (await getPool()!.query(`SELECT u.id, u.display_name, u.created_at, u.last_login,
   (SELECT string_agg(provider, ', ' ORDER BY created_at) FROM identities i WHERE i.user_id=u.id) providers,
@@ -9,8 +11,14 @@ const rows = (await getPool()!.query(`SELECT u.id, u.display_name, u.created_at,
 const admins = adminIds();
 ---
 <Admin title="Users">
-  <table class="card" style="width:100%"><caption class="sr-only">Users</caption><thead><tr><th scope="col">ID</th><th scope="col">Name</th><th scope="col">Sign-in</th><th scope="col">Ratings</th><th scope="col">Last login</th><th scope="col">Role</th></tr></thead><tbody>
-    {rows.map((u) => <tr><td>{u.id}</td><td>{u.display_name}</td><td>{u.providers}</td><td>{u.ratings}</td><td>{new Date(u.last_login).toISOString().slice(0, 16)}</td><td>{admins.includes(Number(u.id)) ? 'admin' : ''}</td></tr>)}
-  </tbody></table>
+  <Card className="py-1"><CardContent>
+    <Table className="text-base">
+      <TableCaption className="sr-only">Users</TableCaption>
+      <TableHeader><TableRow><TableHead scope="col">ID</TableHead><TableHead scope="col">Name</TableHead><TableHead scope="col">Sign-in</TableHead><TableHead scope="col">Ratings</TableHead><TableHead scope="col">Last login</TableHead><TableHead scope="col">Role</TableHead></TableRow></TableHeader>
+      <TableBody>
+        {rows.map((u) => <TableRow><TableCell>{u.id}</TableCell><TableCell>{u.display_name}</TableCell><TableCell>{u.providers}</TableCell><TableCell>{u.ratings}</TableCell><TableCell>{new Date(u.last_login).toISOString().slice(0, 16)}</TableCell><TableCell>{admins.includes(Number(u.id)) ? 'admin' : ''}</TableCell></TableRow>)}
+      </TableBody>
+    </Table>
+  </CardContent></Card>
   <p><small>Admins are set by ROGUE_ADMIN_USER_IDS or admins.json on the data volume. Users can delete their own accounts at /account.</small></p>
 </Admin>

@@ -10,7 +10,7 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* The hand-written classes (.btn, .card, .pill, header, footer ...). In a layer, so Tailwind utilities still win. */
+/* The hand-written page styles (header, footer, skip link ...). In a layer, so Tailwind utilities still win. */
 @import "./rogue.css" layer(components);
 
 @custom-variant dark (&:is(.dark *));
