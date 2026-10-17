@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): 0.0.122 live: axe re-audit of 9 public pages (wcag2a-2.2aa) found 1 critical (aria-pressed on link toggle, my A6 bug), fixed; setup + aid now 0 violations, others 0. Admin pages, keyboard and dark theme not audited. A7 needs Cory.
 - 2026-10-17 (Hermes): A6 closed by code review: setup sheet and player aid have no images (no alt needed), DOM order is toolbar > h1 > h2 > table/ol, table has caption and th scope. Docs only, no deploy. A7 manual pass still needs Cory.
 - 2026-10-17 (Hermes): 0.0.121: A8: /accessibility statement page (feedback contact), footer link in 5 languages, docs/a11y/ACR.md self-assessed VPAT. Manual keyboard/screen-reader pass (A7) still open; ACR marks unevaluated items.
 - 2026-10-17 (Hermes): 0.0.120: A6 part 1: high-contrast print option (?contrast=high, toggle button) on setup sheet and player aid; duplicate cut-sheet cards hidden from screen readers. Needs Cory print test. Left: A6 alt-text review, A8.
