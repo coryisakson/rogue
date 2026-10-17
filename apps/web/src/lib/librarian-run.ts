@@ -1,6 +1,7 @@
 import { DRAFT_SYSTEM, MIN_DRAFT_PAGE_CHARS, VERIFY_SYSTEM, parseDrafts, parseVerdict, screenDraft } from '@rogue/core';
 import { agentsEnabled, enqueueOrOpenJob, getJob, runNextJob, type JobState } from './agent-jobs';
 import { ensureMigrated, getAi, getPool } from './services';
+import { setting } from './settings';
 import { loadSourcePages } from './page-text';
 
 export interface LibrarianStatus { running: boolean; game: string; page: number; pages: number; drafted: number; published: number; rejected: { reason: string; body: string }[]; startedAt: string; finishedAt?: string; error?: string }
@@ -109,7 +110,7 @@ export async function runLibrarian(gameSlug: string): Promise<void> {
         if (!ok) { status.rejected.push({ reason: `p.${page} verifier: not supported`, body: d.body }); continue; }
         const cl = await pool.query(
           "INSERT INTO claims(edition_id, topic, player_count, body, status, created_by) VALUES ($1,$2,$3,$4,'draft',$5) ON CONFLICT (edition_id, md5(body)) DO NOTHING RETURNING id",
-          [doc.edition_id, d.topic, d.playerCount, d.body, `librarian:${process.env['ROGUE_AI_CHAT_MODEL'] ?? 'local'}`]);
+          [doc.edition_id, d.topic, d.playerCount, d.body, `librarian:${setting('ROGUE_AI_CHAT_MODEL') ?? 'local'}`]);
         if (!cl.rowCount) continue;
         await pool.query('INSERT INTO citations(claim_id, document_id, locator, quote) VALUES ($1,$2,$3,$4)', [cl.rows[0].id, doc.doc_id, `p.${page}`, d.quote]);
         await pool.query("UPDATE claims SET status='published' WHERE id=$1", [cl.rows[0].id]);

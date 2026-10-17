@@ -1,7 +1,7 @@
 import { sectionHeadings, detectPageLabels, applyRanking, chunkText, keywordMatchSql, keywordRankSql, orQuery, parseRanking, qualityWeight, rrf, sourceWeight } from '@rogue/core';
 import { agentsEnabled, enqueueJob } from './agent-jobs';
 import { loadSourcePages, pagesToText, scoreSource } from './page-text';
-import { ensureMigrated, getAi, getPool } from './services';
+import { ensureMigrated, getAi, getEmbedder, getPool, getReranker } from './services';
 
 /** Chunk a source's extracted text and (best effort) embed it. Re-running replaces the source's chunks. */
 const running = new Set<number>();
@@ -40,7 +40,7 @@ async function indexSourceInner(sourceId: number): Promise<{ chunks: number; emb
   if (quality && quality.open > 0 && agentsEnabled()) await enqueueJob('quality_curate', sourceId).catch(() => {});
 
   let embedded = 0; let model: string | null = null; let note: string | undefined;
-  const ai = getAi();
+  const ai = getEmbedder();
   if (!ai) note = 'no AI provider configured; keyword search only';
   else {
     const rows = (await pool.query('SELECT id, text FROM chunks WHERE source_id=$1 ORDER BY ord', [sourceId])).rows;
@@ -63,7 +63,7 @@ async function indexSourceInner(sourceId: number): Promise<{ chunks: number; emb
 const qCache = new Map<string, number[]>();
 async function embedQuery(q: string): Promise<number[] | null> {
   const hit = qCache.get(q); if (hit) return hit;
-  const ai = getAi(); if (!ai) return null;
+  const ai = getEmbedder(); if (!ai) return null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const v = (await ai.embed([q])).vectors[0];
@@ -140,11 +140,24 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
 
 const rerankCache = new Map<string, string[]>();
 
-/** Ask the chat model to order the candidates by usefulness for the question. Any failure keeps the original order. */
+/**
+ * Order the candidates by usefulness for the question: with a rerank model (ROGUE_AI_RERANK_MODEL) through the endpoint's /rerank,
+ * else (or when that fails) by asking the chat model. Any failure keeps the original order.
+ */
 async function rerank(q: string, ids: string[], byId: Map<string, { snippet: string; page: number; section?: string | null }>, stats?: SearchStats): Promise<string[]> {
-  const ai = getAi(); if (!ai) return ids;
   const key = q + '|' + ids.join(',');
   const hit = rerankCache.get(key); if (hit) return hit;
+  const rr = getReranker();
+  if (rr) {
+    try {
+      const order = await rr.ai.rerank(q, ids.map((id) => byId.get(id)!.snippet.replace(/\s+/g, ' ')), rr.model);
+      const out = applyRanking(ids, order.map((i) => i + 1));
+      if (rerankCache.size > 300) rerankCache.clear();
+      rerankCache.set(key, out);
+      return out;
+    } catch (e) { console.warn(`[rules-search] rerank model failed, using the chat model: ${(e as Error).message}`); }
+  }
+  const ai = getAi(); if (!ai) return ids;
   const list = ids.map((id, i) => `[${i + 1}] (${byId.get(id)!.section ? `s.${byId.get(id)!.page}` : `p.${byId.get(id)!.page}`}) ${byId.get(id)!.snippet.replace(/\s+/g, ' ').slice(0, 320)}`).join('\n');
   try {
     const r = await ai.chat({

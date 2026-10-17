@@ -1,16 +1,17 @@
 import { VERIFY_SYSTEM, curatorDecision, parseVerdict, quoteOnPage, splitPages, OpenAiCompatibleProvider } from '@rogue/core';
 import { ensureMigrated, getAi, getPool, ipv4Fetch, storage } from './services';
 import { ingestSeed } from './ingest';
+import { setting } from './settings';
 import { allSeeds } from './dynamic-sources';
 
 /**
  * Optional independent judge (a frontier model through the Claude/OpenAI-compatible endpoint). Not configured by default:
  * without it the Curator can restore claims but never rejects them, so unsure claims wait in the human exception queue.
  */
-function getJudge(): { ai: OpenAiCompatibleProvider; model: string } | null {
-  const base = process.env['ROGUE_JUDGE_BASE_URL']; if (!base) return null;
-  const model = process.env['ROGUE_JUDGE_MODEL'] ?? 'default-chat';
-  const key = process.env['ROGUE_JUDGE_API_KEY'];
+export function getJudge(): { ai: OpenAiCompatibleProvider; model: string } | null {
+  const base = setting('ROGUE_JUDGE_BASE_URL'); if (!base) return null;
+  const model = setting('ROGUE_JUDGE_MODEL') ?? 'default-chat';
+  const key = setting('ROGUE_JUDGE_API_KEY');
   return { model, ai: new OpenAiCompatibleProvider({ baseUrl: base, ...(key ? { apiKey: key } : {}), defaultChatModel: model, defaultEmbedModel: 'none', fetchImpl: ipv4Fetch }) };
 }
 

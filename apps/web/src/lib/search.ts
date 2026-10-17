@@ -1,12 +1,13 @@
 import { parseBggMatches, type GameMatch, type SearchHit } from '@rogue/core';
 import { ipv4Fetch } from './services';
+import { setting } from './settings';
 
 /**
- * Web search provider (config item). ROGUE_SEARCH_BASE_URL = a SearXNG root (JSON API: /search?format=json).
+ * Web search provider (/admin/settings, else env). ROGUE_SEARCH_BASE_URL = a SearXNG root (JSON API: /search?format=json).
  * Unset = search is off: intake falls back to free-text requests that an admin researches by hand.
  */
 export const searchBaseUrl = (): string | null => {
-  const v = (process.env['ROGUE_SEARCH_BASE_URL'] ?? '').trim().replace(/\/+$/, '');
+  const v = (setting('ROGUE_SEARCH_BASE_URL') ?? '').replace(/\/+$/, '');
   return v || null;
 };
 export const searchEnabled = (): boolean => searchBaseUrl() !== null;

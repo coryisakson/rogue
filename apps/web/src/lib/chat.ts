@@ -4,7 +4,7 @@ import {
   type ChatBudget, type ChatTurn, type Locale,
 } from '@rogue/core';
 import { searchRules, expandWithNeighbors, gameRuleLangs, type RuleHit, type SearchStats } from './rules-index';
-import { aiRoleOverridden, ensureMigrated, getAi, getPool, services } from './services';
+import { aiConfig, aiRoleOverridden, ensureMigrated, getAi, getPool, services } from './services';
 import { isAdmin } from './admin';
 import type { SessionUser } from './auth';
 
@@ -42,7 +42,7 @@ export async function askRules(game: string, question: string, history: ChatTurn
   const translateTo = userLang ? (await gameRuleLangs(game)).filter((l) => l !== userLang) : [];
   // Multilingual asks may run on the chat_multilingual override (e.g. Claude while testing); English stays on the default model.
   const roles = chatRoles({ userLang: userLang ?? 'en', translating: translateTo.length > 0, multiConfigured: aiRoleOverridden('chat_multilingual') });
-  const rw = await rewriteQuestion(getAi(roles.rewrite), recent, q, { translateTo });
+  const rw = await rewriteQuestion(getAi(roles.rewrite), recent, q, { translateTo, reasoning: aiConfig().aiRewriteReasoning });
   const standalone = rw.standalone;
   const timings: ChatTimings = { rewrite: Date.now() - t0, embed: 0, search: 0, rerank: 0, answer: 0, total: 0 };
   // Keyed by the standalone question: "and the medic?" means different things in different threads. The answer language is part of the key.
@@ -59,7 +59,7 @@ export async function askRules(game: string, question: string, history: ChatTurn
   if (!ai) throw new Error('AI is not configured');
   let excerpts = hits.map((h) => ({ page: h.page, text: h.snippet, section: h.section, printed: h.printed }));
   if (wide) { const more = await expandWithNeighbors(hits.map((h) => h.chunk_id), 2); if (more.length) excerpts = more.slice(0, 30); }
-  const reasoning = services.aiAnswerReasoning;
+  const reasoning = aiConfig().aiAnswerReasoning;
   const system = (wide ? CHAT_SYSTEM + CHAT_AGGREGATE_ADDENDUM : CHAT_SYSTEM) + answerLanguageRule(userLang) + (recent.length ? CHAT_HISTORY_ADDENDUM : '');
   const tAnswer = Date.now();
   const r = await ai.chat({

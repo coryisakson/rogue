@@ -13,7 +13,7 @@ import { alertOperator } from './notify';
  * volume path than the backups, so copying /app/backups off-box does not copy the key. Keep a copy of the key somewhere safe:
  * without it the backups cannot be read.
  */
-function backupKey(): string {
+export function backupKey(): string {
   const env = process.env['ROGUE_BACKUP_KEY']; if (env) return env;
   const path = join(services.dataDir, 'backup-key');
   if (existsSync(path)) return readFileSync(path, 'utf8');

@@ -7,6 +7,7 @@ import { loadSourcePages, saveOverride, scoreSource } from './page-text';
 import { readPage, readTextDoc, safeUrl, type ScoutReport } from './scout';
 import { webSearch, searchEnabled } from './search';
 import { ensureMigrated, getAi, getPool, ipv4Fetch, storage } from './services';
+import { setting, settingsEnv } from './settings';
 import { ingestSeed } from './ingest';
 import { indexSource } from './rules-index';
 import { ALLOWED_HOSTS } from './source-seeds';
@@ -107,7 +108,7 @@ const qualityTools: McpTool[] = [
       const pool = getPool()!;
       const s = (await pool.query('SELECT private_path, content_type FROM sources WHERE id=$1', [job.source_id])).rows[0];
       if (!s?.private_path || !/pdf/i.test(String(s.content_type))) throw new Error('this source is not a PDF');
-      const provider = ocrProviderFromEnv(process.env, ipv4Fetch);
+      const provider = ocrProviderFromEnv(settingsEnv(), ipv4Fetch);
       if (provider.name === 'none') throw new Error('no OCR engine is configured');
       const pdf = await storage.get(s.private_path); if (!pdf) throw new Error('private PDF copy is missing');
       const sp = await loadSourcePages(job.source_id);
@@ -380,7 +381,7 @@ async function draftablePages(sourceId: number): Promise<Map<number, string>> {
   return new Map([...sp.pages].filter(([, t]) => t.length >= MIN_DRAFT_PAGE_CHARS));
 }
 
-const chatModel = () => process.env['ROGUE_AI_CHAT_MODEL'] ?? 'local';
+const chatModel = () => setting('ROGUE_AI_CHAT_MODEL') ?? 'local';
 
 const librarianTools: McpTool[] = [
   {

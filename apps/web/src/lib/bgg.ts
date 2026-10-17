@@ -5,9 +5,10 @@
  */
 import { RateLimiter, bggCollectionUrl, interpretBggCollection, type BggApiResult } from '@rogue/core';
 import { ipv4Fetch } from './services';
+import { setting } from './settings';
 
 /** Is the BGG API path available on this instance? */
-export const bggTokenConfigured = (): boolean => Boolean(process.env['ROGUE_BGG_TOKEN']?.trim());
+export const bggTokenConfigured = (): boolean => Boolean(setting('ROGUE_BGG_TOKEN'));
 
 // At most 10 BGG requests a minute for the whole instance, and 3 imports per user per 10 minutes.
 const globalLimit = new RateLimiter(10, 60_000);
@@ -22,7 +23,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * growing pause (about 12 s in total) and then return 'queued' so the user can try again shortly.
  */
 export async function fetchBggCollection(username: string, userId: number): Promise<BggFetchResult> {
-  const token = process.env['ROGUE_BGG_TOKEN']?.trim();
+  const token = setting('ROGUE_BGG_TOKEN');
   if (!token) return { kind: 'no-token' };
   if (!userLimit.allow(String(userId))) return { kind: 'rate-limited' };
   const waits = [2000, 4000, 6000];

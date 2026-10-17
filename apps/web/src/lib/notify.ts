@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { services } from './services';
+import { setting } from './settings';
 
-/** Discord webhook: env ROGUE_DISCORD_WEBHOOK_URL, else {"webhook":"https://..."} in /app/data/discord.json. Never logged. */
+/** Discord webhook: ROGUE_DISCORD_WEBHOOK_URL (/admin/settings, else env), else {"webhook":"https://..."} in /app/data/discord.json. Never logged. */
 function webhook(): string | undefined {
-  const env = process.env['ROGUE_DISCORD_WEBHOOK_URL']; if (env) return env;
+  const configured = setting('ROGUE_DISCORD_WEBHOOK_URL'); if (configured) return configured;
   try { return JSON.parse(readFileSync(join(services.dataDir, 'discord.json'), 'utf8')).webhook; } catch { return undefined; }
 }
 

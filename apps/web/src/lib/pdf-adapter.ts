@@ -1,5 +1,6 @@
 import { extractText, getDocumentProxy } from 'unpdf';
 import { ipv4Fetch } from './services';
+import { settingsEnv } from './settings';
 import { scanPdfForQr } from './qr-scan';
 import { applyOcr, needsOcr, ocrProviderFromEnv, type SourceAdapter } from '@rogue/core';
 
@@ -16,7 +17,7 @@ export const pdfAdapter: SourceAdapter = {
     // ROGUE_OCR_ALL_PAGES=1 (ForceOCR setups): re-read every page with the OCR provider, not only pages with no text layer.
     const flagged = process.env.ROGUE_OCR_ALL_PAGES === '1' ? out.text.map((_, i) => i + 1) : needsOcr(out.text);
     if (flagged.length) {
-      const ocr = await applyOcr(out.text, new Uint8Array(bytes), ocrProviderFromEnv(process.env, ipv4Fetch), flagged);
+      const ocr = await applyOcr(out.text, new Uint8Array(bytes), ocrProviderFromEnv(settingsEnv(), ipv4Fetch), flagged);
       out.text = ocr.pages;
       notes = { ocr: ocr.recognized.length > 0, ocrPages: ocr.recognized, pagesWithoutText: ocr.lacking, ...(ocr.errors.length ? { ocrErrors: ocr.errors } : {}) };
     }
