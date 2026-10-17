@@ -43,7 +43,7 @@ const link = (s: string, sh: boolean) => `?size=${s}${sh ? '&sheet=1' : ''}`;
     {size.card && (sheet ? <a href={link(size.key, false)}>{t(L, 'aid.oneCard')}</a> : <a href={link(size.key, true)}>{t(L, 'aid.cutSheet', { n: grid.count })}</a>)}
     <button onclick="window.print()">{t(L, 'aid.print', { what: sheet ? t(L, 'aid.printSheet', { n: grid.count }) : size.label })}</button>
   </div>
-  <div class={sheet ? 'tiles' : 'single'} style={sheet ? `grid-template-columns:repeat(${grid.cols}, ${size.width});grid-auto-rows:${size.height}` : ''}>
+  <main id="main" class="bare"><div class={sheet ? 'tiles' : 'single'} style={sheet ? `grid-template-columns:repeat(${grid.cols}, ${size.width});grid-auto-rows:${size.height}` : ''}>
     {Array.from({ length: copies }, () => (
       <div class="aid" style={`width:${size.width};height:${size.height};font-size:${size.fontPt}pt`}>
         <h1>{aid.title}</h1>
@@ -57,7 +57,7 @@ const link = (s: string, sh: boolean) => `?size=${s}${sh ? '&sheet=1' : ''}`;
         </div>
       </div>
     ))}
-  </div>
+  </div></main>
   <script is:inline>
     // Fit check: shrink the text until the first card fits its height, then apply that size to every copy,
     // so print never clips the end. Copies are identical, so one measurement serves all.

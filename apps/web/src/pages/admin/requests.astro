@@ -68,7 +68,7 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
       {r.status === 'submitted' && r.mode === 'pick' && !r.rulebook_url && (
         <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;margin-top:.5rem">
           <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve-game" /><button class="btn" style="border:0;cursor:pointer">Approve game (Scout looks for the rules)</button></form>
-          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" aria-label="Reject reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
         </div>
       )}
       {r.status === 'manual' && (
@@ -80,7 +80,7 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
             <label>Rulebook link (publisher's own, https) <input name="rulebookUrl" type="url" required maxlength="400" /></label>
             <label>Publisher page (optional, Scout scans it and reads the terms) <input name="foundOn" type="url" maxlength="400" /></label>
             <button class="btn" style="border:0;cursor:pointer;justify-self:start">Save and run rights checks</button></form>
-          <form method="post" style="margin-top:.4rem"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
+          <form method="post" style="margin-top:.4rem"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" aria-label="Reject reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
         </div>
       )}
       {r.status === 'checked' && (
@@ -90,7 +90,7 @@ const pill: Record<string, string> = { pass: 'ok', problem: 'warn', blocked: 'ba
               <label><input type="checkbox" name="terms" value="yes" required /> I read the publisher's terms{r.terms_check?.site ? ` (${r.terms_check.site})` : ` (${r.report?.host})`}</label>
               <button class="btn" style="border:0;cursor:pointer">Approve</button></form>
           )}
-          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
+          <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><input name="reason" aria-label="Reject reason" placeholder="reason" required maxlength="200" /> <button class="btn" style="border:0;cursor:pointer">Reject</button></form>
           <form method="post"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="recheck" /><button class="btn" style="border:0;cursor:pointer">Re-run checks</button></form>
         </div>
       )}

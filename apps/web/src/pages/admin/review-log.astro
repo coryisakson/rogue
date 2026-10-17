@@ -7,7 +7,7 @@ items.sort((a, b) => (order[a.risk] ?? 3) - (order[b.risk] ?? 3) || a.id.localeC
 ---
 <Admin title="Review log">
   <p>{items.length} items that need legal or expert review. Edit <code>docs/REVIEW_LOG.md</code> in the repo; this page reads the copy shipped in the image. No formal legal review has happened yet.</p>
-  <table class="card" style="width:100%"><thead><tr><th>ID</th><th>Risk</th><th>Question</th><th>Status</th></tr></thead><tbody>
+  <table class="card" style="width:100%"><caption class="sr-only">Review log entries</caption><thead><tr><th scope="col">ID</th><th scope="col">Risk</th><th scope="col">Question</th><th scope="col">Status</th></tr></thead><tbody>
     {items.map((r) => <tr><td>{r.id}</td><td><span class={`pill ${r.risk === 'high' ? 'bad' : r.risk === 'medium' ? 'warn' : ''}`}>{r.risk}</span></td><td>{r.question}</td><td>{r.status}</td></tr>)}
   </tbody></table>
 </Admin>

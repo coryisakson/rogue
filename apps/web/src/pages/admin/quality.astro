@@ -22,7 +22,7 @@ const waiting = variants.filter((v) => v.status === 'needs_human');
   <p><small>Answer quality lives in one queue: poorly rated answers and questions the assistant could not answer are on <a href="/admin/faq">FAQ ratings</a>.</small></p>
 
   {waiting.length > 0 && <div class="card" style="border:2px solid #cdbf9b">
-    <h3 style="margin-top:0">Text versions waiting for your decision ({waiting.length})</h3>
+    <h2 class="h3" style="margin-top:0">Text versions waiting for your decision ({waiting.length})</h2>
     {waiting.map((v) => (
       <form method="post" action="/admin/quality-decide" style="margin:.6rem 0">
         <b>{v.title}</b><br /><a href={v.url}>{v.url}</a><br /><small>{v.reason}</small><br />
@@ -34,7 +34,7 @@ const waiting = variants.filter((v) => v.status === 'needs_human');
     ))}
   </div>}
 
-  <h3>Sources</h3>
+  <h2 class="h3">Sources</h2>
   {sources.length === 0 && <div class="card">No scored sources yet. Scoring runs when a source is indexed.</div>}
   <div style="display:grid;gap:.5rem">
     {sources.map((s) => (
@@ -45,7 +45,7 @@ const waiting = variants.filter((v) => v.status === 'needs_human');
     ))}
   </div>
 
-  <h3>Agent jobs</h3>
+  <h2 class="h3">Agent jobs</h2>
   <div style="display:grid;gap:.4rem">
     {jobs.map((j) => (
       <div class="card">
@@ -57,7 +57,7 @@ const waiting = variants.filter((v) => v.status === 'needs_human');
     {jobs.length === 0 && <div class="card">No jobs yet.</div>}
   </div>
 
-  <h3>Text versions found</h3>
+  <h2 class="h3">Text versions found</h2>
   {variants.filter((v) => v.status !== 'needs_human').map((v) => (
     <div class="card"><span class={`pill ${v.status === 'rejected' ? 'bad' : ''}`}>{v.status}</span> {v.title}: <a href={v.url}>{v.url}</a><br /><small>{v.reason}</small></div>
   ))}

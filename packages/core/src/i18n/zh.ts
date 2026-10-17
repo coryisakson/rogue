@@ -2,7 +2,7 @@
 import type { en } from './en.js';
 
 export const zh: Record<keyof typeof en, string> = {
-  'nav.games': '游戏', 'nav.about': '关于', 'nav.admin': '管理', 'nav.signin': '登录', 'nav.signout': '退出',
+  'nav.games': '游戏', 'nav.about': '关于', 'nav.admin': '管理', 'nav.signin': '登录', 'nav.signout': '退出', 'nav.skip': '跳到主要内容',
   'footer.preview': 'MVP 预览版 · 由 AI 根据出版商规则书起草，请务必核对原文',
   'footer.how': '工作原理',
   'lang.label': '语言', 'lang.change': '切换',

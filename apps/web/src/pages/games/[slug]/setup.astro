@@ -35,12 +35,12 @@ if (!claims.length) return new Response(t(L, 'sheet.none'), { status: 404, heade
     {t(L, 'sheet.players')} {[2,3,4].map((n) => <a href={`?players=${n}`} style={players===n?'font-weight:bold':''}>{n}</a>)} <a href="?">{t(L, 'sheet.all')}</a>
     <button onclick="window.print()">{t(L, 'sheet.print')}</button>
   </div>
-  <div class="sheet">
+  <main id="main" class="bare"><div class="sheet">
     <h1>{t(L, 'sheet.heading', { game: game.name })}</h1>
     <div class="sub">{game.publisher} · {t(L, 'common.players', { min: game.min_players, max: game.max_players })} · {t(L, 'common.edition', { edition: claims[0]?.edition ?? '' })}</div>
     {variants.length > 0 && (<>
       <h2>{t(L, 'sheet.byPlayers')}</h2>
-      <table class="pc"><tr><th>{t(L, 'sheet.thPlayers')}</th><th>{t(L, 'sheet.thChanges')}</th></tr>
+      <table class="pc"><caption class="sr-only">{t(L, 'sheet.byPlayers')}</caption><tr><th scope="col">{t(L, 'sheet.thPlayers')}</th><th scope="col">{t(L, 'sheet.thChanges')}</th></tr>
         {variants.map((v) => <tr class={players === v.player_count ? 'on' : ''}><td>{v.player_count}</td><td style="text-align:left">{v.body}{v.locator && <sup> [{v.locator}]</sup>}</td></tr>)}
       </table>
     </>)}
@@ -50,7 +50,7 @@ if (!claims.length) return new Response(t(L, 'sheet.none'), { status: 404, heade
       <ol>{sec.lines.map((l) => <li>{l.text}{l.page && <sup> [{l.page}]</sup>}</li>)}</ol>
     </>))}
     <div class="foot">{t(L, 'common.sources')} {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. {t(L, 'sheet.foot')}</div>
-  </div>
+  </div></main>
   <script is:inline>
     // Fit check: shrink the text until the sheet fits one half-letter page, so print never clips the end.
     (function () {

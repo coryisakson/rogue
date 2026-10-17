@@ -9,7 +9,7 @@ const err = Astro.url.searchParams.get('error');
 const configured = Object.keys(configuredProviders());
 ---
 <Base title={t(L, 'nav.signin')}>
-  <main>
+  <main id="main">
     <h1>{t(L, 'nav.signin')}</h1>
     <div class="card" style="max-width:26rem">
       <p style="margin-top:0">{t(L, 'login.intro')}</p>

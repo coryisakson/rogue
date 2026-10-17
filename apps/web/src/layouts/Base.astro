@@ -18,9 +18,11 @@ import '../styles/rogue.css';
     
   </head>
   <body>
+    <!-- First focusable element: keyboard users jump past the header. Every page puts its content in <main id="main">. -->
+    <a class="skip-link" href="#main">{t(L, 'nav.skip')}</a>
     {!bare && (
       <header class="site">
-        <a class="brand" href="/">🎲 Rogue</a>
+        <a class="brand" href="/"><span aria-hidden="true">🎲 </span>Rogue</a>
         <nav><a href="/games">{t(L, 'nav.games')}</a><a href="/about">{t(L, 'nav.about')}</a>{isAdmin(user) && <a href="/admin">{t(L, 'nav.admin')}</a>}</nav>
         <span style="margin-left:auto;font-size:.9rem">
           {user ? (<form method="post" action="/logout" style="display:inline"><a href="/account">{user.name}</a> <button type="submit" style="background:none;border:0;color:var(--gold);cursor:pointer;text-decoration:underline;font:inherit">{t(L, 'nav.signout')}</button></form>)

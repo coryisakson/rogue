@@ -11,5 +11,5 @@ const done = items.filter((a) => a.status !== 'OPEN');
   {open.length === 0 && <div class="card">Nothing is waiting on you.</div>}
   {open.map((a) => <div class="card" style="margin-bottom:.8rem"><b>{a.id}</b> <span class="pill warn">open</span> <small>blocks: {a.blocks}</small><p>{a.need}</p>{a.recommendation && <p><i>Recommendation: {a.recommendation}</i></p>}</div>)}
   <h2>Resolved ({done.length})</h2>
-  <table class="card" style="width:100%"><tbody>{done.map((a) => <tr><td>{a.id}</td><td>{a.status}</td><td>{a.need}</td></tr>)}</tbody></table>
+  <table class="card" style="width:100%"><caption class="sr-only">Resolved approvals</caption><thead class="sr-only"><tr><th scope="col">ID</th><th scope="col">Status</th><th scope="col">Need</th></tr></thead><tbody>{done.map((a) => <tr><td>{a.id}</td><td>{a.status}</td><td>{a.need}</td></tr>)}</tbody></table>
 </Admin>

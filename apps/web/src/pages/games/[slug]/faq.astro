@@ -11,7 +11,7 @@ let items: Awaited<ReturnType<typeof publicFaq>> = [];
 try { items = await publicFaq(slug!); } catch (e) { console.warn('[faq]', (e as Error).message); }
 ---
 <Base title={t(L, 'faq.title', { game: game.name })}>
-  <main>
+  <main id="main">
     <h1>{t(L, 'faq.h1', { game: game.name })}</h1>
     <p><a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a> · <a href={`/games/${slug}/ask`}>{t(L, 'faq.askOwn')}</a></p>
     <p style="opacity:.8"><small>{t(L, 'faq.note')}</small></p>
@@ -19,7 +19,7 @@ try { items = await publicFaq(slug!); } catch (e) { console.warn('[faq]', (e as 
     <div style="display:grid;gap:.8rem">
       {items.map((f) => (
         <div class="card">
-          <h3 style="margin:0 0 .4rem">{f.question}</h3>
+          <h2 class="h3" style="margin:0 0 .4rem">{f.question}</h2>
           <p style="margin:.2rem 0">{f.answer}</p>
           <small><span class="pill">{t(L, 'faq.helpful', { up: formatNumber(L, f.up), total: formatNumber(L, f.total) })}</span> {f.sources && f.sources.length > 0 && <>· {t(L, 'common.sources')} {f.sources.slice(0, 3).map((s, i) => <>{i > 0 && ', '}<a href={s.url}>{s.section ?? `p.${s.page}`}</a></>)}</>}</small>
         </div>

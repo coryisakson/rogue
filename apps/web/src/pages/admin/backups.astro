@@ -17,7 +17,7 @@ const mb = (n: number) => (n / 1048576).toFixed(2) + ' MB';
     <form method="post" action="/admin/run" style="display:inline"><input type="hidden" name="action" value="restore-test" /><button class="btn" style="border:0;cursor:pointer">Run restore test</button></form>
   </div>
   <h2>Backups on disk</h2>
-  <table class="card" style="width:100%"><thead><tr><th>Date</th><th>Version</th><th>Schema</th><th>Files</th><th>Integrity</th></tr></thead><tbody>
+  <table class="card" style="width:100%"><caption class="sr-only">Backups on disk</caption><thead><tr><th scope="col">Date</th><th scope="col">Version</th><th scope="col">Schema</th><th scope="col">Files</th><th scope="col">Integrity</th></tr></thead><tbody>
     {rows.map((r) => <tr><td>{r.date}</td><td>{r.appVersion}</td><td>{r.schemaVersion}</td><td>{r.files.map((f) => `${f.name} ${mb(f.size)}`).join(', ')}</td><td>{r.problems.length ? <span class="pill bad">{r.problems.join('; ')}</span> : <span class="pill ok">checksums match</span>}</td></tr>)}
     {rows.length === 0 && <tr><td colspan="5">No backups yet.</td></tr>}
   </tbody></table>

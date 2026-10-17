@@ -4,7 +4,7 @@
  */
 export const en = {
   // Layout: nav, footer, language switcher
-  'nav.games': 'Games', 'nav.about': 'About', 'nav.admin': 'Admin', 'nav.signin': 'Sign in', 'nav.signout': 'Sign out',
+  'nav.games': 'Games', 'nav.about': 'About', 'nav.admin': 'Admin', 'nav.signin': 'Sign in', 'nav.signout': 'Sign out', 'nav.skip': 'Skip to content',
   'footer.preview': 'MVP preview · AI-drafted from publisher rulebooks, always check the source',
   'footer.how': 'how this works',
   'lang.label': 'Language', 'lang.change': 'Change',

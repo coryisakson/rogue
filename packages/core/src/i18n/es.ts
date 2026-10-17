@@ -2,7 +2,7 @@
 import type { en } from './en.js';
 
 export const es: Record<keyof typeof en, string> = {
-  'nav.games': 'Juegos', 'nav.about': 'Acerca de', 'nav.admin': 'Admin', 'nav.signin': 'Iniciar sesión', 'nav.signout': 'Cerrar sesión',
+  'nav.games': 'Juegos', 'nav.about': 'Acerca de', 'nav.admin': 'Admin', 'nav.signin': 'Iniciar sesión', 'nav.signout': 'Cerrar sesión', 'nav.skip': 'Saltar al contenido',
   'footer.preview': 'Versión preliminar MVP · redactado por IA a partir de los reglamentos de las editoriales, comprueba siempre la fuente',
   'footer.how': 'cómo funciona',
   'lang.label': 'Idioma', 'lang.change': 'Cambiar',

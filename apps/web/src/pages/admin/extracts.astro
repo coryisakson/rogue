@@ -77,7 +77,7 @@ const base = `/admin/extracts?source=${sourceId}`;
     {groups.size === 0 && <div class="card">No sources with stored text yet.</div>}
     {[...groups].map(([game, list]) => (
       <section>
-        <h3>{game}</h3>
+        <h2 class="h3">{game}</h2>
         <div style="display:grid;gap:.5rem">
           {list.map((s) => (
             <div class="card">

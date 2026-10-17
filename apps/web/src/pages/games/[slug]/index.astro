@@ -47,10 +47,10 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
     .thinking { display: flex; gap: .6rem; align-items: center }
     .spinner { width: 1rem; height: 1rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; flex: none }
     @keyframes spin { to { transform: rotate(360deg) } }
-    @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation: none; border-right-color: currentColor; opacity: .5 } }
     #chat-meter { margin: -.6rem 0 1rem; opacity: .8 }
   </style>
-  <main>
+  <main id="main">
     <h1>{game.name}</h1>
     <p>{game.publisher} · {game.year} · {t(L, 'common.players', { min: game.min_players, max: game.max_players })} {game.bgg_id && <>· <a href={`https://boardgamegeek.com/boardgame/${game.bgg_id}`}>BoardGameGeek ↗</a></>}</p>
 
@@ -92,7 +92,7 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
       <div class="card" style="max-width:28rem"><p style="margin-top:0"><b>{t(L, 'chat.signInTitle')}</b> {t(L, 'chat.signInBody')}</p><a class="btn" href={loginUrl}>{t(L, 'nav.signin')}</a></div>
     ) : (
       <form id="ask-form" method="get" action={`/games/${slug}`} data-game={slug} data-max-turns={MAX_THREAD_TURNS} data-warn-turn={THREAD_WARN_TURN} style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap;max-width:46rem">
-        <input name="q" placeholder={t(L, 'chat.placeholder', { game: game.name })} maxlength="300" minlength="3" required autocomplete="off" style="padding:.7rem .9rem;font-size:1.05rem;flex:1;min-width:14rem;border-radius:8px;border:0" />
+        <input name="q" aria-label={t(L, 'chat.placeholder', { game: game.name })} placeholder={t(L, 'chat.placeholder', { game: game.name })} maxlength="300" minlength="3" required autocomplete="off" style="padding:.7rem .9rem;font-size:1.05rem;flex:1;min-width:14rem;border-radius:8px;border:0" />
         <button class="btn" type="submit" style="border:0;cursor:pointer">{t(L, 'chat.ask')}</button>
         <button class="btn" type="button" id="chat-clear" hidden style="border:0;cursor:pointer;background:#cdbf9b">{t(L, 'chat.newConversation')}</button>
       </form>
@@ -239,6 +239,8 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
           if (stopped) { turn.replaceWith(addTurn({ q, error: tr('chat.fullError') })); continue; }
           let t; let full = false;
           const prior = load().map((x) => ({ q: x.q, a: x.answer || '' }));
+          // aria-busy holds back screen-reader announcements of the live thread until the answer is in place.
+          thread.setAttribute('aria-busy', 'true');
           try {
             const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ game, q, history: prior }) });
             const body = await r.json().catch(() => ({}));
@@ -247,6 +249,7 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
           } catch {
             t = { q, error: tr('chat.offline') };
           }
+          thread.removeAttribute('aria-busy');
           if (g !== gen) continue;
           turn.replaceWith(addTurn(t));
           if (!t.error) save([...load(), t]);
@@ -262,7 +265,8 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
         if (q.length < 3 || stopped) return;
         input.value = ''; // clear straight away so the next question can be typed while this one loads
         const turn = addTurn({ q, pending: true });
-        turn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        turn.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'nearest' });
         queue.push({ q, turn, g: gen });
         work();
       });

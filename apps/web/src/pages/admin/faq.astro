@@ -17,7 +17,7 @@ const items = improvementQueue([
     {items.map((f) => f.reason === 'no_answer' ? (
       <div class="card">
         <span class="pill">{f.game_slug}</span> <span class="pill bad">no answer</span> <small>asked {f.ask_count}× via {f.channels.join(', ')} · last {f.last_seen.toISOString().slice(0, 16).replace('T', ' ')} · {KIND_LABEL[f.last_kind] ?? f.last_kind}</small>
-        <h3 style="margin:.4rem 0">{f.question}</h3>
+        <h2 class="h3" style="margin:.4rem 0">{f.question}</h2>
         <form method="post" action="/admin/faq-decide" style="margin:.5rem 0 0">
           <input type="hidden" name="kind" value="no_answer" /><input type="hidden" name="game" value={f.game_slug} /><input type="hidden" name="q" value={f.question_norm} />
           <button class="btn" name="action" value="resolve" style="border:0;background:#cdbf9b">Resolved</button>
@@ -27,13 +27,13 @@ const items = improvementQueue([
     ) : (
       <div class="card">
         <span class="pill">{f.game_slug}</span> <span class="pill bad">{helpfulLabel(f.up, f.total)}</span>
-        <h3 style="margin:.4rem 0">{f.question}</h3>
+        <h2 class="h3" style="margin:.4rem 0">{f.question}</h2>
         <p style="margin:.2rem 0">{f.answer}</p>
         <small>{f.sources?.map((s) => <><a href={s.url}>p.{s.page}</a>{' '}</>)}</small>
         <form method="post" action="/admin/faq-decide" style="margin:.5rem 0 0">
           <input type="hidden" name="game" value={f.game_slug} /><input type="hidden" name="q" value={f.question_norm} />
           <button class="btn" name="action" value="keep" style="border:0;background:#cdbf9b">Keep (fine)</button>
-          <input name="reason" placeholder="Reason to remove" style="padding:.4rem;border-radius:8px;border:0" />
+          <input name="reason" aria-label="Reason to remove" placeholder="Reason to remove" style="padding:.4rem;border-radius:8px;border:0" />
           <button class="btn" name="action" value="hide" style="border:0;background:#b5544a">Remove from FAQ</button>
         </form>
       </div>

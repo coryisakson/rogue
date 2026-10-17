@@ -50,7 +50,7 @@ const label: Record<string, string> = { submitted: 'being checked', queued: 'in 
 const btn = 'border:0;cursor:pointer';
 ---
 <Base title="Request a game">
-  <main>
+  <main id="main">
     <h1>Request a game</h1>
     <div class="card" style="max-width:38rem">
       {sent && <p><span class="pill ok">received</span> Request #{sent} is in. Status below.</p>}
@@ -74,7 +74,7 @@ const btn = 'border:0;cursor:pointer';
           {searchOn ? (
             <>
               <p style="margin-top:0">Type the name of a game and pick it from the list. An admin approves it, then Rogue finds the publisher's rules and builds the game page. Answers always cite the rulebook; we never host it.</p>
-              <form method="get" style="display:flex;gap:.5rem"><input name="q" value={q} placeholder="Game name" required minlength="2" maxlength="80" style="flex:1" /><button class="btn" type="submit" style={btn}>Search</button></form>
+              <form method="get" style="display:flex;gap:.5rem"><input name="q" value={q} aria-label="Game name" placeholder="Game name" required minlength="2" maxlength="80" style="flex:1" /><button class="btn" type="submit" style={btn}>Search</button></form>
               {matches && matches.length > 0 && (
                 <ul style="list-style:none;padding:0;margin:1rem 0 0">
                   {matches.map((m) => (

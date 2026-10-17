@@ -10,7 +10,7 @@ const data = games.map((g) => ({ slug: g.slug, name: g.name, publisher: g.publis
 const strings = JSON.stringify({ ...clientStrings(L, ['games.popular', 'games.ready', 'games.noSources', 'games.matchOne', 'games.matchMany', 'games.missing']), locale: L });
 ---
 <Base title={t(L, 'games.title')}>
-  <main>
+  <main id="main">
     <h1>{t(L, 'games.title')}</h1>
     <label for="gs" class="sr-only" style="position:absolute;left:-9999px">{t(L, 'games.search')}</label>
     <input id="gs" type="search" placeholder={t(L, 'games.placeholder')} autocomplete="off" data-i18n={strings} style="width:100%;max-width:36rem;padding:.6rem .8rem;font-size:1.05rem" />
@@ -18,7 +18,7 @@ const strings = JSON.stringify({ ...clientStrings(L, ['games.popular', 'games.re
     <div id="gs-grid" class="grid">
       {data.slice(0, POPULAR).map((g) => (
         <div class="card">
-          <h3 style="margin:.1rem 0"><a href={`/games/${g.slug}`}>{g.name}</a></h3>
+          <h2 class="h3" style="margin:.1rem 0"><a href={`/games/${g.slug}`}>{g.name}</a></h2>
           <div>{g.publisher} · {g.year} · {g.players}</div>
           <p>{g.ready ? <span class="pill ok">{t(L, 'games.ready')}</span> : <span class="pill">{t(L, 'games.noSources')}</span>}</p>
         </div>
@@ -41,7 +41,7 @@ const strings = JSON.stringify({ ...clientStrings(L, ['games.popular', 'games.re
       function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
       function norm(s) { return String(s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
       function card(g) {
-        return '<div class="card"><h3 style="margin:.1rem 0"><a href="/games/' + encodeURIComponent(g.slug) + '">' + esc(g.name) + '</a></h3><div>' + esc(g.publisher) + ' · ' + esc(g.year) + ' · ' + esc(g.players) + '</div><p>' +
+        return '<div class="card"><h2 class="h3" style="margin:.1rem 0"><a href="/games/' + encodeURIComponent(g.slug) + '">' + esc(g.name) + '</a></h2><div>' + esc(g.publisher) + ' · ' + esc(g.year) + ' · ' + esc(g.players) + '</div><p>' +
           (g.ready ? '<span class="pill ok">' + esc(S['games.ready']) + '</span>' : '<span class="pill">' + esc(S['games.noSources']) + '</span>') + '</p></div>';
       }
       function render() {

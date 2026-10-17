@@ -9,7 +9,7 @@ const rows = (await getPool()!.query(`SELECT u.id, u.display_name, u.created_at,
 const admins = adminIds();
 ---
 <Admin title="Users">
-  <table class="card" style="width:100%"><thead><tr><th>ID</th><th>Name</th><th>Sign-in</th><th>Ratings</th><th>Last login</th><th>Role</th></tr></thead><tbody>
+  <table class="card" style="width:100%"><caption class="sr-only">Users</caption><thead><tr><th scope="col">ID</th><th scope="col">Name</th><th scope="col">Sign-in</th><th scope="col">Ratings</th><th scope="col">Last login</th><th scope="col">Role</th></tr></thead><tbody>
     {rows.map((u) => <tr><td>{u.id}</td><td>{u.display_name}</td><td>{u.providers}</td><td>{u.ratings}</td><td>{new Date(u.last_login).toISOString().slice(0, 16)}</td><td>{admins.includes(Number(u.id)) ? 'admin' : ''}</td></tr>)}
   </tbody></table>
   <p><small>Admins are set by ROGUE_ADMIN_USER_IDS or admins.json on the data volume. Users can delete their own accounts at /account.</small></p>

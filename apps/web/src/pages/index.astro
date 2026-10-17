@@ -7,7 +7,7 @@ const games = await listGames();
 const ready = games.filter((g) => g.claim_count > 0);
 ---
 <Base title={t(L, 'home.title')}>
-  <main>
+  <main id="main">
     <h1 style="font-size:2.4rem;margin-bottom:.2rem">{t(L, 'home.h1')}</h1>
     <p style="max-width:42rem">{t(L, 'home.intro')}</p>
     <h2>{t(L, 'home.ready')}</h2>
