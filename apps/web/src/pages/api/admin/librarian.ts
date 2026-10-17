@@ -4,7 +4,7 @@ import { describeLibrarianJob, librarianSourceId, librarianStatus, startLibraria
 import { getPool } from '../../../lib/services';
 
 /**
- * POST /api/admin/librarian?game=pandemic starts drafting: a `librarian_draft` agent job when the agents sidecar is on,
+ * POST /api/admin/librarian?game=pandemic[&source=<id>] starts drafting: a `librarian_draft` agent job when the agents sidecar is on,
  * else the in-process run. GET returns progress: for agent jobs ?job=<id>, or the latest job (of ?game=<slug> if given);
  * without agents, the in-process status.
  */
@@ -12,7 +12,7 @@ export const POST: APIRoute = async ({ url }) => {
   const game = url.searchParams.get('game') ?? '';
   if (!/^[a-z0-9-]+$/.test(game)) return Response.json({ error: 'use ?game=<slug>' }, { status: 400 });
   if (!agentsEnabled() && librarianStatus()?.running) return Response.json({ started: false, status: librarianStatus() }, { status: 409 });
-  const r = await startLibrarian(game);
+  const r = await startLibrarian(game, Number(url.searchParams.get('source')) || undefined);
   if ('error' in r) return Response.json({ started: false, error: r.error }, { status: 404 });
   return Response.json({ started: true, ...r });
 };
