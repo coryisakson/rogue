@@ -3,6 +3,10 @@ import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
 import { askRules, gameSources, spendChatBudget, type ChatAnswer } from '../../../lib/chat';
 import { recordAsk } from '../../../lib/unanswered';
+import { Badge } from '../../../components/ui/badge';
+import { Button, buttonVariants } from '../../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Input } from '../../../components/ui/input';
 import { MAX_THREAD_TURNS, THREAD_WARN_TURN, clientStrings, groupCitations, langTag, pageList, t } from '@rogue/core';
 const { slug } = Astro.params;
 const game = await getGame(slug!);
@@ -33,102 +37,130 @@ const reddit = `https://www.reddit.com/search/?q=${encodeURIComponent(`${game.na
 const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check', 'chat.quote', 'chat.helpfulQ', 'chat.helpful', 'chat.notHelpful',
   'chat.voteSaved', 'chat.voteTooMany', 'chat.voteFailed', 'chat.thinking', 'chat.meter', 'chat.meterWarn', 'chat.meterFull', 'chat.fullError',
   'chat.genericError', 'chat.offline', 'chat.newConversation', 'chat.startNew', 'nav.signin']));
+// Chat layout classes, used by the server-rendered answer (no-JS ?q=) and by the #chat-ui template the chat script copies.
+const chat = {
+  turn: 'grid gap-1.5',
+  q: 'max-w-[85%] justify-self-end whitespace-pre-line rounded-2xl rounded-br-sm bg-secondary px-3.5 py-2 text-secondary-foreground',
+  a: 'max-w-[92%] rounded-2xl rounded-bl-sm text-base',
+  text: 'mt-0 whitespace-pre-line text-[1.05rem]',
+  docs: 'mt-2 mb-0 pl-[1.1rem]',
+  quote: 'mx-0 mt-1 mb-0 text-sm text-muted-foreground',
+  vote: 'mt-3 flex flex-wrap items-center gap-2',
+  thinking: 'flex flex-row items-center gap-2.5',
+  spinner: 'size-4 flex-none animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none motion-reduce:border-r-current motion-reduce:opacity-50',
+};
+const linkButton = (variant: 'default' | 'secondary' = 'default') => buttonVariants({ variant, size: 'lg' });
 ---
 <Base title={game.name}>
-  <style>
-    .thread { display: grid; gap: .8rem; margin: 1rem 0; max-width: 46rem }
-    .turn { display: grid; gap: .4rem }
-    .q-bubble { justify-self: end; max-width: 85%; background: var(--secondary); color: var(--secondary-foreground); padding: .55rem .85rem; border-radius: 14px 14px 2px 14px; white-space: pre-line }
-    .a-bubble { max-width: 92%; margin: 0; border-radius: 14px 14px 14px 2px }
-    .a-text { font-size: 1.05rem; margin-top: 0; white-space: pre-line }
-    .a-docs { margin: .5rem 0 0; padding-left: 1.1rem }
-    .a-docs blockquote { margin: .3rem 0 0; opacity: .8; font-size: .9rem }
-    .vote { margin-top: .8rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap }
-    .thinking { display: flex; gap: .6rem; align-items: center }
-    .spinner { width: 1rem; height: 1rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; flex: none }
-    @keyframes spin { to { transform: rotate(360deg) } }
-    @media (prefers-reduced-motion: reduce) { .spinner { animation: none; border-right-color: currentColor; opacity: .5 } }
-    #chat-meter { margin: -.6rem 0 1rem; opacity: .8 }
-  </style>
   <main id="main">
     <h1>{game.name}</h1>
     <p>{game.publisher} · {game.year} · {t(L, 'common.players', { min: game.min_players, max: game.max_players })} {game.bgg_id && <>· <a href={`https://boardgamegeek.com/boardgame/${game.bgg_id}`}>BoardGameGeek ↗</a></>}</p>
 
-    <div class="thread" id="thread" aria-live="polite" data-i18n={chatStrings}>
+    <div class="my-4 grid max-w-[46rem] gap-3" id="thread" aria-live="polite" data-i18n={chatStrings}>
       {(res || err) && (
-        <div class="turn" data-answer-id={res?.id ?? ''}>
-          <div class="q-bubble">{q}</div>
-          {err ? <div class="card a-bubble"><b>{err}</b></div> : res && (
-            <div class="card a-bubble" id="answer">
-              <p class="a-text">{res.answer}</p>
-              {res.warning && <p><span class="pill bad">{t(L, 'chat.check')}</span> {res.warning}</p>}
-              <small><span class="pill warn">{t(L, 'chat.aiNote')}</span></small>
+        <div class={chat.turn} data-answer-id={res?.id ?? ''}>
+          <div class={chat.q}>{q}</div>
+          {err ? <Card className={chat.a}><CardContent><b>{err}</b></CardContent></Card> : res && (
+            <Card className={chat.a} id="answer"><CardContent>
+              <p class={chat.text}>{res.answer}</p>
+              {res.warning && <p><Badge variant="danger">{t(L, 'chat.check')}</Badge> {res.warning}</p>}
+              <small><Badge variant="warning">{t(L, 'chat.aiNote')}</Badge></small>
               {docs.length > 0 && (
-                <ul class="a-docs">
+                <ul class={chat.docs}>
                   {docs.map((d) => (
                     <li><small><a href={d.url}>{d.title}</a>{d.publisher && ` (${d.publisher})`}{d.pages.length > 0 && ` · ${pageList(d.pages)}`}{d.lang && ` · ${langTag(d.lang)}`}</small>
-                      {d.quote && <details><summary><small>{t(L, 'chat.quote')}</small></summary><blockquote lang={d.lang ?? undefined}>“{d.quote}…”</blockquote></details>}
+                      {d.quote && <details><summary><small>{t(L, 'chat.quote')}</small></summary><blockquote class={chat.quote} lang={d.lang ?? undefined}>“{d.quote}…”</blockquote></details>}
                     </li>
                   ))}
                 </ul>
               )}
               {res.id && (
-                <form method="post" action="/rate-answer" class="vote" data-vote>
+                <form method="post" action="/rate-answer" class={chat.vote} data-vote>
                   <input type="hidden" name="answer" value={res.id} />
                   <input type="hidden" name="next" value={nextUrl} />
                   <small>{t(L, 'chat.helpfulQ')}</small>
-                  <button class="btn" name="vote" value="up" type="submit" style="border:0;cursor:pointer">{t(L, 'chat.helpful')}</button>
-                  <button class="btn" name="vote" value="down" type="submit" style="border:0;cursor:pointer">{t(L, 'chat.notHelpful')}</button>
+                  <Button variant="outline" name="vote" value="up" type="submit">{t(L, 'chat.helpful')}</Button>
+                  <Button variant="outline" name="vote" value="down" type="submit">{t(L, 'chat.notHelpful')}</Button>
                   {voted && <small>{t(L, 'chat.voteSaved')}</small>}
                 </form>
               )}
-            </div>
+            </CardContent></Card>
           )}
         </div>
       )}
     </div>
 
     {!user ? (
-      <div class="card" style="max-width:28rem"><p style="margin-top:0"><b>{t(L, 'chat.signInTitle')}</b> {t(L, 'chat.signInBody')}</p><a class="btn" href={loginUrl}>{t(L, 'nav.signin')}</a></div>
+      <Card className="max-w-md text-base"><CardContent>
+        <p class="mt-0"><b>{t(L, 'chat.signInTitle')}</b> {t(L, 'chat.signInBody')}</p>
+        <a data-slot="button" class={linkButton()} href={loginUrl}>{t(L, 'nav.signin')}</a>
+      </CardContent></Card>
     ) : (
-      <form id="ask-form" method="get" action={`/games/${slug}`} data-game={slug} data-max-turns={MAX_THREAD_TURNS} data-warn-turn={THREAD_WARN_TURN} style="margin:1rem 0;display:flex;gap:.5rem;flex-wrap:wrap;max-width:46rem">
-        <input name="q" aria-label={t(L, 'chat.placeholder', { game: game.name })} placeholder={t(L, 'chat.placeholder', { game: game.name })} maxlength="300" minlength="3" required autocomplete="off" style="padding:.7rem .9rem;font-size:1.05rem;flex:1;min-width:14rem;border-radius:8px;border:0" />
-        <button class="btn" type="submit" style="border:0;cursor:pointer">{t(L, 'chat.ask')}</button>
-        <button class="btn secondary" type="button" id="chat-clear" hidden>{t(L, 'chat.newConversation')}</button>
+      <form id="ask-form" method="get" action={`/games/${slug}`} data-game={slug} data-max-turns={MAX_THREAD_TURNS} data-warn-turn={THREAD_WARN_TURN} class="my-4 flex max-w-[46rem] flex-wrap gap-2">
+        <Input name="q" aria-label={t(L, 'chat.placeholder', { game: game.name })} placeholder={t(L, 'chat.placeholder', { game: game.name })} maxLength={300} minLength={3} required autoComplete="off" className="h-11 min-w-56 flex-1 bg-card px-3.5 text-[1.05rem] md:text-[1.05rem]" />
+        <Button type="submit" className="h-11 px-4">{t(L, 'chat.ask')}</Button>
+        <Button type="button" variant="secondary" id="chat-clear" className="h-11 px-4" hidden>{t(L, 'chat.newConversation')}</Button>
       </form>
     )}
-    {user && <p id="chat-meter" hidden aria-live="polite"><small></small></p>}
-    <p><small style="opacity:.8">{t(L, 'chat.citesNote')}</small></p>
+    {user && <p id="chat-meter" class="-mt-2.5 mb-4 text-muted-foreground" hidden aria-live="polite"><small></small></p>}
+    <p class="text-muted-foreground"><small>{t(L, 'chat.citesNote')}</small></p>
 
-    <p><a class="btn" href={`/games/${slug}/setup`}>{t(L, 'game.setup')}</a> <a class="btn" href={`/games/${slug}/aid`}>{t(L, 'game.aid')}</a> <a class="btn secondary" href={`/games/${slug}/faq`}>{t(L, 'game.faq')}</a></p>
-    {links.length > 0 && (
-      <div class="card" id="links">
-        <h2 style="margin-top:0">{t(L, 'game.linksTitle')}</h2>
-        <p style="opacity:.8"><small>{t(L, 'game.linksNote')}</small></p>
-        <ul>
-          {links.map((c) => {
-            const url = c.body.match(/https?:\/\/\S+(?=\s\()/)?.[0];
-            return <li id={`c${c.id}`}>{url ? <a href={url} rel="noopener nofollow">{url}</a> : c.body} · <small>{c.locator} · <a href={c.source_url}>{c.source_title}</a></small></li>;
-          })}
-        </ul>
-      </div>
-    )}
-    <div class="card" id="community">
-      <h2 style="margin-top:0">{t(L, 'game.communityTitle')}</h2>
-      <ul>
-        {game.bgg_id && <li><a href={`https://boardgamegeek.com/boardgame/${game.bgg_id}/forums`} rel="noopener nofollow">{t(L, 'game.bggForums')}</a></li>}
-        <li><a href={reddit} rel="noopener nofollow">{t(L, 'game.reddit')}</a></li>
-      </ul>
-      <p style="opacity:.8;margin-bottom:0"><small>{t(L, 'game.communityNote')}</small></p>
+    <p class="flex flex-wrap gap-2">
+      <a data-slot="button" class={linkButton()} href={`/games/${slug}/setup`}>{t(L, 'game.setup')}</a>
+      <a data-slot="button" class={linkButton()} href={`/games/${slug}/aid`}>{t(L, 'game.aid')}</a>
+      <a data-slot="button" class={linkButton('secondary')} href={`/games/${slug}/faq`}>{t(L, 'game.faq')}</a>
+    </p>
+    <div class="grid gap-4">
+      {links.length > 0 && (
+        <Card className="text-base" id="links">
+          <CardHeader><CardTitle><h2 class="m-0 text-xl">{t(L, 'game.linksTitle')}</h2></CardTitle></CardHeader>
+          <CardContent>
+            <p class="mt-0 text-muted-foreground"><small>{t(L, 'game.linksNote')}</small></p>
+            <ul class="mb-0">
+              {links.map((c) => {
+                const url = c.body.match(/https?:\/\/\S+(?=\s\()/)?.[0];
+                return <li id={`c${c.id}`}>{url ? <a href={url} rel="noopener nofollow">{url}</a> : c.body} · <small>{c.locator} · <a href={c.source_url}>{c.source_title}</a></small></li>;
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+      <Card className="text-base" id="community">
+        <CardHeader><CardTitle><h2 class="m-0 text-xl">{t(L, 'game.communityTitle')}</h2></CardTitle></CardHeader>
+        <CardContent>
+          <ul class="mt-0">
+            {game.bgg_id && <li><a href={`https://boardgamegeek.com/boardgame/${game.bgg_id}/forums`} rel="noopener nofollow">{t(L, 'game.bggForums')}</a></li>}
+            <li><a href={reddit} rel="noopener nofollow">{t(L, 'game.reddit')}</a></li>
+          </ul>
+          <p class="mb-0 text-muted-foreground"><small>{t(L, 'game.communityNote')}</small></p>
+        </CardContent>
+      </Card>
+      {sources.length === 0 && <Card className="text-base"><CardContent><b>{t(L, 'game.noSourcesTitle')}</b> {t(L, 'game.noSourcesBody')} <a href="/about#publishers">{t(L, 'game.contactUs')}</a> {t(L, 'game.noSourcesEnd')}</CardContent></Card>}
     </div>
-    {sources.length === 0 && <div class="card"><b>{t(L, 'game.noSourcesTitle')}</b> {t(L, 'game.noSourcesBody')} <a href="/about#publishers">{t(L, 'game.contactUs')}</a> {t(L, 'game.noSourcesEnd')}</div>}
     {sources.length > 0 && <>
       <h2>{t(L, 'game.sourcesTitle')}</h2>
       <ul>{sources.map((s) => <li><a href={s.url}>{s.title ?? s.url}</a>{s.publisher && ` · ${s.publisher}`} · {t(L, 'common.edition', { edition: s.edition })}{s.language && ` · ${langTag(s.language)}`}{s.availability !== 'available' && ` · ${t(L, 'game.unavailable')}`}</li>)}</ul>
     </>}
-    <p style="opacity:.7"><small>{t(L, 'game.rightsNote')}</small></p>
-    <p style="opacity:.6"><small><a href={`/games/${slug}/facts`}>{t(L, 'game.factBase')}</a></small></p>
+    <p class="text-muted-foreground"><small>{t(L, 'game.rightsNote')}</small></p>
+    <p class="text-muted-foreground"><small><a href={`/games/${slug}/facts`}>{t(L, 'game.factBase')}</a></small></p>
   </main>
+  {/* Shadcn elements the chat script copies (tag, classes, data-slot; never their content), so turns it adds in the
+      browser look exactly like the server-rendered answer above without the script hard-coding any class names. */}
+  <template id="chat-ui">
+    <div data-ui="turn" class={chat.turn}></div>
+    <div data-ui="q" class={chat.q}></div>
+    <Card data-ui="answer" className={chat.a}><CardContent data-ui="body" /></Card>
+    <Card data-ui="thinking" className={chat.a}><CardContent data-ui="thinking-body" className={chat.thinking} /></Card>
+    <span data-ui="spinner" class={chat.spinner}></span>
+    <p data-ui="text" class={chat.text}></p>
+    <Badge data-ui="check" variant="danger" />
+    <Badge data-ui="ai" variant="warning" />
+    <ul data-ui="docs" class={chat.docs}></ul>
+    <blockquote data-ui="quote" class={chat.quote}></blockquote>
+    <form data-ui="vote" class={chat.vote}></form>
+    <Button data-ui="vote-button" variant="outline" />
+    <a data-ui="signin" data-slot="button" class={linkButton()}></a>
+  </template>
   <script is:inline>
     // Chat thread: asks go to /api/ask and answers are appended here, so earlier turns stay on screen.
     // The thread lives in page memory only: leaving or reloading the page clears it (Cory 2026-10-16). Nothing is stored in the browser or on the server.
@@ -156,40 +188,51 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
       const save = (turns) => { memory = turns.slice(-MAX_TURNS); };
 
       // Small DOM builder; text always goes in via textContent, never as HTML.
-      function el(tag, props = {}, ...kids) {
-        const n = document.createElement(tag);
+      function fill(n, props, kids) {
         for (const [k, v] of Object.entries(props)) {
-          if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v; else n.setAttribute(k, v);
+          if (k === 'text') n.textContent = v; else n.setAttribute(k, v);
         }
         for (const k of kids) if (k) n.append(k);
         return n;
       }
+      const el = (tag, props = {}, ...kids) => fill(document.createElement(tag), props, kids);
+      // Styled parts are empty copies of the shadcn elements in <template id="chat-ui"> (same tag, classes, data-slot).
+      const KIT = {};
+      for (const n of document.getElementById('chat-ui').content.querySelectorAll('[data-ui]')) KIT[n.dataset.ui] = n;
+      function ui(name, props = {}, ...kids) {
+        const n = KIT[name].cloneNode(false);
+        n.removeAttribute('data-ui');
+        return fill(n, props, kids);
+      }
+      // A card with its content box; kids go into the content box.
+      const card = (name, ...kids) => ui(name, {}, ui(name === 'thinking' ? 'thinking-body' : 'body', {}, ...kids));
       const safeUrl = (u) => (/^https?:\/\//.test(u) ? u : '#');
 
       function answerCard(t) {
-        if (t.error) return el('div', { class: 'card a-bubble' }, el('b', { text: t.error }), t.signIn ? el('p', {}, el('a', { class: 'btn', href: `/login?next=${encodeURIComponent(location.pathname)}`, text: tr('nav.signin') })) : null);
-        const card = el('div', { class: 'card a-bubble' }, el('p', { class: 'a-text', text: t.answer }));
-        if (t.warning) card.append(el('p', {}, el('span', { class: 'pill bad', text: tr('chat.check') }), ` ${t.warning}`));
-        card.append(el('small', {}, el('span', { class: 'pill warn', text: tr('chat.aiNote') })));
+        if (t.error) return card('answer', el('b', { text: t.error }), t.signIn ? el('p', {}, ui('signin', { href: `/login?next=${encodeURIComponent(location.pathname)}`, text: tr('nav.signin') })) : null);
+        const out = card('answer', ui('text', { text: t.answer }));
+        const body = out.firstChild;
+        if (t.warning) body.append(el('p', {}, ui('check', { text: tr('chat.check') }), ` ${t.warning}`));
+        body.append(el('small', {}, ui('ai', { text: tr('chat.aiNote') })));
         if (t.docs && t.docs.length) {
-          const ul = el('ul', { class: 'a-docs' });
+          const ul = ui('docs');
           for (const d of t.docs) {
             const line = el('small', {}, el('a', { href: safeUrl(d.url), text: d.title }), d.publisher ? ` (${d.publisher})` : '', d.cite ? ` · ${d.cite}` : '', d.tag ? ` · ${d.tag}` : '');
-            const quote = d.quote ? el('details', {}, el('summary', {}, el('small', { text: tr('chat.quote') })), el('blockquote', d.lang ? { lang: d.lang, text: `“${d.quote}…”` } : { text: `“${d.quote}…”` })) : null;
+            const quote = d.quote ? el('details', {}, el('summary', {}, el('small', { text: tr('chat.quote') })), ui('quote', d.lang ? { lang: d.lang, text: `“${d.quote}…”` } : { text: `“${d.quote}…”` })) : null;
             ul.append(el('li', {}, line, quote));
           }
-          card.append(ul);
+          body.append(ul);
         }
         if (t.id) {
-          const vote = el('form', { method: 'post', action: '/rate-answer', class: 'vote', 'data-vote': '' },
+          const vote = ui('vote', { method: 'post', action: '/rate-answer', 'data-vote': '' },
             el('input', { type: 'hidden', name: 'answer', value: String(t.id) }),
             el('input', { type: 'hidden', name: 'next', value: `/games/${game}?q=${encodeURIComponent(t.q)}` }),
             el('small', { text: tr('chat.helpfulQ') }),
-            el('button', { class: 'btn', name: 'vote', value: 'up', type: 'submit', style: 'border:0;cursor:pointer', text: tr('chat.helpful') }),
-            el('button', { class: 'btn', name: 'vote', value: 'down', type: 'submit', style: 'border:0;cursor:pointer', text: tr('chat.notHelpful') }));
-          card.append(vote);
+            ui('vote-button', { name: 'vote', value: 'up', type: 'submit', text: tr('chat.helpful') }),
+            ui('vote-button', { name: 'vote', value: 'down', type: 'submit', text: tr('chat.notHelpful') }));
+          body.append(vote);
         }
-        return card;
+        return out;
       }
 
       // Shows the thread size as turns (what the limit counts), warns near the end, and locks the box at the limit.
@@ -208,17 +251,20 @@ const chatStrings = JSON.stringify(clientStrings(L, ['chat.aiNote', 'chat.check'
       }
 
       function addTurn(t) {
-        const turn = el('div', { class: 'turn', 'data-answer-id': t.id ? String(t.id) : '' }, el('div', { class: 'q-bubble', text: t.q }));
-        turn.append(t.pending
-          ? el('div', { class: 'card a-bubble thinking', role: 'status' }, el('span', { class: 'spinner', 'aria-hidden': 'true' }), el('span', { text: tr('chat.thinking') }))
-          : answerCard(t));
+        const turn = ui('turn', { 'data-answer-id': t.id ? String(t.id) : '' }, ui('q', { text: t.q }));
+        let thinking = null;
+        if (t.pending) {
+          thinking = card('thinking', ui('spinner', { 'aria-hidden': 'true' }), el('span', { text: tr('chat.thinking') }));
+          thinking.setAttribute('role', 'status');
+        }
+        turn.append(thinking || answerCard(t));
         thread.append(turn);
         if (clearBtn) clearBtn.hidden = false;
         return turn;
       }
 
       // Earlier turns go above a server-rendered answer (?q=), skipping it if it is the same answer.
-      const serverTurn = thread.querySelector('.turn');
+      const serverTurn = thread.querySelector('[data-answer-id]'); // every turn carries data-answer-id
       const serverId = serverTurn ? serverTurn.dataset.answerId : '';
       for (const t of load()) {
         if (serverId && String(t.id) === serverId) continue;

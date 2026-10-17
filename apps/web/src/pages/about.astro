@@ -1,8 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
+import { Card, CardContent } from '../components/ui/card';
 ---
 <Base title="About">
-  <main id="main" class="card" style="margin-top:1.5rem">
+  <main id="main">
+  <Card className="mt-6 text-base"><CardContent>
     <h1>How Rogue works</h1>
     <p>Rogue is an open source knowledge base for tabletop games. Agents find the publisher's own rules, read them, and write short statements <b>in their own words</b>, each pointing to the page it came from. We keep a private working copy for extraction and never serve the publisher's file: we link to it.</p>
     <ul>
@@ -15,5 +17,6 @@ import Base from '../layouts/Base.astro';
     <h2 id="publishers">Publishers</h2>
     <p>If you hold the rights to a game here and want us to stop, or want to authorise us to host your rules, email <a href="mailto:cory@isaksonfamily.net">cory@isaksonfamily.net</a>. Takedowns are handled by hand and removed promptly.</p>
     <p>Status: MVP preview. One game (Pandemic) is populated.</p>
+  </CardContent></Card>
   </main>
 </Base>

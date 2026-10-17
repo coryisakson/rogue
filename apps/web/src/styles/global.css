@@ -173,4 +173,8 @@
   [data-slot], [data-slot]::before, [data-slot]::after { box-sizing: border-box; border-width: 0; border-style: solid; margin: 0; }
   :is(button, input, select, textarea)[data-slot] { font: inherit; color: inherit; background-color: transparent; padding: 0; }
   [data-slot] svg { display: block; flex-shrink: 0; }
+  /* Preflight's rule: `hidden` must win over display utilities (a hidden <Button> is still inline-flex otherwise). */
+  [hidden]:where(:not([hidden="until-found"])) { display: none !important; }
+  /* A link styled as a button (<a data-slot="button" class={buttonVariants()}>, what Button asChild renders). */
+  a[data-slot="button"] { text-decoration: none; }
 }

@@ -2,6 +2,10 @@
 import Base from '../../layouts/Base.astro';
 import { LANGUAGE_NAMES, LOCALES, PROVIDERS, t } from '@rogue/core';
 import { configuredProviders, identitiesOf } from '../../lib/auth';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { NativeSelect, NativeSelectOption } from '../../components/ui/native-select';
 const L = Astro.locals.locale;
 const user = Astro.locals.user;
 if (!user) return Astro.redirect('/login?next=/account');
@@ -13,17 +17,17 @@ const langSaved = Astro.url.searchParams.has('lang');
 <Base title={t(L, 'account.title')}>
   <main id="main">
     <h1>{t(L, 'account.title')}</h1>
-    <div class="card" style="max-width:30rem">
-      <p style="margin-top:0">{t(L, 'account.signedInVia', { name: user.name, provider: user.provider })}</p>
+    <Card className="max-w-[30rem] text-base"><CardContent>
+      <p class="mt-0">{t(L, 'account.signedInVia', { name: user.name, provider: user.provider })}</p>
       <p>{t(L, 'account.stored')}</p>
-      {note && <p><span class="pill">{note === 'merged' ? t(L, 'account.merged') : note === 'already' ? t(L, 'account.already') : t(L, 'account.linked')}</span></p>}
+      {note && <p><Badge variant="secondary">{note === 'merged' ? t(L, 'account.merged') : note === 'already' ? t(L, 'account.already') : t(L, 'account.linked')}</Badge></p>}
       <h2>{t(L, 'account.languageTitle')}</h2>
       <p>{t(L, 'account.languageBody')}</p>
-      <form method="post" action="/account/language" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+      <form method="post" action="/account/language" class="flex flex-wrap items-center gap-2">
         <input type="hidden" name="next" value="/account?lang=saved" />
-        <label for="account-lang" class="sr-only" style="position:absolute;left:-9999px">{t(L, 'lang.label')}</label>
-        <select id="account-lang" name="lang">{LOCALES.map((l) => <option value={l} lang={l} selected={l === L}>{LANGUAGE_NAMES[l]}</option>)}</select>
-        <button type="submit" class="btn" style="border:0;cursor:pointer">{t(L, 'lang.change')}</button>
+        <label for="account-lang" class="sr-only">{t(L, 'lang.label')}</label>
+        <NativeSelect id="account-lang" name="lang" defaultValue={L}>{LOCALES.map((l) => <NativeSelectOption value={l} lang={l}>{LANGUAGE_NAMES[l]}</NativeSelectOption>)}</NativeSelect>
+        <Button type="submit">{t(L, 'lang.change')}</Button>
         {langSaved && <small>{t(L, 'account.languageSaved')}</small>}
       </form>
       <h2>{t(L, 'account.methods')}</h2>
@@ -35,9 +39,9 @@ const langSaved = Astro.url.searchParams.has('lang');
       <h2>{t(L, 'account.deleteTitle')}</h2>
       <p>{t(L, 'account.deleteBody')}</p>
       <form method="post" action="/account/delete">
-        <label><input type="checkbox" name="confirm" value="yes" required /> {t(L, 'account.deleteConfirm')}</label>
-        <p><button type="submit" class="btn" style="border:0;cursor:pointer">{t(L, 'account.deleteButton')}</button></p>
+        <label class="flex items-center gap-2"><input type="checkbox" name="confirm" value="yes" required class="size-4 accent-primary" /> {t(L, 'account.deleteConfirm')}</label>
+        <p class="mb-0"><Button type="submit">{t(L, 'account.deleteButton')}</Button></p>
       </form>
-    </div>
+    </CardContent></Card>
   </main>
 </Base>

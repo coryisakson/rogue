@@ -47,7 +47,8 @@ for (const file of astroFiles(join(WEB, 'layouts'))) checkControls(file, markup(
 
 // 3. Form controls need an accessible name: aria-label(ledby), a <label for=id>, or a wrapping <label>.
 function checkControls(file, html) {
-  for (const m of html.matchAll(/<(input|select|textarea)\b([^>]*)>/g)) {
+  // Lower case = plain HTML; capitalised = the shadcn components (components/ui) that render those controls.
+  for (const m of html.matchAll(/<(input|select|textarea|Input|NativeSelect|Textarea)\b([^>]*)>/g)) {
     const attrs = m[2];
     if (/type="(hidden|submit)"/.test(attrs) || /aria-label(ledby)?=/.test(attrs)) continue;
     const id = attrs.match(/\bid=(?:"([^"]+)"|\{(\w+)\})/);
@@ -57,7 +58,7 @@ function checkControls(file, html) {
     fail(file, `<${m[1]}${attrs.slice(0, 50)}> has no label`);
   }
   // Buttons whose visible text is only symbols or emoji (★, 👍) need words for screen readers.
-  for (const m of html.matchAll(/<button\b([^>]*)>([^<{]*)<\/button>/g)) {
+  for (const m of html.matchAll(/<(?:button|Button)\b([^>]*)>([^<{]*)<\/(?:button|Button)>/g)) {
     if (!/\p{L}|\p{N}/u.test(m[2]) && !/aria-label=/.test(m[1])) fail(file, `icon-only button "${m[2].trim()}" needs aria-label`);
   }
 }

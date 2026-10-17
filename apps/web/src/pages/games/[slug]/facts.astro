@@ -3,6 +3,10 @@ import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
 import { formatNumber, ratingLabel, t } from '@rogue/core';
 import { isAdmin } from '../../../lib/admin';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent } from '../../../components/ui/card';
+import { Input } from '../../../components/ui/input';
 const L = Astro.locals.locale;
 const { slug } = Astro.params;
 const game = await getGame(slug!);
@@ -20,25 +24,35 @@ const shown = q ? rest.filter((c) => c.body.toLowerCase().includes(q.toLowerCase
   <main id="main">
     <h1>{t(L, 'facts.title', { game: game.name })}</h1>
     <p><a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a></p>
-    <p style="opacity:.8"><small>{t(L, 'facts.note', { n: formatNumber(L, rest.length) })}</small></p>
-    {admin && <form method="get" style="margin:.6rem 0"><input name="facts" value={q ?? ''} aria-label={t(L, 'facts.filterPlaceholder')} placeholder={t(L, 'facts.filterPlaceholder')} style="padding:.4rem;width:min(20rem,80%)" /> <button class="btn" style="border:0">{t(L, 'facts.filter')}</button></form>}
-    {rest.length === 0 && <div class="card"><b>{t(L, 'facts.emptyTitle')}</b> {t(L, 'facts.emptyBody')}</div>}
-    <div style="display:grid;gap:.8rem">
+    <p class="text-muted-foreground"><small>{t(L, 'facts.note', { n: formatNumber(L, rest.length) })}</small></p>
+    {admin && (
+      <form method="get" class="my-2.5 flex flex-wrap items-center gap-2">
+        <Input name="facts" defaultValue={q ?? ''} aria-label={t(L, 'facts.filterPlaceholder')} placeholder={t(L, 'facts.filterPlaceholder')} className="w-[min(20rem,80%)]" />
+        <Button type="submit">{t(L, 'facts.filter')}</Button>
+      </form>
+    )}
+    {rest.length === 0 && <Card className="text-base"><CardContent><b>{t(L, 'facts.emptyTitle')}</b> {t(L, 'facts.emptyBody')}</CardContent></Card>}
+    <div class="grid gap-3">
       {shown.map((c) => (
-        <div class="card" id={`c${c.id}`}>
-          <span class="pill">{c.topic.replace('_', ' ')}</span>{c.player_count && <span class="pill warn">{t(L, 'facts.players', { n: c.player_count })}</span>}
-          <p style="margin:.4rem 0">{c.body}</p>
+        <Card className="text-base" id={`c${c.id}`}><CardContent>
+          <div class="flex flex-wrap gap-1.5">
+            <Badge variant="secondary">{c.topic.replace('_', ' ')}</Badge>{c.player_count && <Badge variant="warning">{t(L, 'facts.players', { n: c.player_count })}</Badge>}
+          </div>
+          <p class="my-1.5">{c.body}</p>
           <small>{t(L, 'facts.source')} <a href={c.source_url}>{c.source_title}</a> ({c.publisher}) · {c.locator}
-          {c.availability !== 'available' && <span class="pill bad">{t(L, 'facts.unavailable')}</span>}
-          · {c.verified_at ? <span class="pill">{t(L, 'facts.human')}</span> : <span class="pill">{t(L, 'facts.ai')}</span>}</small>
-          {c.quote && <blockquote style="margin:.4rem 0 0;opacity:.8;font-size:.9rem">“{c.quote}”</blockquote>}
-          <form method="post" action="/rate" style="margin:.5rem 0 0;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap">
+          {c.availability !== 'available' && <> <Badge variant="danger">{t(L, 'facts.unavailable')}</Badge></>}
+          · {c.verified_at ? <Badge variant="secondary">{t(L, 'facts.human')}</Badge> : <Badge variant="secondary">{t(L, 'facts.ai')}</Badge>}</small>
+          {c.quote && <blockquote class="mx-0 mt-1.5 mb-0 text-sm text-muted-foreground">“{c.quote}”</blockquote>}
+          <form method="post" action="/rate" class="mt-2 flex flex-wrap items-center gap-1">
             <input type="hidden" name="claim" value={c.id} /><input type="hidden" name="next" value={here} />
             <small>{user ? t(L, 'facts.rate') : <a href={`/login?next=${encodeURIComponent(here)}`}>{t(L, 'facts.signInToRate')}</a>}</small>
-            {user && [1, 2, 3, 4, 5].map((n) => <button type="submit" name="stars" value={n} title={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} aria-label={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} style={`background:none;border:0;cursor:pointer;font-size:1.2rem;padding:0 .1rem;color:${(c.my_stars ?? 0) >= n ? 'var(--primary)' : 'var(--border)'}`}>★</button>)}
+            {/* Unselected stars use muted-foreground (4.5:1), not the border colour, so they read in both themes. */}
+            {user && [1, 2, 3, 4, 5].map((n) => (
+              <Button type="submit" variant="ghost" size="icon-sm" name="stars" value={n} title={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} aria-label={n > 1 ? t(L, 'facts.starMany', { n }) : t(L, 'facts.starOne')} className={`text-xl ${(c.my_stars ?? 0) >= n ? 'text-primary' : 'text-muted-foreground'}`}>★</Button>
+            ))}
             {ratingLabel(c.avg_stars, c.rating_count) && <small>· {ratingLabel(c.avg_stars, c.rating_count)}</small>}
           </form>
-        </div>
+        </CardContent></Card>
       ))}
     </div>
   </main>

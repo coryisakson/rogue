@@ -18,6 +18,11 @@ const badgeVariants = cva(
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // Rogue: solid status fills (the old .pill.ok/.warn/.bad/.info). Each pair is in scripts/a11y-check.mjs.
+        success: "bg-success text-success-foreground",
+        warning: "bg-warning text-warning-foreground",
+        info: "bg-info text-info-foreground",
+        danger: "bg-destructive text-destructive-foreground",
       },
     },
     defaultVariants: {
