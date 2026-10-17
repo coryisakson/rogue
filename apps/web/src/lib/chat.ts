@@ -5,6 +5,7 @@ import {
 } from '@rogue/core';
 import { searchRules, expandWithNeighbors, gameRuleLangs, type RuleHit, type SearchStats } from './rules-index';
 import { aiConfig, aiRoleOverridden, ensureMigrated, getAi, getPool, services } from './services';
+import { setting } from './settings';
 import { isAdmin } from './admin';
 import type { SessionUser } from './auth';
 
@@ -46,7 +47,7 @@ export async function askRules(game: string, question: string, history: ChatTurn
   const standalone = rw.standalone;
   const timings: ChatTimings = { rewrite: Date.now() - t0, embed: 0, search: 0, rerank: 0, answer: 0, total: 0 };
   // Keyed by the standalone question: "and the medic?" means different things in different threads. The answer language is part of the key.
-  const key = `${game}|${userLang ?? '-'}|${standalone.toLowerCase()}`;
+  const key = `${setting('ROGUE_AI_CHAT_MODEL') ?? '-'}|${game}|${userLang ?? '-'}|${standalone.toLowerCase()}`; // model is part of the key so a model change never serves old answers
   const hit = cache.get(key); if (hit) return hit;
   // List/count questions ("how many roles") need many passages, so look wider and add neighbouring chunks.
   const wide = isAggregateQuestion(standalone) || Object.values(rw.translations).some(isAggregateQuestion);
