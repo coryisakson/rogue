@@ -11,9 +11,20 @@ export interface SourceSeed {
   foundOn: string;
 }
 
-export const ALLOWED_HOSTS = ['cdn.svc.asmodee.net', 'www.zmangames.com', 'contentiongames.com', 'gesellschaftsspiele.spielen.de'];
+export const ALLOWED_HOSTS = ['cdn.svc.asmodee.net', 'www.zmangames.com', 'contentiongames.com', 'gesellschaftsspiele.spielen.de', 'asmodee-resources.azureedge.net'];
 
 export const SEEDS: SourceSeed[] = [
+  {
+    // German rulebook hosted by Asmodee Germany's own download CDN (publisher host). Link supplied by Cory 2026-10-17 (R33).
+    gameSlug: 'pandemic',
+    url: 'https://asmodee-resources.azureedge.net/media/germanyprod/Produkte/Pandemic/Download/Pandemic_REGEL_DE.pdf',
+    title: 'Pandemic Spielregel (deutsch)',
+    publisher: 'Asmodee Germany / Z-Man Games',
+    language: 'de',
+    kind: 'rulebook',
+    editionLabel: 'Deutsche Spielregel (Asmodee Germany, PDF 2020-03)',
+    foundOn: 'https://www.asmodee.de/',
+  },
   {
     gameSlug: 'pandemic',
     url: 'https://cdn.svc.asmodee.net/production-zman/uploads/2024/09/Pandemic_Rulebook.pdf',
