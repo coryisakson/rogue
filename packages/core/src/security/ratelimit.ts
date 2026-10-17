@@ -52,6 +52,9 @@ export function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith('/_astro/')) return true;
   if (/^\/agent\/mcp\/[a-z-]+$/.test(pathname)) return true; // Nanobot sidecar: verified by the x-rogue-agent header in the handler, else 404
   if (pathname === '/mcp' || pathname === '/mcp/server-card' || pathname === '/docs/mcp') return true; // public read-only MCP + its card and docs page
+  // MCP OAuth (ADR 0004): metadata, registration, consent, token, revoke, connected apps. Each answers 404 unless ROGUE_MCP_OAUTH=1.
+  if (pathname === '/.well-known/oauth-protected-resource' || pathname === '/.well-known/oauth-protected-resource/mcp' || pathname === '/.well-known/oauth-authorization-server') return true;
+  if (/^\/oauth\/(register|authorize|token|revoke|apps)$/.test(pathname)) return true;
   if (pathname === '/discord/interactions') return true; // Ed25519-verified in the handler; 404 unless Discord env is set
   if (pathname === '/api/ask') return true; // rules chat JSON for the game-page thread: same-origin + sign-in checked in the handler
   if (/^\/games\/[a-z0-9-]+(\/setup|\/aid|\/ask|\/faq|\/facts)?\/?$/.test(pathname)) return true;

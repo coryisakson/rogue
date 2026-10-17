@@ -26,6 +26,10 @@ export interface McpTool {
   annotations?: McpToolAnnotations;
   /** Runs the local AI model (retrieval + rerank/answer): goes through the stricter rate bucket. */
   costly?: boolean;
+  /** OAuth scopes the caller needs (signed-in tools, ADR 0004). Empty/absent = public. The HTTP layer enforces them. */
+  scopes?: string[];
+  /** The result is a receipt for a write (rating saved, request queued), not a claim: the citation rule does not apply. */
+  receipt?: boolean;
   handler: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -151,7 +155,7 @@ async function callTool(tool: McpTool, args: Record<string, unknown>, opts: McpO
     return textResult(`Rate limit: ${tool.name} uses the AI model and allows only a few calls per minute per client. Wait about a minute and retry, or use get_game_facts meanwhile.`, true);
   let result: unknown;
   try { result = await tool.handler(args); } catch (e) { return textResult((e as Error).message, true); }
-  if (opts.requireCitations) {
+  if (opts.requireCitations && !tool.receipt) {
     const cites = isObj(result) && Array.isArray(result['citations']) ? result['citations'] : [];
     // Design plan: a response without sources is an error, never an unsourced answer.
     if (!cites.length) return textResult('No cited source was found for this request, and Rogue never answers without a source. Try another game slug (list_games), a different wording, or get_game_facts.', true);

@@ -3,6 +3,7 @@
  * Web-standard Request -> Response, so it runs in Astro, a plain node:http server (tests) or anywhere else.
  * We always answer with a single JSON object (never SSE): every tool here returns in one go.
  */
+import type { McpChallenge } from './auth.js';
 import { handleMcpBody, RPC, type McpOptions, type McpServerInfo, type McpTool } from './server.js';
 
 export interface McpHttpConfig {
@@ -15,6 +16,8 @@ export interface McpHttpConfig {
   allowedOrigins?: string[];
   /** Per-client general budget; false answers 429. Called once per POST. */
   allowRequest?: () => boolean;
+  /** OAuth gate (ADR 0004): looks at the parsed body; a challenge answers 401/403 with WWW-Authenticate. Absent = no auth. */
+  challenge?: (body: unknown) => McpChallenge | null;
 }
 
 export const MCP_MAX_BODY_BYTES = 64 * 1024;
@@ -46,7 +49,7 @@ function corsHeaders(origin: string | null, requested: string | null): Record<st
     'access-control-allow-methods': ALLOW,
     // Echo what the browser asks for: Mcp-Param-* names are tool-specific, and no credentials are involved.
     'access-control-allow-headers': requested ?? 'content-type, accept, mcp-protocol-version, mcp-method, mcp-name',
-    'access-control-expose-headers': 'mcp-protocol-version',
+    'access-control-expose-headers': 'mcp-protocol-version, www-authenticate',
     'access-control-max-age': '86400',
   };
 }
@@ -105,6 +108,9 @@ export async function handleMcpHttp(request: Request, cfg: McpHttpConfig): Promi
   if (text === null) return tooBig();
   let body: unknown;
   try { body = JSON.parse(text); } catch { return rpcFail(400, RPC.PARSE, 'Parse error', cors); }
+
+  const ch = cfg.challenge?.(body);
+  if (ch) return rpcFail(ch.status, RPC.INVALID_REQUEST, ch.message, { 'www-authenticate': ch.wwwAuthenticate, ...cors });
 
   // Mcp-Session-Id and Last-Event-ID are ignored on purpose: no sessions, no resumable streams.
   const reply = await handleMcpBody(body, cfg.tools, cfg.info, { ...cfg.options, headers: h });

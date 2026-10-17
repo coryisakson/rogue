@@ -23,6 +23,8 @@ describe('security', () => {
     expect(isCostlyPath('/mcp')).toBe(false); // /mcp has its own per-IP buckets in the handler
     expect(isPublicPath('/games/pandemic/ask')).toBe(true);
     expect(isPublicPath('/discord/interactions')).toBe(true);
+    for (const p of ['/oauth/register', '/oauth/authorize', '/oauth/token', '/oauth/revoke', '/oauth/apps', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server']) expect(isPublicPath(p)).toBe(true);
+    for (const p of ['/oauth', '/oauth/', '/oauth/other', '/oauth/token/x', '/oauth/../api/games', '/.well-known/openid-configuration', '/.well-known/oauth-protected-resource/other', '/.well-known/x']) expect(isPublicPath(p)).toBe(false);
     for (const p of ['/discord', '/discord/', '/discord/interactions/', '/discord/interactions/x', '/discord/other', '/discord/interactions/../../api']) expect(isPublicPath(p)).toBe(false);
     expect(isPublicPath('/login')).toBe(true);
     expect(isPublicPath('/rate')).toBe(true);
