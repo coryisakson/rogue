@@ -80,6 +80,89 @@ function checkTables(file, html) {
   }
 }
 
+// 6. Colour tokens (roadmap A3): every text/background pair meets WCAG 2.2 AA (4.5:1 text, 3:1 UI parts) in both themes.
+// The token blocks are read from rogue.css, so a colour change there is checked here without a browser.
+const cssPath = join(WEB, 'styles/rogue.css');
+// The first rule with exactly this selector (at the start of a line) that defines colour tokens.
+function tokenBlock(selector) {
+  const re = new RegExp(`^\\s*${selector.replace(/[[\]().:"=]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'gm');
+  const body = [...css.matchAll(re)].map((m) => m[1]).find((b) => b.includes('--color-bg:'));
+  if (!body) { fail(cssPath, `token block ${selector} not found`); return {}; }
+  return Object.fromEntries([...body.matchAll(/(--color-[\w-]+)\s*:\s*([^;]+);/g)].map((t) => [t[1], t[2].trim()]));
+}
+const themes = {
+  light: tokenBlock(':root'),
+  dark: tokenBlock(':root[data-theme="dark"]'),
+};
+const darkMedia = tokenBlock(':root:not([data-theme="light"])');
+const print = tokenBlock(':root:root');
+if (JSON.stringify(darkMedia) !== JSON.stringify(themes.dark)) fail(cssPath, 'the prefers-color-scheme dark block and [data-theme="dark"] differ');
+if (JSON.stringify(print) !== JSON.stringify(themes.light)) fail(cssPath, 'the print token block must repeat the light colours');
+
+// #rgb, #rgba, #rrggbb, #rrggbbaa -> { r, g, b, a } with a in 0..1.
+function parseHex(value) {
+  let h = String(value).replace('#', '');
+  if (!/^[0-9a-f]{3,8}$/i.test(h)) return null;
+  if (h.length <= 4) h = [...h].map((c) => c + c).join('');
+  const [r, g, b, a = 255] = [0, 2, 4, 6].map((i) => (h.length > i ? parseInt(h.slice(i, i + 2), 16) : undefined)).filter((n) => n !== undefined);
+  return { r, g, b, a: a / 255 };
+}
+// A see-through colour (pills, borders) is judged as it looks: painted over what is below it.
+const over = (top, below) => ({ r: top.r * top.a + below.r * (1 - top.a), g: top.g * top.a + below.g * (1 - top.a), b: top.b * top.a + below.b * (1 - top.a), a: 1 });
+function luminance({ r, g, b }) {
+  const [R, G, B] = [r, g, b].map((v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+function contrast(fg, bg) {
+  const [hi, lo] = [luminance(fg), luminance(bg)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+// [foreground, background(s) from top to bottom, minimum ratio]. Backgrounds may be see-through layers over the last one.
+const PAIRS = [
+  ['--color-text', ['--color-bg'], 4.5],
+  ['--color-text', ['--color-bg-raised'], 4.5],
+  ['--color-muted', ['--color-bg'], 4.5],
+  ['--color-accent', ['--color-bg'], 4.5], // links and focus ring on the page
+  ['--color-header-text', ['--color-header-bg'], 4.5],
+  ['--color-on-surface', ['--color-surface'], 4.5],
+  ['--color-link-on-surface', ['--color-surface'], 4.5],
+  ['--color-btn-text', ['--color-btn-bg'], 4.5],
+  ['--color-btn-text', ['--color-secondary'], 4.5],
+  ['--color-on-secondary', ['--color-secondary'], 4.5],
+  ['--color-btn-text', ['--color-btn-danger'], 4.5],
+  ['--color-on-surface', ['--color-pill', '--color-surface'], 4.5],
+  ['--color-on-surface', ['--color-pill-ok', '--color-surface'], 4.5],
+  ['--color-on-surface', ['--color-pill-warn', '--color-surface'], 4.5],
+  ['--color-on-surface', ['--color-pill-bad', '--color-surface'], 4.5],
+  ['--color-text', ['--color-pill-bad', '--color-bg'], 4.5], // admin tab badges sit on the page
+  ['--color-accent', ['--color-surface'], 3], // focus ring around controls on cards
+  ['--color-icon-off', ['--color-surface'], 3], // unselected rating star
+];
+// Light is the pre-A3 look, kept pixel-identical on purpose; these pairs already failed before the tokens and need a
+// design decision (tracked for the next a11y pass). Dark has no exceptions.
+const LIGHT_KNOWN_FAILS = new Set([
+  '--color-btn-text on --color-btn-danger',
+  '--color-accent on --color-surface',
+  '--color-icon-off on --color-surface',
+]);
+const contrastReport = [];
+for (const [theme, tokens] of Object.entries(themes)) {
+  for (const [fgName, bgNames, min] of PAIRS) {
+    const layers = bgNames.map((n) => parseHex(tokens[n]));
+    const fgRaw = parseHex(tokens[fgName]);
+    if (!fgRaw || layers.includes(null)) { fail(cssPath, `${theme}: ${fgName} or ${bgNames.join('/')} is not a hex colour`); continue; }
+    const bg = layers.reduceRight((below, top) => (below ? over(top, below) : top), null);
+    const ratio = contrast(over(fgRaw, bg), bg);
+    const name = `${fgName} on ${bgNames.join('/')}`;
+    if (ratio >= min) continue;
+    if (theme === 'light' && LIGHT_KNOWN_FAILS.has(name)) { contrastReport.push(`${theme} ${name} ${ratio.toFixed(2)} (known)`); continue; }
+    fail(cssPath, `${theme}: ${name} is ${ratio.toFixed(2)}:1, needs ${min}:1`);
+  }
+}
+// A known failure that now passes should leave the list, so the list never hides a regression.
+for (const name of LIGHT_KNOWN_FAILS) if (!contrastReport.some((r) => r.includes(` ${name} `))) fail(cssPath, `light: "${name}" passes now, remove it from LIGHT_KNOWN_FAILS`);
+if (process.argv.includes('--verbose')) console.log(contrastReport.join('\n'));
+
 if (problems.length) {
   console.error(`a11y-check: ${problems.length} problem(s)\n  ${problems.join('\n  ')}`);
   process.exit(1);
