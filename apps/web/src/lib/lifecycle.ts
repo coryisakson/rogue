@@ -15,7 +15,8 @@ export async function recheckSource(sourceId: number): Promise<RecheckResult> {
   const pool = getPool()!;
   await ensureMigrated();
   await syncApprovedHosts();
-  const s = (await pool.query('SELECT id, url, content_hash FROM sources WHERE id=$1', [sourceId])).rows[0];
+  const s = (await pool.query('SELECT id, url, content_hash, retired_at FROM sources WHERE id=$1', [sourceId])).rows[0];
+  if (s?.retired_at) return { sourceId, url: s.url, outcome: 'unavailable', detail: 'retired by an admin (replaced); not rechecked' };
   if (!s) return { sourceId, url: '', outcome: 'transient_error', detail: 'unknown source' };
   const done = async (outcome: RecheckResult['outcome'], detail: string, audit = true): Promise<RecheckResult> => {
     if (audit) await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['curator', `recheck_${outcome}`, { sourceId, url: s.url, detail }]);
@@ -47,7 +48,7 @@ export async function recheckSource(sourceId: number): Promise<RecheckResult> {
 export async function recheckAll(): Promise<RecheckResult[]> {
   const pool = getPool()!;
   await ensureMigrated();
-  const ids = (await pool.query("SELECT id FROM sources WHERE private_path IS NOT NULL OR availability <> 'available' ORDER BY last_checked_at NULLS FIRST LIMIT 20")).rows;
+  const ids = (await pool.query("SELECT id FROM sources WHERE retired_at IS NULL AND (private_path IS NOT NULL OR availability <> 'available') ORDER BY last_checked_at NULLS FIRST LIMIT 20")).rows;
   const out: RecheckResult[] = [];
   for (const r of ids) out.push(await recheckSource(r.id));
   return out;

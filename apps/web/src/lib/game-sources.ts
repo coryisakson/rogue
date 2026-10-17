@@ -98,7 +98,7 @@ export async function addGameSource(slug: string, v: SourceInput, adminId: numbe
       [slug, v.url, v.title, v.publisher, v.language, v.kind, label, v.foundOn, replacesSourceId, report, adminId])).rows[0].id);
     if (replacesSourceId !== null) {
       // Keep the row, its documents and citations: published facts stay attributable (lifecycle rule, migration 0005).
-      await c.query("UPDATE sources SET availability='unavailable', unavailable_since=COALESCE(unavailable_since, now()) WHERE id=$1", [replacesSourceId]);
+      await c.query("UPDATE sources SET availability='unavailable', retired_at=now(), unavailable_since=COALESCE(unavailable_since, now()) WHERE id=$1", [replacesSourceId]);
     }
     await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [`admin:${adminId}`, replacesSourceId === null ? 'game_source_added' : 'game_source_replaced',
       { slug, runtimeSourceId: id, url: v.url, kind: v.kind, language: v.language, host: report.host, verdict: report.verdict, termsChecked, replacesSourceId }]);
