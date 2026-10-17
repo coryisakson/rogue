@@ -1,0 +1,77 @@
+---
+import Base from '../../layouts/Base.astro';
+import { MCP_MAX_BODY_BYTES, MODERN_PROTOCOL_VERSIONS, LEGACY_PROTOCOL_VERSIONS, publicTools, t } from '@rogue/core';
+import { MCP_LIMITS, publicKb, publicOrigin } from '../../lib/mcp';
+const L = Astro.locals.locale;
+const origin = publicOrigin(Astro.request);
+const endpoint = `${origin}/mcp`;
+// Tool metadata only (names, titles, descriptions): building the list runs no query.
+const tools = publicTools(publicKb(origin));
+const versions = [...MODERN_PROTOCOL_VERSIONS, ...LEGACY_PROTOCOL_VERSIONS].join(', ');
+const claudeCode = `claude mcp add --transport http rogue ${endpoint}`;
+const genericJson = JSON.stringify({ mcpServers: { rogue: { type: 'http', url: endpoint } } }, null, 2);
+const inspector = 'npx @modelcontextprotocol/inspector';
+---
+<Base title={t(L, 'mcp.title')}>
+  <main id="main" class="mcp-doc">
+    <h1>{t(L, 'mcp.title')}</h1>
+    <p>{t(L, 'mcp.intro')}</p>
+
+    <section class="card" aria-labelledby="mcp-endpoint">
+      <h2 id="mcp-endpoint">{t(L, 'mcp.endpoint')}</h2>
+      <pre><code>{endpoint}</code></pre>
+      <p>{t(L, 'mcp.endpointNote', { versions })}</p>
+      <p><small>{t(L, 'mcp.card')} <a href="/mcp/server-card">{`${origin}/mcp/server-card`}</a></small></p>
+    </section>
+
+    <section class="card" aria-labelledby="mcp-connect">
+      <h2 id="mcp-connect">{t(L, 'mcp.connect')}</h2>
+      <h3>Claude Code</h3>
+      <pre><code>{claudeCode}</code></pre>
+      <h3>Claude, ChatGPT</h3>
+      <p>{t(L, 'mcp.connectors')}</p>
+      <h3>JSON</h3>
+      <p>{t(L, 'mcp.json')}</p>
+      <pre><code>{genericJson}</code></pre>
+      <h3>MCP Inspector</h3>
+      <pre><code>{inspector}</code></pre>
+      <p>{t(L, 'mcp.inspector')}</p>
+    </section>
+
+    <section class="card" aria-labelledby="mcp-tools">
+      <h2 id="mcp-tools">{t(L, 'mcp.tools')}</h2>
+      <p><small>{t(L, 'mcp.toolsNote')}</small></p>
+      <div class="table-wrap">
+        <table>
+          <caption>{t(L, 'mcp.toolsCaption', { n: tools.length })}</caption>
+          <thead><tr><th scope="col">{t(L, 'mcp.toolName')}</th><th scope="col">{t(L, 'mcp.toolWhat')}</th></tr></thead>
+          <tbody>
+            {tools.map((tool) => (
+              <tr><th scope="row"><code>{tool.name}</code>{tool.costly && <> <span class="pill">{t(L, 'mcp.aiTool')}</span></>}</th><td lang="en">{tool.description}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="mcp-limits">
+      <h2 id="mcp-limits">{t(L, 'mcp.limits')}</h2>
+      <p>{t(L, 'mcp.limitsBody', { general: MCP_LIMITS.general, model: MCP_LIMITS.model, kb: MCP_MAX_BODY_BYTES / 1024 })}</p>
+    </section>
+
+    <section class="card" aria-labelledby="mcp-cited">
+      <h2 id="mcp-cited">{t(L, 'mcp.cited')}</h2>
+      <p>{t(L, 'mcp.citedBody')}</p>
+      <p>{t(L, 'mcp.later')}</p>
+    </section>
+  </main>
+  <style>
+    .mcp-doc { max-width: 60rem; }
+    .mcp-doc section { margin-top: 1rem; }
+    .mcp-doc pre { background: var(--muted); color: var(--foreground); border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; overflow-x: auto; white-space: pre; }
+    .mcp-doc h3 { margin: .8rem 0 .3rem; font-size: 1rem; }
+    .mcp-doc .table-wrap { overflow-x: auto; }
+    .mcp-doc td, .mcp-doc th { vertical-align: top; text-align: left; padding: .35rem .5rem; }
+    .mcp-doc tbody th { white-space: nowrap; font-weight: normal; }
+  </style>
+</Base>
