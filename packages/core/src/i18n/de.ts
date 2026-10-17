@@ -190,6 +190,7 @@ export const de: Record<keyof typeof en, string> = {
   'sheet.none': 'Für dieses Spiel gibt es noch keine belegten Aufbau-Fakten.',
 
   'aid.title': '{game}: Spielhilfe', 'aid.cardTitle': '{game} · Spielhilfe', 'aid.size': 'Größe:',
+  'print.contrastOn': 'Druck mit hohem Kontrast', 'print.contrastOff': 'Standarddruck',
   'aid.oneCard': 'eine Karte', 'aid.cutSheet': 'Bogen zum Ausschneiden ({n} pro Letter-Seite)',
   'aid.print': 'Drucken ({what})', 'aid.printSheet': 'Letter, {n} Karten',
   'aid.omittedOne': '{n} weitere Regel nicht gezeigt; siehe Regelheft.', 'aid.omittedMany': '{n} weitere Regeln nicht gezeigt; siehe Regelheft.',

@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): 0.0.120: A6 part 1: high-contrast print option (?contrast=high, toggle button) on setup sheet and player aid; duplicate cut-sheet cards hidden from screen readers. Needs Cory print test. Left: A6 alt-text review, A8.
 - 2026-10-17 (Hermes): Ask answer cache now keyed by chat model so model bake-offs are not served stale answers.
 - 2026-10-17 (Hermes): 0.0.118: /admin/settings (models, endpoints, keys per role/agent; encrypted secrets, live tests, DB > env > default), sidecar 0.6.0 reads per-agent models from agent-settings.json. docs/SETTINGS.md. Reranker (BGE) selectable; not yet set.
 - 2026-10-17 (Hermes): Game sources page /admin/sources (add/replace/re-ingest rules links, same rights gates) + admin title search; replaced sources get retired_at so recheck cannot revive them (0040). BGE reranker installed on Router (not wired yet). Librarian drafts only rulebooks, not FAQ/errata.

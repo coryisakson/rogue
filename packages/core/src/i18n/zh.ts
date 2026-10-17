@@ -190,6 +190,7 @@ export const zh: Record<keyof typeof en, string> = {
   'sheet.none': '这款游戏还没有有出处的布置事实。',
 
   'aid.title': '{game} 玩家辅助卡', 'aid.cardTitle': '{game} · 玩家辅助卡', 'aid.size': '尺寸：',
+  'print.contrastOn': '高对比度打印', 'print.contrastOff': '标准打印',
   'aid.oneCard': '单张卡', 'aid.cutSheet': '裁切页（每张 Letter 纸 {n} 张）',
   'aid.print': '打印（{what}）', 'aid.printSheet': 'Letter 纸，{n} 张卡',
   'aid.omittedOne': '还有 {n} 条规则未显示；请查阅规则书。', 'aid.omittedMany': '还有 {n} 条规则未显示；请查阅规则书。',

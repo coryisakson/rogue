@@ -190,6 +190,7 @@ export const es: Record<keyof typeof en, string> = {
   'sheet.none': 'Aún no hay datos de preparación con fuente para este juego.',
 
   'aid.title': 'Ayuda de juego de {game}', 'aid.cardTitle': '{game} · Ayuda de juego', 'aid.size': 'Tamaño:',
+  'print.contrastOn': 'Impresión de alto contraste', 'print.contrastOff': 'Impresión estándar',
   'aid.oneCard': 'una carta', 'aid.cutSheet': 'hoja recortable ({n} por página carta)',
   'aid.print': 'Imprimir ({what})', 'aid.printSheet': 'carta, {n} cartas',
   'aid.omittedOne': '{n} regla más no se muestra; consulta el reglamento.', 'aid.omittedMany': '{n} reglas más no se muestran; consulta el reglamento.',

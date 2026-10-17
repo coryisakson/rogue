@@ -19,7 +19,9 @@ const sheet = size.card && Astro.url.searchParams.get('sheet') === '1';
 const grid = nUp(size);
 const copies = sheet ? grid.count : 1;
 const pageCss = sheet ? '@page { size: 8.5in 11in; margin: 0; }' : `@page { size: ${size.width} ${size.height}; margin: 0; }`;
-const link = (s: string, sh: boolean) => `?size=${s}${sh ? '&sheet=1' : ''}`;
+const hc = Astro.url.searchParams.get('contrast') === 'high';
+const link = (s: string, sh: boolean) => `?size=${s}${sh ? '&sheet=1' : ''}${hc ? '&contrast=high' : ''}`;
+const toggle = `?size=${size.key}${sheet ? '&sheet=1' : ''}${hc ? '' : '&contrast=high'}`;
 // Toolbar links styled as small buttons; the current size is filled. The toolbar never prints.
 const tool = (on: boolean) => buttonVariants({ variant: on ? 'default' : 'outline', size: 'sm' });
 ---
@@ -37,6 +39,17 @@ const tool = (on: boolean) => buttonVariants({ variant: on ? 'default' : 'outlin
     .tiles .aid { outline:.5px dashed var(--border); } /* thin cut lines */
     .toolbar { text-align:center; padding:.6rem; font-family:system-ui; }
     .toolbar a, .toolbar button { margin:0 .3rem; }
+
+    /* High-contrast print option (?contrast=high): pure black on white, no grey text, heavier rules. Print only (paper is always light). */
+    @media print {
+    .hc .sheet, .hc .aid, .hc .tiles { background:#fff !important; color:#000 !important; }
+    .hc .sheet .sub, .hc .sheet .foot, .hc .aid .foot, .hc .aid sup, .hc .sheet sup { color:#000 !important; }
+    .hc .sheet .sub, .hc .sheet .foot, .hc .aid .foot { border-color:#000 !important; }
+    .hc .sheet td, .hc .sheet th { border:2px solid #000 !important; }
+    .hc .sheet tr.on { background:#fff !important; color:#000 !important; outline:3px solid #000; }
+    .hc .aid { outline:1px dashed #000 !important; }
+    .hc .aid h1 { border-bottom-width:2.5px; }
+    }
     @media print { body { background:#fff; } .toolbar { display:none; } .single .aid, .tiles { margin:0; box-shadow:none; } }
   </style>
   <style is:inline set:html={pageCss}></style>
@@ -45,10 +58,11 @@ const tool = (on: boolean) => buttonVariants({ variant: on ? 'default' : 'outlin
     {t(L, 'aid.size')} {Object.values(CARD_SIZES).map((s) => <a data-slot="button" class={tool(s.key === size.key)} aria-current={s.key === size.key ? 'true' : undefined} href={link(s.key, sheet && s.card)} title={s.label}>{s.key}</a>)}
     {size.card && (sheet ? <a data-slot="button" class={tool(false)} href={link(size.key, false)}>{t(L, 'aid.oneCard')}</a> : <a data-slot="button" class={tool(false)} href={link(size.key, true)}>{t(L, 'aid.cutSheet', { n: grid.count })}</a>)}
     <button data-slot="button" class={buttonVariants({ size: 'sm' })} onclick="window.print()">{t(L, 'aid.print', { what: sheet ? t(L, 'aid.printSheet', { n: grid.count }) : size.label })}</button>
+    <a data-slot="button" class={tool(hc)} aria-pressed={hc ? 'true' : 'false'} href={toggle}>{t(L, hc ? 'print.contrastOff' : 'print.contrastOn')}</a>
   </div>
-  <main id="main" class="bare"><div class={sheet ? 'tiles' : 'single'} style={sheet ? `grid-template-columns:repeat(${grid.cols}, ${size.width});grid-auto-rows:${size.height}` : ''}>
-    {Array.from({ length: copies }, () => (
-      <div class="aid" style={`width:${size.width};height:${size.height};font-size:${size.fontPt}pt`}>
+  <main id="main" class={hc ? 'bare hc' : 'bare'}><div class={sheet ? 'tiles' : 'single'} style={sheet ? `grid-template-columns:repeat(${grid.cols}, ${size.width});grid-auto-rows:${size.height}` : ''}>
+    {Array.from({ length: copies }, (_, i) => (
+      <div class="aid" aria-hidden={i > 0 ? 'true' : undefined} style={`width:${size.width};height:${size.height};font-size:${size.fontPt}pt`}>
         <h1>{aid.title}</h1>
         {aid.sections.filter((sec) => sec.lines.length).map((sec) => (<>
           <h2>{sec.title}</h2>

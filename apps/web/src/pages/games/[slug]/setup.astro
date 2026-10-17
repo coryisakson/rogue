@@ -12,6 +12,9 @@ const players = Number(Astro.url.searchParams.get('players') ?? 0);
 const setup = claims.filter((c) => c.topic === 'goal' || c.topic === 'lose' || c.topic === 'setup' || c.topic === 'turn');
 const variants = claims.filter((c) => c.topic === 'player_count_variant' && c.player_count != null).sort((a, b) => (a.player_count ?? 0) - (b.player_count ?? 0));
 const sheet = buildSheet(claims);
+const hc = Astro.url.searchParams.get('contrast') === 'high';
+const withHc = (q: string) => (hc ? `${q}&contrast=high` : q);
+const toggle = `?${[players ? `players=${players}` : '', hc ? '' : 'contrast=high'].filter(Boolean).join('&')}` || '?';
 const srcs = [...new Map(claims.map((c) => [c.source_url, c])).values()];
 // Toolbar links styled as small buttons; the current choice is filled. The toolbar never prints.
 const tool = (on: boolean) => buttonVariants({ variant: on ? 'default' : 'outline', size: 'sm' });
@@ -30,15 +33,27 @@ if (!claims.length) return new Response(t(L, 'sheet.none'), { status: 404, heade
     .sheet .foot { font-size:6.5pt; color:var(--muted-foreground); border-top:1px solid var(--border); margin-top:6pt; padding-top:3pt; }
     .toolbar { text-align:center; padding:.6rem; font-family:system-ui; }
     .toolbar a, .toolbar button { margin:0 .4rem; }
+
+    /* High-contrast print option (?contrast=high): pure black on white, no grey text, heavier rules. Print only (paper is always light). */
+    @media print {
+    .hc .sheet, .hc .aid, .hc .tiles { background:#fff !important; color:#000 !important; }
+    .hc .sheet .sub, .hc .sheet .foot, .hc .aid .foot, .hc .aid sup, .hc .sheet sup { color:#000 !important; }
+    .hc .sheet .sub, .hc .sheet .foot, .hc .aid .foot { border-color:#000 !important; }
+    .hc .sheet td, .hc .sheet th { border:2px solid #000 !important; }
+    .hc .sheet tr.on { background:#fff !important; color:#000 !important; outline:3px solid #000; }
+    .hc .aid { outline:1px dashed #000 !important; }
+    .hc .aid h1 { border-bottom-width:2.5px; }
+    }
     @page { size: 5.5in 8.5in; margin: 0; }
     @media print { body { background:#fff; } .toolbar { display:none; } .sheet { margin:0; box-shadow:none; width:5.5in; height:8.5in; overflow:hidden; page-break-after:avoid; } }
   </style>
   <div class="toolbar">
     <a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a>
-    {t(L, 'sheet.players')} {[2,3,4].map((n) => <a data-slot="button" class={tool(players === n)} aria-current={players === n ? 'true' : undefined} href={`?players=${n}`}>{n}</a>)} <a data-slot="button" class={tool(false)} href="?">{t(L, 'sheet.all')}</a>
+    {t(L, 'sheet.players')} {[2,3,4].map((n) => <a data-slot="button" class={tool(players === n)} aria-current={players === n ? 'true' : undefined} href={withHc(`?players=${n}`)}>{n}</a>)} <a data-slot="button" class={tool(false)} href={hc ? '?contrast=high' : '?'}>{t(L, 'sheet.all')}</a>
     <button data-slot="button" class={buttonVariants({ size: 'sm' })} onclick="window.print()">{t(L, 'sheet.print')}</button>
+    <a data-slot="button" class={tool(hc)} aria-pressed={hc ? 'true' : 'false'} href={toggle}>{t(L, hc ? 'print.contrastOff' : 'print.contrastOn')}</a>
   </div>
-  <main id="main" class="bare"><div class="sheet">
+  <main id="main" class={hc ? 'bare hc' : 'bare'}><div class="sheet">
     <h1>{t(L, 'sheet.heading', { game: game.name })}</h1>
     <div class="sub">{game.publisher} · {t(L, 'common.players', { min: game.min_players, max: game.max_players })} · {t(L, 'common.edition', { edition: claims[0]?.edition ?? '' })}</div>
     {variants.length > 0 && (<>

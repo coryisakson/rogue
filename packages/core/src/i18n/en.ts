@@ -200,6 +200,7 @@ export const en = {
 
   // Player aid chrome
   'aid.title': '{game} player aid', 'aid.cardTitle': '{game} · Player aid', 'aid.size': 'Size:',
+  'print.contrastOn': 'High-contrast print', 'print.contrastOff': 'Standard print',
   'aid.oneCard': 'one card', 'aid.cutSheet': 'cut-out sheet ({n} per letter page)',
   'aid.print': 'Print ({what})', 'aid.printSheet': 'letter, {n} cards',
   'aid.omittedOne': '{n} more rule not shown; see the rulebook.', 'aid.omittedMany': '{n} more rules not shown; see the rulebook.',
