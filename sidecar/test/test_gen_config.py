@@ -71,6 +71,35 @@ def test_generate_idempotent_and_locked_down():
         assert KEY.strip() not in first
 
 
+def test_settings_overrides():
+    """agent-settings.json from /admin/settings: per-agent model > default > env chat model; missing file = env only."""
+    env = {"ROGUE_AI_CHAT_MODEL": "env-model", "ROGUE_AI_BASE_URL": "http://env/v1"}
+    with tempfile.TemporaryDirectory() as t:
+        path = Path(t) / "agent-settings.json"
+        assert g.load_overrides(path) == {}
+        path.write_text("not json")
+        assert g.load_overrides(path) == {}
+        work = Path(t) / "work"
+        specs = {s["name"]: s for s in g.generate(AGENTS, work, KEY, env, {})}
+        assert specs["scout"]["model"] == "env-model" and specs["scout"]["changed"] is True
+        cfg = json.loads((work / "scout" / "config.json").read_text())
+        assert cfg["providers"]["custom"] == {"apiBase": "http://env/v1", "apiKey": "none"}
+
+        path.write_text(json.dumps({"version": 1, "defaultModel": "d", "baseUrl": "http://set/v1", "apiKey": "k",
+                                    "agents": {"librarian": "lib-model", "scout": 5}}))
+        ov = g.load_overrides(path)
+        specs = {s["name"]: s for s in g.generate(AGENTS, work, KEY, env, ov)}
+        assert specs["librarian"]["model"] == "lib-model"
+        assert specs["scout"]["model"] == "d"  # non-string per-agent value ignored
+        assert all(s["changed"] for s in specs.values())
+        cfg = json.loads((work / "librarian" / "config.json").read_text())
+        assert cfg["providers"]["custom"] == {"apiBase": "http://set/v1", "apiKey": "k"}
+        # Same overrides again: nothing changes, so the supervisor restarts nobody.
+        assert not any(s["changed"] for s in g.generate(AGENTS, work, KEY, env, ov))
+        # Default location sits next to the key file.
+        assert g.settings_path({"ROGUE_AGENT_KEY_FILE": "/x/agent-key"}) == Path("/x/agent-settings.json")
+
+
 if __name__ == "__main__":
     for n, f in list(globals().items()):
         if n.startswith("test_"):

@@ -2,7 +2,8 @@
 """Supervisor: wait for the shared key, generate configs, run one `nanobot serve` per agent.
 
 Restarts crashed children with exponential backoff; exits 1 if every child has given up
-(too many quick crashes); forwards SIGTERM/SIGINT to children.
+(too many quick crashes); forwards SIGTERM/SIGINT to children. Watches agent-settings.json (published by
+the web app from /admin/settings) and restarts only the agents whose generated config changed.
 """
 import os
 import signal
@@ -17,6 +18,7 @@ KEY_FILE = os.environ.get("ROGUE_AGENT_KEY_FILE", "/agent-share/agent-key")
 WAIT_S = int(os.environ.get("ROGUE_KEY_WAIT_S", "600"))
 MAX_QUICK_FAILS = int(os.environ.get("ROGUE_MAX_QUICK_FAILS", "8"))
 STABLE_S = 60  # a child that ran this long resets its failure count
+SETTINGS_POLL_S = 5
 
 stopping = False
 
@@ -68,6 +70,20 @@ class Child:
         self.started = time.time()
         log(f"started {self.name} pid={self.proc.pid} port={self.spec['port']}")
 
+    def restart(self) -> None:
+        """Config changed: stop the running process now; the main loop starts it again with the new config."""
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()
+        self.proc = None
+        self.fails = 0
+        self.dead = False
+        self.next_start = 0.0
+
     def poll(self) -> None:
         if self.dead or self.proc is None:
             return
@@ -86,6 +102,13 @@ class Child:
         log(f"{self.name} exited ({code}) after {ran:.0f}s; restart in {delay}s")
 
 
+def _mtime(path: Path):
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
+
+
 def main() -> int:
     global stopping
 
@@ -99,13 +122,26 @@ def main() -> int:
     key = wait_for_key()
     work = Path(os.environ.get("ROGUE_WORK_DIR", "/work"))
     agents_dir = Path(os.environ.get("ROGUE_AGENTS_DIR", str(Path(__file__).parent / "agents")))
+    settings_file = gen_config.settings_path()
+    settings_mtime = _mtime(settings_file)
     specs = gen_config.generate(agents_dir, work, key)
     children = [Child(s) for s in specs]
-    log("key found; agents: " + ", ".join(c.name for c in children))
+    log("key found; agents: " + ", ".join(f"{s['name']} ({s['model']})" for s in specs))
     for c in children:
         c.start()
 
+    next_settings_check = time.time() + SETTINGS_POLL_S
     while not stopping:
+        if time.time() >= next_settings_check:
+            next_settings_check = time.time() + SETTINGS_POLL_S
+            m = _mtime(settings_file)
+            if m != settings_mtime:
+                settings_mtime = m
+                for s in gen_config.generate(agents_dir, work, key):
+                    if s["changed"]:
+                        c = next(c for c in children if c.name == s["name"])
+                        log(f"settings changed; restarting {c.name} with model {s['model']}")
+                        c.restart()
         for c in children:
             c.poll()
             if not c.dead and c.proc is None and time.time() >= c.next_start:

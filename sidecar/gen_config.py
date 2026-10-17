@@ -6,6 +6,10 @@ Secrets are derived from the shared key file, never stored in git:
   mcp token = hex(HMAC-SHA256(key, agent name))
   api key   = hex(HMAC-SHA256(key, "api:" + agent name))
 Running it twice with the same inputs rewrites identical files (idempotent).
+
+Models and the Router endpoint can be overridden from /admin/settings: the web app publishes
+agent-settings.json next to the key file ({"baseUrl", "apiKey", "defaultModel", "agents": {name: model}}).
+Per agent: agents[name], else defaultModel, else env ROGUE_AI_CHAT_MODEL, else DEFAULT_MODEL.
 """
 import hashlib
 import hmac
@@ -80,14 +84,42 @@ def _mcp_cidrs(url: str) -> list[str]:
         return ["127.0.0.1/32"]  # hostname: name must resolve to loopback or be public
 
 
-def build_config(spec: dict, key: str, workspace: str, env=os.environ) -> dict:
+def settings_path(env=os.environ) -> Path:
+    key_file = env.get("ROGUE_AGENT_KEY_FILE", "/agent-share/agent-key")
+    return Path(env.get("ROGUE_AGENT_SETTINGS_FILE", str(Path(key_file).parent / "agent-settings.json")))
+
+
+def load_overrides(path: Path) -> dict:
+    """The published settings, or {} when the file is missing or unreadable (env defaults then apply, as before)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    agents = data.get("agents")
+    data["agents"] = {k: v for k, v in agents.items() if isinstance(v, str) and v} if isinstance(agents, dict) else {}
+    return data
+
+
+def _str(v):
+    return v if isinstance(v, str) and v.strip() else None
+
+
+def agent_model(name: str, overrides: dict, env=os.environ) -> str:
+    return (overrides.get("agents", {}).get(name) or _str(overrides.get("defaultModel"))
+            or env.get("ROGUE_AI_CHAT_MODEL") or DEFAULT_MODEL)
+
+
+def build_config(spec: dict, key: str, workspace: str, env=os.environ, overrides=None) -> dict:
     name = spec["name"]
+    ov = overrides or {}
     mcp_url = env.get("ROGUE_MCP_URL", DEFAULT_MCP_URL).rstrip("/")
     return {
         "agents": {"defaults": {
             "workspace": workspace,
             "provider": "custom",
-            "model": env.get("ROGUE_AI_CHAT_MODEL", DEFAULT_MODEL),
+            "model": agent_model(name, ov, env),
             "maxTokens": 8192,  # gemma4 thinks first; small limits cut the answer off
             "temperature": 0.1,
             "maxToolIterations": int(spec.get("maxToolIterations", 30)),
@@ -95,8 +127,9 @@ def build_config(spec: dict, key: str, workspace: str, env=os.environ) -> dict:
             "idleCompactAfterMinutes": 0,
         }},
         "providers": {"custom": {
-            "apiBase": env.get("ROGUE_AI_BASE_URL") or DEFAULT_BASE_URL,
-            "apiKey": "none",  # Router needs no key; some clients refuse an empty one
+            "apiBase": _str(ov.get("baseUrl")) or env.get("ROGUE_AI_BASE_URL") or DEFAULT_BASE_URL,
+            # Router needs no key inside Olares; some clients refuse an empty one. A key set in /admin/settings is passed on.
+            "apiKey": _str(ov.get("apiKey")) or "none",
         }},
         "transcription": {"enabled": False},
         "gateway": {"host": "127.0.0.1", "heartbeat": {"enabled": False}},
@@ -126,26 +159,32 @@ def build_config(spec: dict, key: str, workspace: str, env=os.environ) -> dict:
     }
 
 
-def _write_if_changed(path: Path, content: str, mode: int = 0o600) -> None:
+def _write_if_changed(path: Path, content: str, mode: int = 0o600) -> bool:
     if path.exists() and path.read_text(encoding="utf-8") == content:
-        return
+        return False
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     path.chmod(mode)
+    return True
 
 
-def generate(agents_dir: Path, work: Path, key: str, env=os.environ) -> list[dict]:
+def generate(agents_dir: Path, work: Path, key: str, env=os.environ, overrides=None) -> list[dict]:
+    """Write every agent's files. spec["changed"] tells the supervisor which running agents need a restart."""
     specs = load_specs(agents_dir)
+    if overrides is None:
+        overrides = load_overrides(settings_path(env))
     for spec in specs:
         base = work / spec["name"]
         ws = base / "workspace"
         (base / "home").mkdir(parents=True, exist_ok=True)
         ws.mkdir(parents=True, exist_ok=True)
-        cfg = build_config(spec, key, str(ws), env)
-        _write_if_changed(base / "config.json", json.dumps(cfg, indent=2, sort_keys=True) + "\n")
+        cfg = build_config(spec, key, str(ws), env, overrides)
+        changed = _write_if_changed(base / "config.json", json.dumps(cfg, indent=2, sort_keys=True) + "\n")
         # Nanobot injects workspace AGENTS.md into the system prompt (agent/context.py).
-        _write_if_changed(ws / "AGENTS.md", spec["body"], 0o644)
+        changed = _write_if_changed(ws / "AGENTS.md", spec["body"], 0o644) or changed
         spec["dir"] = str(base)
+        spec["changed"] = changed
+        spec["model"] = cfg["agents"]["defaults"]["model"]
     return specs
 
 
@@ -161,7 +200,7 @@ def main() -> int:
     work = Path(os.environ.get("ROGUE_WORK_DIR", "/work"))
     agents = Path(os.environ.get("ROGUE_AGENTS_DIR", str(HERE / "agents")))
     for s in generate(agents, work, key):
-        print(f"configured {s['name']} on 127.0.0.1:{s['port']}", flush=True)
+        print(f"configured {s['name']} on 127.0.0.1:{s['port']} model={s['model']}", flush=True)
     return 0
 
 
