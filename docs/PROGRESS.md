@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): A5 slice 1 (0.0.107): game page, chat, facts, login, request-game, account, about moved to shadcn components (Badge status variants, native select). Island JS unchanged; CSS +0.8 KB gz. Admin/home/setup/FAQ still on old CSS. Needs Cory's eyes on look.
 - 2026-10-17 (Hermes): Public read-only MCP (0.0.106): /mcp with 9 cited tools, per-IP limits, /docs/mcp page, server card, SDK e2e test. docs/MCP.md. Next: OAuth for signed-in MCP tools (migration 0033+).
 - 2026-10-17 (Hermes): A4 design system (0.0.105): shadcn/ui + Tailwind v4 theme vars (:root/.dark) are the single theme source; language + theme switchers are shadcn islands (+120 KB gz JS, React/Radix). Chat not ported. New parchment/felt look, AA in both modes. docs/THEMING.md.
 - 2026-10-17 (Hermes): A3 tokens + dark theme + Auto/Light/Dark footer switch (0.0.104). Dark passes 18 contrast pairs. 3 light pairs still fail (danger btn 3.26, focus ring on cards 1.96, rating star 1.90) plus footer ~3.2; needs light-colour change. Next: A4 shadcn pilot.
