@@ -58,7 +58,7 @@ const tool = (on: boolean) => buttonVariants({ variant: on ? 'default' : 'outlin
     {t(L, 'aid.size')} {Object.values(CARD_SIZES).map((s) => <a data-slot="button" class={tool(s.key === size.key)} aria-current={s.key === size.key ? 'true' : undefined} href={link(s.key, sheet && s.card)} title={s.label}>{s.key}</a>)}
     {size.card && (sheet ? <a data-slot="button" class={tool(false)} href={link(size.key, false)}>{t(L, 'aid.oneCard')}</a> : <a data-slot="button" class={tool(false)} href={link(size.key, true)}>{t(L, 'aid.cutSheet', { n: grid.count })}</a>)}
     <button data-slot="button" class={buttonVariants({ size: 'sm' })} onclick="window.print()">{t(L, 'aid.print', { what: sheet ? t(L, 'aid.printSheet', { n: grid.count }) : size.label })}</button>
-    <a data-slot="button" class={tool(hc)} aria-pressed={hc ? 'true' : 'false'} href={toggle}>{t(L, hc ? 'print.contrastOff' : 'print.contrastOn')}</a>
+    <a data-slot="button" class={tool(hc)} href={toggle}>{t(L, hc ? 'print.contrastOff' : 'print.contrastOn')}</a>
   </div>
   <main id="main" class={hc ? 'bare hc' : 'bare'}><div class={sheet ? 'tiles' : 'single'} style={sheet ? `grid-template-columns:repeat(${grid.cols}, ${size.width});grid-auto-rows:${size.height}` : ''}>
     {Array.from({ length: copies }, (_, i) => (

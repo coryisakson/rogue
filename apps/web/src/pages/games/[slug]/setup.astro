@@ -51,7 +51,7 @@ if (!claims.length) return new Response(t(L, 'sheet.none'), { status: 404, heade
     <a href={`/games/${slug}`}>{t(L, 'common.back', { name: game.name })}</a>
     {t(L, 'sheet.players')} {[2,3,4].map((n) => <a data-slot="button" class={tool(players === n)} aria-current={players === n ? 'true' : undefined} href={withHc(`?players=${n}`)}>{n}</a>)} <a data-slot="button" class={tool(false)} href={hc ? '?contrast=high' : '?'}>{t(L, 'sheet.all')}</a>
     <button data-slot="button" class={buttonVariants({ size: 'sm' })} onclick="window.print()">{t(L, 'sheet.print')}</button>
-    <a data-slot="button" class={tool(hc)} aria-pressed={hc ? 'true' : 'false'} href={toggle}>{t(L, hc ? 'print.contrastOff' : 'print.contrastOn')}</a>
+    <a data-slot="button" class={tool(hc)} href={toggle}>{t(L, hc ? 'print.contrastOff' : 'print.contrastOn')}</a>
   </div>
   <main id="main" class={hc ? 'bare hc' : 'bare'}><div class="sheet">
     <h1>{t(L, 'sheet.heading', { game: game.name })}</h1>
