@@ -1,4 +1,4 @@
-import { extractLinks, rankCandidates, pickFromSearch, rankPublisherPages, scoutQueries, slugify, isAggregator, type GameMatch } from '@rogue/core';
+import { extractLinks, rankCandidates, pickFromSearch, rankPublisherPages, scoutQueries, slugify, isAggregator, planTopGames, BGG_TOP10, type GameMatch, type SkippedGame, type TopGame } from '@rogue/core';
 import { runChecks } from './add-game';
 import { alertOperator } from './notify';
 import { readPage, scoutRequest } from './scout';
@@ -54,6 +54,30 @@ export async function approveGame(id: number, adminId: number): Promise<{ ok: bo
   await audit(`admin:${adminId}`, 'game_request_game_approved', { id });
   enqueue(id);
   return { ok: true };
+}
+/**
+ * Admin queues a pre-approved list (the BGG top 10): one 'pick' request per game not yet in the library or requested,
+ * each approved by this admin exactly like approveGame() (status 'queued', same audit entry, same one-at-a-time queue).
+ * The Scout, Rights Officer, Terms Agent and the admin's terms gate still run per game. Running it again adds nothing.
+ */
+export async function queueTopGames(adminId: number, list: readonly TopGame[] = BGG_TOP10): Promise<{ queued: string[]; skipped: SkippedGame[] } | { error: string }> {
+  const pool = getPool(); if (!pool) return { error: 'The database is not available.' };
+  await ensureMigrated();
+  const games = (await pool.query('SELECT slug, bgg_id FROM games')).rows;
+  const reqs = (await pool.query("SELECT slug, bgg_id FROM game_requests WHERE status IN ('submitted','queued','manual','checked','approved')")).rows;
+  const ids = (rows: { bgg_id: unknown }[]) => rows.filter((r) => r.bgg_id != null).map((r) => Number(r.bgg_id));
+  const plan = planTopGames(list, { gameBggIds: ids(games), gameSlugs: games.map((r) => String(r.slug)), requestBggIds: ids(reqs), requestSlugs: reqs.map((r) => String(r.slug)) });
+  const queued: string[] = [];
+  for (const g of plan.queue) {
+    // ON CONFLICT: the open-request-per-BGG-id index stops a parallel second click from creating a duplicate.
+    const r = await pool.query("INSERT INTO game_requests(user_id, name, slug, year, mode, bgg_id, status, stage, decided_by) VALUES ($1,$2,$3,$4,'pick',$5,'queued','in the queue for the Scout',$1) ON CONFLICT DO NOTHING RETURNING id", [adminId, g.title, g.slug, g.year, g.bggId]);
+    if (!r.rowCount) { plan.skipped.push({ title: g.title, reason: 'already requested' }); continue; }
+    const id = Number(r.rows[0].id);
+    await audit(`admin:${adminId}`, 'game_request_game_approved', { id, list: 'bgg-top10', rank: g.rank, bggId: g.bggId });
+    enqueue(id);
+    queued.push(g.title);
+  }
+  return { queued, skipped: plan.skipped };
 }
 /** Re-enqueue jobs left 'queued' by a restart. Safe to call often. */
 export async function resumeQueue(): Promise<void> {

@@ -1,7 +1,7 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-import { sameOrigin, parseGameRequest, googleLink, adminSearchQuery } from '@rogue/core';
-import { approveGame, completeManual, resumeQueue } from '../../lib/intake';
+import { sameOrigin, parseGameRequest, googleLink, adminSearchQuery, BGG_TOP10_DATE } from '@rogue/core';
+import { approveGame, completeManual, queueTopGames, resumeQueue } from '../../lib/intake';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
 import { isAdmin } from '../../lib/admin';
 import { ensureMigrated, getPool } from '../../lib/services';
@@ -20,7 +20,11 @@ if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   const id = Number(f.get('id')); const action = String(f.get('action'));
   const me = Astro.locals.user!.id;
-  if (!Number.isInteger(id) || id < 1) msg = 'Bad request id.';
+  if (action === 'queue-top10') {
+    const r = await queueTopGames(me);
+    msg = 'error' in r ? r.error : `BGG top 10: queued ${r.queued.length}${r.queued.length ? ` (${r.queued.join(', ')})` : ''}; skipped ${r.skipped.length}${r.skipped.length ? ` (${r.skipped.map((s) => `${s.title}: ${s.reason}`).join(', ')})` : ''}.`;
+  }
+  else if (!Number.isInteger(id) || id < 1) msg = 'Bad request id.';
   else if (action === 'approve') { const r = await approveRequest(id, me, f.get('terms') === 'yes'); msg = r.ok ? `Request #${id} approved. Fetching, indexing and drafting facts in the background.` : (r.error ?? 'Could not approve.'); }
   else if (action === 'reject') msg = (await rejectRequest(id, me, String(f.get('reason') ?? 'not accepted'))) ? `Request #${id} rejected.` : 'Request was not waiting.';
   else if (action === 'recheck') { await runChecks(id); msg = `Checks re-run for #${id}.`; }
@@ -42,6 +46,7 @@ const actionRow = 'mt-2 flex flex-wrap items-start gap-4';
 ---
 <Admin title="Game requests">
   <p>Users pick a game from a search list (or describe it). Approving the game puts it in the Scout's queue; when the Scout cannot find a publisher rulebook, or search is off, the request lands here for manual research with a Google link. The Scout searches publisher-first (who makes it, their site, their rules or downloads page) and only then falls back to a direct rulebook PDF hit. It hands the rulebook link to the Rights Officer (code), which runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). The Terms Agent then finds and reads the <b>publisher's</b> terms (not a CDN's); when rights pass and the terms are clearly fine, the source approves itself (audit-logged, kill switch ROGUE_AUTO_APPROVE_SOURCES=0). <b>You</b> only decide the cases it cannot clear. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
+  <form method="post" class="mb-3"><input type="hidden" name="action" value="queue-top10" /><Button type="submit" variant="outline">Queue BGG top 10</Button> <small>Admin-approved list of {BGG_TOP10_DATE} (docs/BGG_TOP10.md). Skips games already in Rogue or requested; each still goes through Scout, rights and terms checks.</small></form>
   {msg && <p><Badge variant="secondary" className="h-auto whitespace-normal">{msg}</Badge></p>}
   {rows.length === 0 && <Card className="text-base"><CardContent>No requests yet.</CardContent></Card>}
   {rows.map((r) => (
