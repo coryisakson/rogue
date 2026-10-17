@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-17 (Hermes): Scout pass for publisher FAQ/errata: Pandemic zmangames.com page lists only the rulebook (no FAQ/errata file); StS FAQ is pages 18-19 of the rulebook already indexed. No new source to ingest. Next: A1 accessibility audit.
 - 2026-10-17 (Hermes): aid fit check live, all 5 sizes x Pandemic/StS: fit=ok everywhere. Auto-shrink lands at 6.0-6.3pt on poker, 6.1-6.5pt mini (small but legible?). Real print still unchecked; card_size unset.
 - 2026-10-17 (Hermes): print check via headless PDF emulation (A4): setup (Pandemic, StS) and aid page each render 1 page. Not yet checked on real paper or half-letter/poker sizes; card_size still unset.
 - 2026-10-16 (Hermes): 0.0.101: admin tab badges (claims, FAQ queue, text quality, game requests, approvals, review log) showing what waits for a human.
