@@ -34,3 +34,4 @@ export * from './pagelabels.js';
 export * from './unanswered.js';
 export * from './qa-facts.js';
 export * from './markdown/index.js';
+export * from './bgg/index.js';
