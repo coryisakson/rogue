@@ -87,6 +87,15 @@ Target: Section 508 = WCAG 2.2 AA, plus an ACR/VPAT. Work these in order, one PR
 4b Rights/publisher program · 5 Public surfaces · 5b Ratings/organizers · 5c Admin/compliance · 6 MCP ·
 7 Collections · 7b Cloud storage · 7c Self-host packaging · 8 Launch.
 
+## Phase 6: MCP (docs/MCP.md)
+- [x] Public read-only /mcp: Streamable HTTP, protocol 2026-07-28 plus legacy initialize (2025-11-25 ... 2024-11-05), Origin/CORS, 64 KB cap
+- [x] Per-IP limits (30/min, 8/min for ask_rules + search_rules); every tool result cited, else isError
+- [x] 9 tools incl. get_player_aid, list_sources, get_game_summary; tested with the official SDK client
+- [x] /docs/mcp page (5 languages, footer + /about), server card at /mcp/server-card
+- [ ] Verify with real clients (Claude connector, ChatGPT, MCP Inspector) on the live instance
+- [ ] Authenticated tools over OAuth (rate facts, request games); needs an auth design + approval
+- [ ] Publish to the MCP Registry / AI Catalog once the live URL is stable
+
 ## Curation lifecycle (added 2026-10-15)
 - [x] Policy: docs/CURATION_POLICY.md, docs/TAKEDOWN_RUNBOOK.md
 - [~] Migration 0005: source availability, claim ratings, disproofs, takedown requests, source suggestions (done); recheck + takedown code (done); scheduled weekly recheck, weekly Discord digest, frontier-model confirmation step, rating UI (todo)
