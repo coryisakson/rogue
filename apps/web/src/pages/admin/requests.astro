@@ -4,6 +4,9 @@ import { sameOrigin, parseGameRequest, googleLink, adminSearchQuery, BGG_TOP10_D
 import { approveGame, completeManual, editSource, queueTopGames, resumeQueue } from '../../lib/intake';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
 import { isAdmin } from '../../lib/admin';
+import AdminGameSearch from '../../components/AdminGameSearch.astro';
+import { adminGameSearch, type AdminMatch } from '../../lib/game-sources';
+import { searchEnabled } from '../../lib/search';
 import { ensureMigrated, getPool } from '../../lib/services';
 import { Badge } from '../../components/ui/badge';
 import { Button, buttonVariants } from '../../components/ui/button';
@@ -43,6 +46,14 @@ if (Astro.request.method === 'POST') {
   }
   else msg = 'Unknown action.';
 }
+// Title search (GET ?q=): same pick list and rate limit as /request-game; results link to /admin/sources or start a request there.
+const q = (Astro.url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+const searchOn = searchEnabled();
+let matches: AdminMatch[] | null = null; let searchError: string | null = null;
+if (Astro.request.method === 'GET' && q.length >= 2 && searchOn) {
+  const r = await adminGameSearch(Astro.locals.user!.id, q);
+  if ('error' in r) { searchError = r.error; matches = []; } else matches = r.matches;
+}
 const rows = (await getPool()!.query(`SELECT r.*, u.display_name requester FROM game_requests r LEFT JOIN users u ON u.id=r.user_id ORDER BY (r.status IN ('submitted','checked','manual')) DESC, r.id DESC LIMIT 50`)).rows;
 type Status = 'success' | 'warning' | 'danger' | 'secondary';
 const verdictBadge: Record<string, Status> = { pass: 'success', problem: 'warning', blocked: 'danger' };
@@ -52,6 +63,7 @@ const actionRow = 'mt-2 flex flex-wrap items-start gap-4';
 ---
 <Admin title="Game requests">
   <p>Users pick a game from a search list (or describe it). Approving the game puts it in the Scout's queue; when the Scout cannot find a publisher rulebook, or search is off, the request lands here for manual research with a Google link. The Scout searches publisher-first (who makes it, their site, their rules or downloads page) and only then falls back to a direct rulebook PDF hit. It hands the rulebook link to the Rights Officer (code), which runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). The Terms Agent then finds and reads the <b>publisher's</b> terms (not a CDN's); when rights pass and the terms are clearly fine, the source approves itself (audit-logged, kill switch ROGUE_AUTO_APPROVE_SOURCES=0). <b>You</b> only decide the cases it cannot clear. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
+  <AdminGameSearch action="/admin/requests" q={q} matches={matches} error={searchError} searchOn={searchOn} />
   <form method="post" class="mb-3"><input type="hidden" name="action" value="queue-top10" /><Button type="submit" variant="outline">Queue BGG top 10</Button> <small>Admin-approved list of {BGG_TOP10_DATE} (docs/BGG_TOP10.md). Skips games already in Rogue or requested; each still goes through Scout, rights and terms checks.</small></form>
   {msg && <p><Badge variant="secondary" className="h-auto whitespace-normal">{msg}</Badge></p>}
   {rows.length === 0 && <Card className="text-base"><CardContent>No requests yet.</CardContent></Card>}

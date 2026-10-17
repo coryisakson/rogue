@@ -1,0 +1,39 @@
+---
+// Admin title search (same pick list as /request-game, via adminGameSearch in lib/game-sources.ts). A result already in Rogue
+// links to its sources page; any other result can start an admin-approved request (POST handled by /admin/sources).
+import type { AdminMatch } from '../lib/game-sources';
+import { Button, buttonVariants } from './ui/button';
+import { Card, CardContent } from './ui/card';
+import { Input } from './ui/input';
+interface Props { action: string; q: string; matches: AdminMatch[] | null; error: string | null; searchOn: boolean }
+const { action, q, matches, error, searchOn } = Astro.props;
+---
+<Card className="mb-3 text-base"><CardContent>
+  {searchOn ? (
+    <>
+      <form method="get" action={action} class="flex flex-wrap gap-2">
+        <Input name="q" defaultValue={q} aria-label="Find a game by name" placeholder="Find a game by name" required minLength={2} maxLength={80} className="flex-1 bg-background" />
+        <Button type="submit">Search</Button>
+      </form>
+      {error && <p class="mb-0" role="status">{error}</p>}
+      {matches && matches.length > 0 && (
+        <ul class="mt-3 mb-0 list-none p-0">
+          {matches.map((m) => (
+            <li class="flex flex-wrap items-center gap-2.5 border-t border-border py-1.5">
+              <span class="flex-1"><b>{m.title}</b>{m.year && <> ({m.year})</>} · <a href={m.url} rel="noopener nofollow" target="_blank">BoardGameGeek</a></span>
+              {m.inRogue ? (
+                <a data-slot="button" class={buttonVariants({ variant: 'secondary' })} href={`/admin/sources?game=${encodeURIComponent(m.inRogue)}`}>In Rogue: open sources</a>
+              ) : (
+                <form method="post" action="/admin/sources">
+                  <input type="hidden" name="action" value="request-game" /><input type="hidden" name="bggId" value={m.bggId} /><input type="hidden" name="title" value={m.title} /><input type="hidden" name="year" value={m.year ?? ''} />
+                  <Button type="submit" variant="outline">Request (approved; Scout + rights checks run)</Button>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {matches && matches.length === 0 && !error && <p class="mb-0">No match found for “{q}”.</p>}
+    </>
+  ) : <p class="m-0">Title search is off (ROGUE_SEARCH_BASE_URL is not set).</p>}
+</CardContent></Card>

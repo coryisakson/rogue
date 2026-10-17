@@ -1,0 +1,153 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { SOURCE_KINDS, SOURCE_LANGUAGES, parsePick, parseSourceInput, sameOrigin } from '@rogue/core';
+import AdminGameSearch from '../../components/AdminGameSearch.astro';
+import { isAdmin } from '../../lib/admin';
+import {
+  addGameSource, adminGameSearch, adminRequestGame, factsCount, gameSources, listGames, pendingRuntimeSources, reingestSource, reingestStatus,
+  type AdminMatch,
+} from '../../lib/game-sources';
+import type { RightsReport } from '../../lib/add-game';
+import { searchEnabled } from '../../lib/search';
+import { ensureMigrated } from '../../lib/services';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { NativeSelect, NativeSelectOption } from '../../components/ui/native-select';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+// Middleware already limits /admin to signed-in admins; the check is repeated because this page also handles POST.
+if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
+await ensureMigrated();
+const me = Astro.locals.user!.id;
+const games = await listGames();
+let slug = Astro.url.searchParams.get('game') ?? '';
+let msg: string | null = null;
+let report: RightsReport | null = null;
+const v: Record<string, string> = {};
+if (Astro.request.method === 'POST') {
+  const h = Astro.request.headers;
+  if (!sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'))) return new Response('Bad origin', { status: 403 });
+  const form = Object.fromEntries((await Astro.request.formData()).entries());
+  for (const k of Object.keys(form)) v[k] = String(form[k]);
+  const action = v['action'];
+  if (v['game']) slug = v['game'];
+  if (action === 'request-game') {
+    const m = parsePick(form);
+    if (!m) msg = 'That choice was not valid. Search again.';
+    else { const r = await adminRequestGame(me, m); msg = 'error' in r ? r.error : `Request #${r.id} for ${m.title} is approved and in the Scout's queue. Follow it on Game requests.`; }
+  } else if (!games.some((g) => g.slug === slug)) msg = 'Pick a game first.';
+  else if (action === 'add') {
+    const p = parseSourceInput(form);
+    const replaces = v['replaces'] ? Number(v['replaces']) : null;
+    if (!p.ok) msg = p.error;
+    else if (replaces !== null && !(Number.isInteger(replaces) && replaces > 0)) msg = 'Bad source to replace.';
+    else {
+      const r = await addGameSource(slug, p.value, me, v['terms'] === 'yes', replaces);
+      report = r.report ?? null;
+      msg = r.ok ? `Added (rights check: ${r.report.verdict}${replaces ? `; source #${replaces} marked unavailable` : ''}). Fetching, indexing and Librarian run in the background; progress below.` : r.error;
+      if (r.ok) for (const k of Object.keys(v)) if (k !== 'game') delete v[k];
+    }
+  } else if (action === 'reingest') {
+    const id = Number(v['source']);
+    const r = Number.isInteger(id) && id > 0 ? await reingestSource(slug, id, me) : { ok: false, error: 'Bad source id.' };
+    msg = r.ok ? `Re-ingesting source #${id} (force re-fetch, then index). Reload to see progress.` : (r.error ?? 'Could not re-ingest.');
+  } else msg = 'Unknown action.';
+}
+// Title search (GET ?q=): same pick list and rate limit as /request-game.
+const q = (Astro.url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+const searchOn = searchEnabled();
+let matches: AdminMatch[] | null = null; let searchError: string | null = null;
+if (Astro.request.method === 'GET' && q.length >= 2 && searchOn) {
+  const r = await adminGameSearch(me, q);
+  if ('error' in r) { searchError = r.error; matches = []; } else matches = r.matches;
+}
+const game = games.find((g) => g.slug === slug) ?? null;
+const sources = game ? await gameSources(game.slug) : [];
+const facts = game ? await factsCount(game.slug) : 0;
+const pending = game ? await pendingRuntimeSources(game.slug) : [];
+const replaceId = Number(Astro.url.searchParams.get('replace') ?? v['replaces'] ?? 0) || null;
+type Status = 'success' | 'warning' | 'danger' | 'secondary';
+const availBadge: Record<string, Status> = { available: 'success', changed: 'warning', unavailable: 'danger' };
+const verdictBadge: Record<string, Status> = { pass: 'success', problem: 'warning', blocked: 'danger' };
+const field = 'mt-1 bg-background';
+---
+<Admin title="Game sources">
+  <p>Add a rules link (rulebook, FAQ, errata) to a game already in Rogue, replace a source that points at the wrong site, or re-fetch one. A new link goes through the same gates as a new game: you confirm you read the publisher's terms when the host is not approved yet, then the Rights Officer checks robots.txt, TDM reservation, opt-out headers and the content type. Nothing is fetched before both pass. A replaced source is marked unavailable, never deleted, so facts that cite it stay attributable.</p>
+  <AdminGameSearch action="/admin/sources" q={q} matches={matches} error={searchError} searchOn={searchOn} />
+  {msg && <p role="status"><Badge variant="secondary" className="h-auto whitespace-normal">{msg}</Badge></p>}
+  {report && (
+    <Card className="mb-3 text-base"><CardContent>
+      <Badge variant={verdictBadge[report.verdict] ?? 'secondary'}>Rights check: {report.verdict}</Badge> <small>{report.host} · policy {report.policyVersion}</small>
+      <ul class="mb-0">{report.findings.map((x) => <li>{x.level === 'ok' ? '✅' : x.level === 'warn' ? '⚠️' : '⛔'} {x.text}</li>)}</ul>
+    </CardContent></Card>
+  )}
+  <form method="get" class="mb-3 flex flex-wrap items-end gap-2">
+    <label class="grid gap-1">Game
+      <NativeSelect name="game" defaultValue={slug} required>
+        <NativeSelectOption value="">Choose a game</NativeSelectOption>
+        {games.map((g) => <NativeSelectOption value={g.slug}>{g.name}</NativeSelectOption>)}
+      </NativeSelect></label>
+    <Button type="submit" variant="secondary">Show sources</Button>
+  </form>
+  {game && (
+    <>
+      <Card className="mb-3 text-base"><CardContent>
+        <Table>
+          <TableCaption className="mt-0 mb-2 caption-top text-left">{game.name}: {sources.length} sources, {facts} published facts · <a href={`/games/${game.slug}`}>game page</a></TableCaption>
+          <TableHeader><TableRow>
+            <TableHead scope="col">Source</TableHead><TableHead scope="col">Lang</TableHead><TableHead scope="col">Kind</TableHead><TableHead scope="col">Availability</TableHead>
+            <TableHead scope="col">Fetched</TableHead><TableHead scope="col">Pages (indexed / total)</TableHead><TableHead scope="col">Actions</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {sources.map((s) => (
+              <TableRow>
+                <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.edition}{s.runtime && ' · admin-added'}</small></TableCell>
+                <TableCell>{s.language ?? '?'}</TableCell>
+                <TableCell>{s.kind}</TableCell>
+                <TableCell><Badge variant={availBadge[s.availability] ?? 'secondary'}>{s.availability}</Badge></TableCell>
+                <TableCell>{s.fetchedAt ?? 'never'}</TableCell>
+                <TableCell>{s.indexedPages} / {s.pageCount ?? '?'}</TableCell>
+                <TableCell className="whitespace-normal">
+                  <form method="post" class="inline"><input type="hidden" name="game" value={game.slug} /><input type="hidden" name="action" value="reingest" /><input type="hidden" name="source" value={s.id} />
+                    <Button type="submit" size="sm" variant="secondary">Re-ingest now</Button></form>
+                  {s.availability !== 'unavailable' && <> <a href={`/admin/sources?game=${encodeURIComponent(game.slug)}&replace=${s.id}#add`}>Replace</a></>}
+                  {reingestStatus(s.id) && <div><small>Re-ingest: {reingestStatus(s.id)}</small></div>}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {pending.length > 0 && (
+          <>
+            <h2 class="mt-4 text-lg">Admin-added links</h2>
+            <ul class="mb-0">{pending.map((p) => <li><a href={p.url} rel="noopener nofollow">{p.title}</a> · <small>{p.progress ?? 'no progress yet'}</small></li>)}</ul>
+          </>
+        )}
+      </CardContent></Card>
+      <Card className="text-base" id="add">
+        <CardHeader><CardTitle><h2 class="m-0 text-lg">{replaceId ? `Replace source #${replaceId}` : 'Add rules link'}</h2></CardTitle></CardHeader>
+        <CardContent>
+          <form method="post" class="grid max-w-[36rem] gap-1.5">
+            <input type="hidden" name="game" value={game.slug} /><input type="hidden" name="action" value="add" />
+            <label>Document link (publisher's own, https) <Input name="url" type="url" defaultValue={v['url'] ?? ''} required maxLength={400} className={field} /></label>
+            <label>Title <Input name="title" defaultValue={v['title'] ?? ''} required minLength={2} maxLength={120} className={field} /></label>
+            <label>Publisher <Input name="publisher" defaultValue={v['publisher'] ?? ''} required minLength={2} maxLength={80} className={field} /></label>
+            <div class="flex flex-wrap gap-4">
+              <label class="grid gap-1">Language <NativeSelect name="language" defaultValue={v['language'] ?? 'en'}>{SOURCE_LANGUAGES.map((l) => <NativeSelectOption value={l}>{l}</NativeSelectOption>)}</NativeSelect></label>
+              <label class="grid gap-1">Kind <NativeSelect name="kind" defaultValue={v['kind'] ?? 'rulebook'}>{SOURCE_KINDS.map((k) => <NativeSelectOption value={k}>{k}</NativeSelectOption>)}</NativeSelect></label>
+              <label class="grid gap-1">Replaces <NativeSelect name="replaces" defaultValue={replaceId ? String(replaceId) : ''}>
+                <NativeSelectOption value="">nothing (add)</NativeSelectOption>
+                {sources.filter((s) => s.availability !== 'unavailable').map((s) => <NativeSelectOption value={String(s.id)}>#{s.id} {s.title ?? s.url}</NativeSelectOption>)}
+              </NativeSelect></label>
+            </div>
+            <label>Found on page (optional) <Input name="foundOn" type="url" defaultValue={v['foundOn'] ?? ''} maxLength={400} className={field} /></label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="terms" value="yes" class="size-4 accent-primary" /> I read the publisher's terms (required when the host is not approved yet)</label>
+            <Button type="submit" className="justify-self-start">Run rights checks and add</Button>
+            <small>The rights checks run while you wait (headers only). If they pass, the host is approved, the document is fetched, indexed and (for rulebooks) the Librarian drafts cited facts. A replaced source keeps its row and citations and is marked unavailable.</small>
+          </form>
+        </CardContent>
+      </Card>
+    </>
+  )}
+</Admin>
