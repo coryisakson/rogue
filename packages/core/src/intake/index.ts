@@ -117,3 +117,4 @@ export function rankPublisherPages(hits: SearchHit[], gameName: string, limit = 
   const seen = new Set<string>();
   return scored.sort((a, b) => b.score - a.score || a.order - b.order).filter((x) => !seen.has(x.url) && !!seen.add(x.url)).slice(0, limit).map((x) => x.url);
 }
+export * from './bgg-top10.js';
