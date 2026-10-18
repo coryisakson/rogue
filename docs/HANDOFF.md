@@ -4,15 +4,15 @@ Live: https://rogue.cisakson.olares.com, 0.0.115. Games: Pandemic (EN+DE), Slay 
 Product principle: AI tasks -> Nanobot agents over MCP in background; plain code stays in app (ADR 0002).
 
 ## Next (ordered; do the first unfinished one)
-0. Cory to click 'Queue BGG top 10' on /admin/requests, then watch the queue: expect terms-read gates and some manual research; use the new 'Edit source' when the Scout picks the wrong site. Hermes helps clear the queue.
-1. BGG: API import needs ROGUE_BGG_TOKEN (RGE-A16 pending). Until then CSV upload works at /account/collection. Cory to test with his cisakson export.
-2. A6 print/sheet accessibility, A7 manual keyboard/screen-reader pass (needs Cory), A8 ACR/VPAT + accessibility statement.
+0. QUALITY FOCUS (Cory 2026-10-17): fix Space Base source (store-page text, not rulebook), re-index Brass (52 chunks no embeddings), run Librarian on new top-10 games, list/count retrieval fix (roles questions fail on all models), eval sets for new games. BGG top 10 queued (done); Terraforming Mars rejected (reason unchecked); Grimcoven awaits approval.
+1. BGG: API import needs ROGUE_BGG_TOKEN (RGE-A16 submitted by Cory, awaiting BGG). Until then CSV upload works at /account/collection. Cory to test with his cisakson export.
+2. A6 print/sheet accessibility, A7 manual keyboard/screen-reader pass (SKIPPED: Cory has no screen reader; keep automated checks only), A8 ACR/VPAT + accessibility statement.
 3. MCP OAuth LIVE with audit entries (done). Next: item 2 (accessibility A6-A8) or Cory-blocked items.
 4. Azul: DE copy is the partial 'Nicht komplett' portal PDF (R32). Cory may supply a full German rulebook.
 5. ASK EVALS to 10/10 and extra sources: PAUSED for MVP (Reddit/BGG ruled out R29/R30).
 
-## Needs Cory's eyes
-Print tests (setup page, player aid), admin pages in browser (shadcn migration), R34 (Azul EN source) review.
+## Needs Cory's eyes (LATER, Cory will return)
+Print tests, R34 (Azul EN source) review, full German Azul rulebook.
 
 ## Done recently
 A5 design migration complete (0.0.107-0.0.108); Pandemic DE (R33 approved); Azul EN (R34); BGG collection page; MCP OAuth; Librarian ?source=<id>.
