@@ -36,3 +36,4 @@ export * from './qa-facts.js';
 export * from './markdown/index.js';
 export * from './bgg/index.js';
 export * from './settings/index.js';
+export * from './source-delete.js';
