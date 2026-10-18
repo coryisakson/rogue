@@ -4,7 +4,7 @@ apiVersion: v3
 entrances:
 - authLevel: public
   host: web
-  icon: https://rogue.cisakson.olares.com/icon.svg
+  icon: https://rogue.cisakson.olares.com/icon-256.png
   name: rogue
   openMethod: default
   port: 4321
@@ -14,10 +14,10 @@ metadata:
   categories:
   - Utilities
   description: Cited, rights-aware tabletop knowledge platform
-  icon: https://rogue.cisakson.olares.com/icon.svg
+  icon: https://rogue.cisakson.olares.com/icon-256.png
   name: rogue
   title: Rogue
-  version: 0.0.122
+  version: 0.0.123
 olaresManifest.type: app
 olaresManifest.version: 0.12.0
 options:
@@ -54,7 +54,7 @@ spec:
   supportArch:
   - amd64
   supportClient: {}
-  versionName: "0.0.122"
+  versionName: "0.0.123"
 tailscale: {}
 workloadReplicas:
   rogue: 1
