@@ -90,6 +90,14 @@ export async function captureSource(form: CaptureForm, captured: CapturedText, a
          capture_method=EXCLUDED.capture_method, captured_by=EXCLUDED.captured_by, captured_at=now()
        RETURNING id`,
       [form.url, form.title, form.language, form.authority, sha, privatePath, textPath, captured.pages || null, captured.contentType, CAPTURE_METHOD, adminId])).rows[0].id);
+    // The database refuses documents/chunks for a source with no rights-gate record (migration 0011). A capture is not
+    // fetched, so the record is an explicit, audited admin grant limited to link-only use (no full text served).
+    if (!(await c.query('SELECT 1 FROM rights_grants WHERE source_id=$1 AND revoked_at IS NULL', [sourceId])).rowCount) {
+      await c.query('INSERT INTO rights_grants(source_id, grantor, scope, evidence) VALUES ($1,$2,$3,$4)', [
+        sourceId, `admin:${adminId}`, 'manual capture, link_only, evaluation',
+        `Admin captured the text from their own browser and ticked the terms box${form.hostWarned ? '; host is on the capture warning list (Review Log R36), admin typed the host to confirm' : ''}. Grants Rogue no right to fetch or serve the site's text.`,
+      ]);
+    }
     if (!old) {
       const label = captureEditionLabel(form.host, form.kind, form.language, new Date().toISOString().slice(0, 10));
       const ed = await c.query(
