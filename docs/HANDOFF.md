@@ -8,7 +8,7 @@ The current goal is to measure whether Rogue's solution works IF we had all the 
 - Extraction: Scout only finds/judges sources; extraction is plain code (pdf-adapter.ts, ingest.ts). Propose a separate Extractor agent for smarter extraction.
 - Text layers: prefer them. ROGUE_OCR_ALL_PAGES=1 currently discards every PDF text layer and OCRs all pages. Measure text layer vs OCR per source first, then choose per page (text layer when clean, OCR for scanned/garbled).
 - Source rule: AGENTS.md 2b = prefer publisher, not restricted to it (lower authority weight + REVIEW_LOG verdict; still no bot-wall bypass). scout.md and add-game error text still say publisher-only: update.
-- Admin capture for bot-walled pages: human opens page in own browser, bookmarklet or paste box on /admin/sources sends URL+text; source marked manual capture by named admin. Fixes access, not permission (officialgamerules.org R36 forbids copying; Cory to decide whether restrictive-terms sites are refused or captured for the experiment).
+- Admin capture for bot-walled pages: human opens page in own browser, bookmarklet or paste box on /admin/sources sends URL+text; source marked manual capture by named admin. Fixes access, not permission (officialgamerules.org R36 forbids copying; DECIDED 2026-10-18 (R36): link only, and only a direct link to the game's page; revisit capture once the admin capture feature exists).
 - Plan: 1) text-layer measurement, 2) per-page text-layer/OCR selection, 3) admin capture, 4) Extractor agent. Source fixes (Space Base, Grimcoven, Gloomhaven, Brass, Twilight Imperium, Star Wars Rebellion) await Cory's go-ahead.
 
 ## Next (ordered; do the first unfinished one)
