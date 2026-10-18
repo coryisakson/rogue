@@ -1,0 +1,54 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { CAPTURE_ERRORS, CAPTURE_MAX_CHARS } from '@rogue/core';
+import CaptureForm from '../../components/CaptureForm.astro';
+import { isAdmin } from '../../lib/admin';
+import { ingestedGames } from '../../lib/admin-games';
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../../components/ui/card';
+// Window the bookmarklet opens (docs/CAPTURE.md). The admin's own session cookie signs it in (no token in the bookmarklet);
+// the page text arrives by postMessage from the page that opened it and is checked in the script below. Submitting posts
+// the normal capture form to /admin/capture. Middleware already limits /admin to admins; repeated like the other pages.
+if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
+const games = (await ingestedGames()).map((g) => ({ slug: g.slug, name: g.name }));
+const err = Astro.url.searchParams.get('capture_err');
+const errMsg = err && err in CAPTURE_ERRORS ? CAPTURE_ERRORS[err as keyof typeof CAPTURE_ERRORS] : null;
+---
+<Admin title="Capture inbox">
+  <p>Text sent from your browser with the "Send to Rogue" bookmarklet. Check the address and the text, pick the game, tick the terms box and store it. Without the bookmarklet, paste the text yourself. This fixes access, not permission.</p>
+  {errMsg && <p role="status"><Badge variant="danger" className="h-auto whitespace-normal">{errMsg}</Badge> <small>The text was not stored; send it again from the page.</small></p>}
+  <Card className="mb-3 text-base"><CardContent>
+    <p class="m-0" role="status" data-inbox-status>Waiting for the page text from the bookmarklet…</p>
+  </CardContent></Card>
+  <Card className="text-base"><CardContent>
+    <CaptureForm from="inbox" games={games} hostError={err === 'host'} />
+  </CardContent></Card>
+  <script is:inline define:vars={{ MAX: CAPTURE_MAX_CHARS }}>
+    // Same checks as parseCapturePayload (packages/core/src/capture.ts): only the window that opened this one, only the
+    // agreed message shape, the sender's origin must be the origin of the URL it names, and the size cap.
+    (function () {
+      var form = document.querySelector('[data-capture-form]');
+      var status = document.querySelector('[data-inbox-status]');
+      var got = false;
+      if (!window.opener) { status.textContent = 'No page sent text. Use the "Send to Rogue" bookmarklet on the rules page, or paste the text below.'; return; }
+      window.addEventListener('message', function (e) {
+        if (got || e.source !== window.opener) return;
+        var d = e.data;
+        if (!d || typeof d !== 'object' || d.type !== 'rogue-capture' || typeof d.url !== 'string' || typeof d.text !== 'string') return;
+        var origin = ''; try { origin = new URL(d.url).origin; } catch (x) { /* refused below */ }
+        if (origin !== e.origin) { status.textContent = 'Refused: the page that sent the text is not the page it names.'; return; }
+        if (d.text.length > MAX) { status.textContent = 'Refused: the text is larger than the capture limit.'; return; }
+        got = true;
+        form.querySelector('[data-capture-url]').value = d.url.split('#')[0];
+        form.querySelector('[data-capture-title]').value = typeof d.title === 'string' ? d.title.slice(0, 120) : '';
+        form.querySelector('[data-capture-text]').value = d.text;
+        form.dispatchEvent(new Event('rogue-capture-filled'));
+        status.textContent = 'Received ' + d.text.length.toLocaleString('en') + ' characters from ' + new URL(d.url).host + (d.truncated ? ' (cut at the capture limit; select a smaller part next time)' : '') + '. Check the text, pick the game and store it.';
+        var g = form.querySelector('input[name="game"]'); if (g) g.focus();
+      });
+      // Tell the opener we are listening; repeat a few times in case its listener started late. The message carries no data.
+      var tries = 0;
+      (function ready() { if (got || tries++ > 20) return; window.opener.postMessage('rogue-capture-ready', '*'); setTimeout(ready, 500); })();
+    })();
+  </script>
+</Admin>

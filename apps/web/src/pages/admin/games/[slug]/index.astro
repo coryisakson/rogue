@@ -29,6 +29,7 @@ function auditText(a: HubAudit): string {
   if (a.action === 'extract_empty') return `Extraction empty, nothing stored: ${a.url ?? ''}`;
   if (a.action === 'extract_failed') return `Extraction failed: ${a.url ?? ''}${typeof d['error'] === 'string' ? ` (${d['error'].slice(0, 160)})` : ''}`;
   if (a.action === 'extract_deleted') return `Extract of source #${d['sourceId'] ?? '?'}${num(d['page']) !== null ? ` (page ${d['page']} only)` : ''} deleted by ${a.actor}: ${num(d['chunks']) ?? '?'} chunks${typeof d['reason'] === 'string' ? `, reason: ${d['reason']}` : ''}`;
+  if (a.action === 'source_captured') return `${d['recapture'] ? 'Re-captured' : 'Captured'} ${a.url ?? ''} in the browser by ${a.actor}: ${num(d['chars']) ?? '?'} characters, ${num(d['pages']) ?? '?'} pages`;
   if (a.action === 'source_deleted') return `Source #${d['sourceId'] ?? '?'} deleted by ${a.actor}: ${a.url ?? ''}${typeof d['reason'] === 'string' ? `, reason: ${d['reason']}` : ''}`;
   if (a.action === 'takedown') return `Takedown #${d['requestId'] ?? '?'}: ${num(d['sources']) ?? '?'} sources, ${num(d['claims']) ?? '?'} facts`;
   return a.action;
@@ -122,7 +123,7 @@ const anyQuality = quality.some((x) => x.q.pages > 0 || x.problems.length > 0 ||
           {sources.length === 0 && <TableRow><TableCell colSpan={7}>No sources.</TableCell></TableRow>}
           {sources.map((s) => (
             <TableRow>
-              <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.kind} · {s.edition}{s.runtime && ' · admin-added'}</small></TableCell>
+              <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.kind} · {s.edition}{s.runtime && ' · admin-added'}</small>{s.capture && <><br /><Badge variant="warning">{s.capture}</Badge></>}</TableCell>
               <TableCell>{s.authority}</TableCell>
               <TableCell>{s.language ?? '?'}</TableCell>
               <TableCell><Badge variant={availBadge[s.availability] ?? 'secondary'}>{s.availability}</Badge></TableCell>

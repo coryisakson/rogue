@@ -1,0 +1,61 @@
+---
+// "Capture from browser" form (docs/CAPTURE.md). Used on /admin/games/<slug>/sources (game fixed, paste or upload) and on
+// /admin/capture-inbox (the bookmarklet fills url/title/text, the admin picks the game). Posts to /admin/capture.
+import { CAPTURE_AUTHORITIES, CAPTURE_MAX_CHARS, CAPTURE_NOTES_MAX, CAPTURE_WARNED_HOSTS, SOURCE_KINDS, SOURCE_LANGUAGES } from '@rogue/core';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { NativeSelect, NativeSelectOption } from './ui/native-select';
+import { Textarea } from './ui/textarea';
+interface Props { from: 'sources' | 'inbox'; game?: string; games?: { slug: string; name: string }[]; hostError?: boolean }
+const { from, game, games = [], hostError = false } = Astro.props;
+const field = 'mt-1 bg-background';
+const warned = CAPTURE_WARNED_HOSTS.map((w) => w.host);
+---
+<form method="post" action="/admin/capture" enctype="multipart/form-data" class="grid max-w-[48rem] gap-1.5" data-capture-form data-warn-hosts={JSON.stringify(CAPTURE_WARNED_HOSTS)}>
+  <input type="hidden" name="from" value={from} />
+  {game ? <input type="hidden" name="game" value={game} /> : (
+    <label>Game in Rogue (type to search, pick from the list)
+      <Input name="game" list="capture-games" required pattern="[a-z0-9\-]{1,80}" autoComplete="off" placeholder="slug, e.g. pandemic" className={field} />
+      <datalist id="capture-games">{games.map((g) => <option value={g.slug} label={g.name}>{g.name}</option>)}</datalist>
+    </label>
+  )}
+  <label>Page address (the page you captured, https) <Input name="url" type="url" required maxLength={400} className={field} data-capture-url /></label>
+  <label>Title (optional; the host name when empty) <Input name="title" maxLength={120} className={field} data-capture-title /></label>
+  <div class="flex flex-wrap gap-4">
+    <label class="grid gap-1">Language <NativeSelect name="language" defaultValue="en">{SOURCE_LANGUAGES.map((l) => <NativeSelectOption value={l}>{l}</NativeSelectOption>)}</NativeSelect></label>
+    <label class="grid gap-1">Kind <NativeSelect name="kind" defaultValue="rulebook">{SOURCE_KINDS.map((k) => <NativeSelectOption value={k}>{k}</NativeSelectOption>)}</NativeSelect></label>
+    <label class="grid gap-1">Authority <NativeSelect name="authority" defaultValue="community">{CAPTURE_AUTHORITIES.map((a) => <NativeSelectOption value={a}>{a}</NativeSelectOption>)}</NativeSelect></label>
+  </div>
+  <label>Page text (paste the whole page, or only the rules part){from === 'sources' && ' — or upload a file below'}
+    <Textarea name="text" rows={14} maxLength={CAPTURE_MAX_CHARS} className={`${field} min-h-64 max-h-[60vh] font-mono`} data-capture-text />
+  </label>
+  {from === 'sources' && <label>Or upload a file saved from the browser (.txt, .md, .html, .pdf) <Input name="file" type="file" accept=".txt,.md,.html,.htm,.pdf" className={field} /></label>}
+  <div role="alert" class={`rounded-lg border border-destructive p-2 text-destructive ${hostError ? '' : 'hidden'}`} data-capture-warning data-server={hostError ? 'on' : 'off'}>
+    <b>Warning: this host is on the do-not-capture list.</b> <span data-capture-why>{CAPTURE_WARNED_HOSTS.map((w) => `${w.host}: ${w.why}`).join(' ')}</span>
+    Type the host name below to capture anyway.
+  </div>
+  <label>Confirm host name (needed only for hosts on the warning list: {warned.join(', ')}) <Input name="hostConfirm" autoComplete="off" maxLength={200} className={field} data-capture-host /></label>
+  <label>Notes (optional, go to the audit log) <Textarea name="notes" rows={2} maxLength={CAPTURE_NOTES_MAX} className={field} /></label>
+  <label class="flex items-center gap-2"><input type="checkbox" name="terms" value="yes" required class="size-4 accent-primary" /> I read the site's terms and understand capture does not grant permission</label>
+  <Button type="submit" className="justify-self-start">Store capture</Button>
+  <small>Nothing is fetched. The text is stored privately, split into pages (form feeds or "=== page N ===" markers, else one page), indexed for search and marked "Manual capture by you". It stays link only: chat quotes briefly and links the page. A bot-check page ("Just a moment", captcha) is refused. Capturing the same address again replaces the text.</small>
+</form>
+<script is:inline>
+  // Red warning for hosts on the do-not-capture list (packages/core/src/capture.ts); the handler enforces the same rule.
+  (function () {
+    var form = document.querySelector('[data-capture-form]'); if (!form) return;
+    var list = JSON.parse(form.getAttribute('data-warn-hosts') || '[]');
+    var url = form.querySelector('[data-capture-url]'), box = form.querySelector('[data-capture-warning]'), why = form.querySelector('[data-capture-why]'), confirm = form.querySelector('[data-capture-host]');
+    function check() {
+      var host = ''; try { host = new URL(url.value).host.toLowerCase().replace(/^www\./, ''); } catch (e) { /* not a URL yet */ }
+      var hit = list.find(function (w) { return host === w.host || host.endsWith('.' + w.host); });
+      if (hit) { why.textContent = hit.host + ': ' + hit.why; confirm.required = true; confirm.pattern = '(www\\.)?' + host.replace(/\./g, '\\.'); }
+      else { confirm.required = false; confirm.removeAttribute('pattern'); }
+      box.classList.toggle('hidden', !hit && box.dataset.server !== 'on');
+    }
+    url.addEventListener('input', check);
+    url.addEventListener('change', check);
+    form.addEventListener('rogue-capture-filled', check);
+    check();
+  })();
+</script>

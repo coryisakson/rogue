@@ -1,12 +1,15 @@
 ---
 import Admin from '../../../../layouts/Admin.astro';
-import { SOURCE_DELETE_ERRORS, SOURCE_DELETE_REASON_MAX, SOURCE_KINDS, SOURCE_LANGUAGES, parseSourceInput, sameOrigin } from '@rogue/core';
+import { CAPTURE_ERRORS, SOURCE_DELETE_ERRORS, captureBookmarklet, SOURCE_DELETE_REASON_MAX, SOURCE_KINDS, SOURCE_LANGUAGES, parseSourceInput, sameOrigin } from '@rogue/core';
+import CaptureForm from '../../../../components/CaptureForm.astro';
 import GameManageBar from '../../../../components/GameManageBar.astro';
 import { isAdmin } from '../../../../lib/admin';
+import { baseUrl } from '../../../../lib/auth';
 import { addGameSource, factsCount, gameSources, listGames, pendingRuntimeSources, reingestSource, reingestStatus } from '../../../../lib/game-sources';
 import type { RightsReport } from '../../../../lib/add-game';
 import { sourceDeletePreview, sourceInGame } from '../../../../lib/source-delete';
 import { ensureMigrated } from '../../../../lib/services';
+import { captureStatus } from '../../../../lib/source-capture';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
@@ -62,6 +65,11 @@ if (!msg && num('deleted') > 0) {
     + (sp.get('reingest') === 'yes' ? 'Re-ingest stays allowed.' : 'Its link is tombstoned, so ingest will not fetch it again.');
 }
 if (!msg && deleteErrMsg) msg = deleteErrMsg;
+// Capture from browser (POST goes to /admin/capture, which redirects back with numbers or an error code only).
+const captureErr = sp.get('capture_err');
+const captureMsg = captureErr && captureErr in CAPTURE_ERRORS ? CAPTURE_ERRORS[captureErr as keyof typeof CAPTURE_ERRORS]
+  : num('captured') > 0 ? `${sp.get('recapture') === 'yes' ? 'Re-captured' : 'Captured'} source #${num('captured')}: ${num('chars')} characters, ${num('pages')} pages stored. Indexing runs in the background; reload to see it in the table.` : null;
+const bookmarklet = captureBookmarklet(baseUrl(Astro.request));
 const deleteId = num('delete');
 const toDelete = deleteId > 0 && (await sourceInGame(slug, deleteId)) ? await sourceDeletePreview(deleteId) : null;
 const replaceId = Number(sp.get('replace') ?? v['replaces'] ?? 0) || null;
@@ -90,7 +98,7 @@ const field = 'mt-1 bg-background';
       <TableBody>
         {sources.map((s) => (
           <TableRow>
-            <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.edition}{s.runtime && ' · admin-added'}</small></TableCell>
+            <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.edition}{s.runtime && ' · admin-added'}</small>{s.capture && <><br /><Badge variant="warning">{s.capture}</Badge></>}</TableCell>
             <TableCell>{s.language ?? '?'}</TableCell>
             <TableCell>{s.kind}</TableCell>
             <TableCell><Badge variant={availBadge[s.availability] ?? 'secondary'}>{s.availability}</Badge></TableCell>
@@ -102,6 +110,7 @@ const field = 'mt-1 bg-background';
               {s.availability !== 'unavailable' && <> <a href={`${self}?replace=${s.id}#add`}>Replace</a></>}
               {' '}<a href={`${self}?delete=${s.id}#delete`}>Delete</a>
               {reingestStatus(s.id) && <div><small>Re-ingest: {reingestStatus(s.id)}</small></div>}
+              {captureStatus(s.id) && <div><small>Capture index: {captureStatus(s.id)}</small></div>}
             </TableCell>
           </TableRow>
         ))}
@@ -159,6 +168,15 @@ const field = 'mt-1 bg-background';
         <Button type="submit" className="justify-self-start">Run rights checks and add</Button>
         <small>The rights checks run while you wait (headers only). If they pass, the host is approved, the document is fetched, indexed and (for rulebooks) the Librarian drafts cited facts. A replaced source keeps its row and citations and is marked unavailable.</small>
       </form>
+    </CardContent>
+  </Card>
+  <Card className="mt-3 text-base" id="capture">
+    <CardHeader><CardTitle><h2 class="m-0 text-lg">Capture from browser</h2></CardTitle></CardHeader>
+    <CardContent>
+      <p class="mt-0">For a page Rogue cannot fetch because of a bot wall: open it in your own browser, then paste its text here, upload the file you saved, or use the bookmarklet. This fixes access, not permission: read the site's terms first. The source is marked "Manual capture by" you, stays link only and ranks below the publisher's own text. A link that was taken down (tombstoned) is refused. See docs/CAPTURE.md.</p>
+      {captureMsg && <p role="status"><Badge variant={captureErr ? 'danger' : 'secondary'} className="h-auto whitespace-normal">{captureMsg}</Badge></p>}
+      <p><b>Bookmarklet:</b> drag <a href={bookmarklet} class="rounded-md border border-border px-2 py-0.5 font-semibold">Send to Rogue</a> to your bookmarks bar. On the rules page, select the rules text (or nothing, for the whole page) and click the bookmark: a small Rogue window opens with the text, you pick the game and confirm. Some sites block bookmarklets (Content Security Policy) or the pop-up; then copy and paste here.</p>
+      <CaptureForm from="sources" game={slug} hostError={captureErr === 'host'} />
     </CardContent>
   </Card>
 </Admin>

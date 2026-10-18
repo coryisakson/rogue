@@ -1,5 +1,5 @@
 import {
-  RateLimiter, libraryMatch, runtimeEditionLabel, runtimeSeed, slugify, sourceProbeGate, termsGate,
+  CAPTURE_METHOD, RateLimiter, captureLabel, libraryMatch, runtimeEditionLabel, runtimeSeed, slugify, sourceProbeGate, termsGate,
   type GameMatch, type SourceInput,
 } from '@rogue/core';
 import { probeRulebook, type RightsReport } from './add-game';
@@ -25,6 +25,8 @@ export interface GameRow { slug: string; name: string; bggId: number | null }
 export interface SourceRow {
   id: number; url: string; title: string | null; language: string | null; kind: string; edition: string; availability: string;
   fetchedAt: string | null; pageCount: number | null; indexedPages: number; runtime: boolean;
+  /** "Manual capture by <admin> on <date>" when an admin captured the text in their browser (source-capture.ts), else null. */
+  capture: string | null;
 }
 
 export async function listGames(): Promise<GameRow[]> {
@@ -39,12 +41,14 @@ export async function gameSources(slug: string): Promise<SourceRow[]> {
   const rows = (await pool.query(
     `SELECT DISTINCT ON (s.id) s.id, s.url, s.title, s.language, d.kind, e.label edition, s.availability, to_char(s.fetched_at, 'YYYY-MM-DD HH24:MI') fetched_at, s.page_count,
        (SELECT count(DISTINCT ch.page)::int FROM chunks ch WHERE ch.source_id=s.id) indexed_pages,
-       EXISTS (SELECT 1 FROM runtime_sources rs WHERE rs.url=s.url) runtime
+       EXISTS (SELECT 1 FROM runtime_sources rs WHERE rs.url=s.url) runtime,
+       s.capture_method, s.captured_at, (SELECT u.display_name FROM users u WHERE u.id=s.captured_by) captured_by_name
      FROM sources s JOIN documents d ON d.source_id=s.id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id
      WHERE g.slug=$1 ORDER BY s.id, d.id`, [slug])).rows;
   return rows.map((r) => ({
     id: Number(r.id), url: r.url, title: r.title, language: r.language, kind: r.kind, edition: r.edition, availability: r.availability,
     fetchedAt: r.fetched_at, pageCount: r.page_count == null ? null : Number(r.page_count), indexedPages: Number(r.indexed_pages), runtime: r.runtime,
+    capture: captureLabel(r.capture_method, r.captured_by_name, r.captured_at),
   }));
 }
 
@@ -148,7 +152,9 @@ export const reingestStatus = (sourceId: number): string | null => reingestProgr
 export async function reingestSource(slug: string, sourceId: number, adminId: number): Promise<{ ok: boolean; error?: string }> {
   const pool = getPool(); if (!pool) return { ok: false, error: 'The database is not available.' };
   if (!(await sourceOfGame(slug, sourceId))) return { ok: false, error: 'That source does not belong to this game.' };
-  const url = (await pool.query('SELECT url FROM sources WHERE id=$1', [sourceId])).rows[0]?.url as string | undefined;
+  const src = (await pool.query('SELECT url, capture_method FROM sources WHERE id=$1', [sourceId])).rows[0];
+  if (src?.capture_method === CAPTURE_METHOD) return { ok: false, error: 'This source is a manual capture: Rogue cannot fetch it. Capture it again in your browser to replace its text.' };
+  const url = src?.url as string | undefined;
   const seed = (await allSeeds()).find((s) => s.url === url);
   if (!seed) return { ok: false, error: 'No seed for this source (it is not in the static seeds, an approved request or runtime_sources).' };
   await audit(`admin:${adminId}`, 'game_source_reingest', { slug, sourceId, url });

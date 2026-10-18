@@ -1,4 +1,4 @@
-import { extractNote, type IngestedGame, type PageScore } from '@rogue/core';
+import { captureLabel, extractNote, type IngestedGame, type PageScore } from '@rogue/core';
 import { gameSources, type SourceRow } from './game-sources';
 import { ensureMigrated, getPool } from './services';
 
@@ -88,7 +88,7 @@ export async function hubSources(slug: string): Promise<HubSource[]> {
 
 export interface HubAudit { id: number; actor: string; action: string; at: Date | null; url: string | null; detail: Record<string, unknown> }
 
-export const HUB_AUDIT_ACTIONS = ['fetched', 'extract_empty', 'extract_failed', 'extract_deleted', 'source_deleted', 'takedown'] as const;
+export const HUB_AUDIT_ACTIONS = ['fetched', 'extract_empty', 'extract_failed', 'extract_deleted', 'source_deleted', 'source_captured', 'takedown'] as const;
 
 /**
  * audit_log entries about this game's links. The log stores URLs, not games, so the URLs come from the game's sources, its
@@ -119,19 +119,20 @@ export async function hubPageScores(sourceIds: number[]): Promise<Map<number, Pa
   return out;
 }
 
-export interface ViewerSource { id: number; url: string; title: string | null; publisher: string | null; pageCount: number | null; contentType: string | null; ocr: string }
+export interface ViewerSource { id: number; url: string; title: string | null; publisher: string | null; pageCount: number | null; contentType: string | null; ocr: string; capture: string | null }
 
 /** One source for the extract viewer (/admin/games/<slug>/extracts?source=), with how its text was made. */
 export async function viewerSource(sourceId: number): Promise<ViewerSource | null> {
   const pool = getPool(); if (!pool) return null;
   await ensureMigrated();
   const r = (await pool.query(
-    `SELECT s.id, s.url, s.title, s.publisher, s.page_count, s.content_type,
+    `SELECT s.id, s.url, s.title, s.publisher, s.page_count, s.content_type, s.capture_method, s.captured_at,
+       (SELECT u.display_name FROM users u WHERE u.id=s.captured_by) captured_by_name,
        (SELECT a.detail FROM audit_log a WHERE a.action='fetched' AND a.detail->>'url'=s.url ORDER BY a.id DESC LIMIT 1) fetched_detail
      FROM sources s WHERE s.id=$1`, [sourceId])).rows[0];
   if (!r) return null;
   return {
     id: Number(r.id), url: r.url, title: r.title, publisher: r.publisher, pageCount: r.page_count == null ? null : Number(r.page_count),
-    contentType: r.content_type, ocr: extractNote(r.fetched_detail ?? null),
+    contentType: r.content_type, ocr: extractNote(r.fetched_detail ?? null), capture: captureLabel(r.capture_method, r.captured_by_name, r.captured_at),
   };
 }

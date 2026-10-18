@@ -123,6 +123,7 @@ const field = 'mt-1 bg-background';
         return (
           <Card className="text-base"><CardContent>
             {s.hasText ? <a href={`${self}?source=${s.id}`}><b>{s.title ?? `Source ${s.id}`}</b></a> : <b>{s.title ?? `Source ${s.id}`}</b>} <small>#{s.id}</small>
+            {s.capture && <div><Badge variant="warning">{s.capture}</Badge></div>}
             <div><small>{s.pageCount ?? sum?.pages ?? '?'} pages · {s.extract} · {s.chunks} chunks ({s.embedded} embedded)</small></div>
             <div><small>{!s.hasText ? 'not extracted' : sum ? `${sum.ok} ok · ${sum.suspect} suspect · ${sum.garbled} garbled · ${sum.empty} empty · ${sum.leftOut} left out` : 'stored text not found'}</small></div>
             {(s.hasText || s.chunks > 0) && <div class="mt-1"><a href={`${self}?delete=${s.id}#delete`}>Delete extract</a></div>}
@@ -136,6 +137,7 @@ const field = 'mt-1 bg-background';
     <p><a href={self}>All sources of this game</a> · <a href={`${base}&format=md`}>Download as markdown</a>{onlyPage !== null && <> · <a href={base}>Show all pages</a></>} · <a href={`${self}?delete=${source.id}#delete`}>Delete extract</a></p>
     <h2 style="margin-bottom:.2rem">{source.title ?? `Source ${source.id}`}</h2>
     <p><small>{source.publisher ?? 'publisher unknown'} · {source.pageCount ?? allPages.length} pages · {source.ocr} · {String(source.contentType ?? '').split(';')[0] || 'unknown type'}</small></p>
+    {source.capture && <p><Badge variant="warning">{source.capture}</Badge> <small>Text captured in an admin's browser, not fetched by Rogue.</small></p>}
     <p class="jump"><small>Pages: {allPages.map((n) => <a href={onlyPage === null ? `#p${n}` : `${base}#p${n}`}>{n}</a>)}</small></p>
     <form method="get" action={self} class="my-1.5 flex flex-wrap items-center gap-2">
       <input type="hidden" name="source" value={source.id} />
