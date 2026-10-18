@@ -5,9 +5,13 @@
  * the site's terms, the source stays link_only, tombstones still win and some hosts carry an explicit warning.
  * Pure helpers here; the database and storage work is in apps/web/src/lib/source-capture.ts.
  */
+import { slugify } from './addgame/index.js';
 import { parseSourceUrl, SOURCE_KINDS, SOURCE_LANGUAGES, type SourceKind, type SourceLanguage } from './addgame/sources.js';
+import { gameNameFromPageTitle } from './capture-name.js';
 import { splitPages } from './index/chunker.js';
 import { hasExtractedText } from './ocr/has-text.js';
+
+export { gameNameFromPageTitle } from './capture-name.js';
 
 /** sources.capture_method value for a manual capture (null = fetched by Rogue). */
 export const CAPTURE_METHOD = 'manual_capture';
@@ -37,7 +41,10 @@ export function captureHostWarning(host: string): { host: string; why: string } 
 
 /** Errors by code: the POST handler redirects back with ?capture_err=<code>, so nothing typed is reflected through the URL. */
 export const CAPTURE_ERRORS = {
-  game: 'Pick a game that is already in Rogue.',
+  game: 'Pick a game that is already in Rogue, or choose "Add as new game".',
+  newgame: "Give the new game's name (2 to 80 characters, with letters or digits).",
+  bggid: 'The BoardGameGeek id must be a whole number (the number in the boardgamegeek.com/boardgame/<id> address).',
+  year: 'The year must be between 1900 and 2100.',
   url: 'Give the page address (a public https link).',
   title: 'The title is too long (120 characters at most).',
   language: `Language must be one of ${SOURCE_LANGUAGES.join(', ')}.`,
@@ -60,22 +67,48 @@ export const CAPTURE_ERRORS = {
 } as const;
 export type CaptureError = keyof typeof CAPTURE_ERRORS;
 
+/** "Add as new game": the game is created from the capture (apps/web/src/lib/game-sources.ts gameForCapture). */
+export interface CaptureNewGame { name: string; bggId: number | null; year: number | null }
+
 export interface CaptureForm {
-  game: string; url: string; host: string; title: string; language: SourceLanguage; kind: SourceKind; authority: CaptureAuthority;
+  /** The game's slug; for a new game the slug its name gives (slugify) until the handler resolves the real one. */
+  game: string;
+  newGame: CaptureNewGame | null;
+  url: string; host: string; title: string; language: SourceLanguage; kind: SourceKind; authority: CaptureAuthority;
   notes: string | null; hostWarned: boolean;
 }
 
 const one = (v: unknown, max: number): string => (typeof v === 'string' ? v : '').replace(/\s+/g, ' ').trim().slice(0, max + 1);
 
+/**
+ * The "Add as new game" fields, chosen with target=new (or a newGame name and no game picked). An empty name falls back
+ * to the name the page title gives (gameNameFromPageTitle). null = an existing game was picked.
+ */
+function parseNewGame(f: Record<string, unknown>, title: string, host: string): { ok: true; value: CaptureNewGame | null } | { ok: false; code: CaptureError } {
+  const typed = one(f['newGame'], 80);
+  if (f['target'] !== 'new' && !(typed && !one(f['game'], 80))) return { ok: true, value: null };
+  const name = typed || gameNameFromPageTitle(title, host);
+  if (name.length < 2 || name.length > 80 || !slugify(name)) return { ok: false, code: 'newgame' };
+  const idRaw = one(f['newBggId'], 12);
+  const bggId = idRaw ? Number(idRaw) : null;
+  if (bggId !== null && (!Number.isSafeInteger(bggId) || bggId < 1 || bggId > 99_999_999)) return { ok: false, code: 'bggid' };
+  const yearRaw = one(f['newYear'], 4);
+  const year = yearRaw ? Number(yearRaw) : null;
+  if (year !== null && (!Number.isInteger(year) || year < 1900 || year > 2100)) return { ok: false, code: 'year' };
+  return { ok: true, value: { name, bggId, year } };
+}
+
 /** Validate every field except the text itself (pasted or from a file; see checkCapturedText). */
 export function parseCaptureForm(f: Record<string, unknown>): { ok: true; value: CaptureForm } | { ok: false; code: CaptureError } {
-  const game = one(f['game'], 80);
-  if (!/^[a-z0-9-]{1,80}$/.test(game)) return { ok: false, code: 'game' };
   const u = parseSourceUrl(f['url'], 'Page address');
   if (!u.ok) return { ok: false, code: 'url' };
   const host = new URL(u.url).host.toLowerCase();
   const titleRaw = one(f['title'], 120);
   if (titleRaw.length > 120) return { ok: false, code: 'title' };
+  const ng = parseNewGame(f, titleRaw, host);
+  if (!ng.ok) return ng;
+  const game = ng.value ? slugify(ng.value.name) : one(f['game'], 80);
+  if (!/^[a-z0-9-]{1,80}$/.test(game)) return { ok: false, code: 'game' };
   const language = (one(f['language'], 8) || 'en').toLowerCase();
   if (!(SOURCE_LANGUAGES as readonly string[]).includes(language)) return { ok: false, code: 'language' };
   const kind = (one(f['kind'], 16) || 'rulebook').toLowerCase();
@@ -91,7 +124,7 @@ export function parseCaptureForm(f: Record<string, unknown>): { ok: true; value:
   return {
     ok: true,
     value: {
-      game, url: u.url, host, title: titleRaw || host, language: language as SourceLanguage, kind: kind as SourceKind,
+      game, newGame: ng.value, url: u.url, host, title: titleRaw || host, language: language as SourceLanguage, kind: kind as SourceKind,
       authority: authority as CaptureAuthority, notes: notes || null, hostWarned: !!warned,
     },
   };

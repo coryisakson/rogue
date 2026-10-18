@@ -1,11 +1,12 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-import { sameOrigin, parseGameRequest, parsePick, googleLink, adminSearchQuery, BGG_TOP10_DATE } from '@rogue/core';
+import { sameOrigin, parseGameRequest, parseNameRequest, parsePick, googleLink, adminSearchQuery, BGG_TOP10_DATE, CAPTURE_ERRORS } from '@rogue/core';
+import CaptureForm from '../../components/CaptureForm.astro';
 import { approveGame, completeManual, editSource, queueTopGames, resumeQueue } from '../../lib/intake';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
 import { isAdmin } from '../../lib/admin';
 import AdminGameSearch from '../../components/AdminGameSearch.astro';
-import { adminGameSearch, adminRequestGame, type AdminMatch } from '../../lib/game-sources';
+import { adminGameSearch, adminRequestByName, adminRequestGame, type AdminMatch } from '../../lib/game-sources';
 import { searchEnabled } from '../../lib/search';
 import { ensureMigrated, getPool } from '../../lib/services';
 import { Badge } from '../../components/ui/badge';
@@ -28,6 +29,12 @@ if (Astro.request.method === 'POST') {
     const m = parsePick(Object.fromEntries(f.entries()));
     if (!m) msg = 'That choice was not valid. Search again.';
     else { const r = await adminRequestGame(me, m); msg = 'error' in r ? r.error : `Request #${r.id} for ${m.title} is approved and in the Scout's queue.`; }
+  }
+  else if (action === 'request-name') {
+    // "Add by name" when the title search found no BoardGameGeek page: the same approved request, without a BGG id.
+    const v = parseNameRequest(Object.fromEntries(f.entries()));
+    if (!v) msg = 'Give the game name (2 to 80 characters) and, if you know it, a year between 1900 and 2100.';
+    else { const r = await adminRequestByName(me, v); msg = 'error' in r ? r.error : `Request #${r.id} for ${v.title} is approved and in the Scout's queue.`; }
   }
   else if (action === 'queue-top10') {
     const r = await queueTopGames(me);
@@ -55,11 +62,14 @@ if (Astro.request.method === 'POST') {
 // Title search (GET ?q=): same pick list and rate limit as /request-game; results in Rogue link to their game page, others start an approved request here.
 const q = (Astro.url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
 const searchOn = searchEnabled();
-let matches: AdminMatch[] | null = null; let searchError: string | null = null;
+let matches: AdminMatch[] | null = null; let searchError: string | null = null; let searchNote: string | null = null;
 if (Astro.request.method === 'GET' && q.length >= 2 && searchOn) {
   const r = await adminGameSearch(Astro.locals.user!.id, q);
-  if ('error' in r) { searchError = r.error; matches = []; } else matches = r.matches;
+  if ('error' in r) { searchError = r.error; matches = []; } else { matches = r.matches; searchNote = r.note; }
 }
+// "Capture new game" (POST goes to /admin/capture, which redirects back here only with an error code).
+const captureErr = Astro.url.searchParams.get('capture_err');
+const captureMsg = captureErr && captureErr in CAPTURE_ERRORS ? CAPTURE_ERRORS[captureErr as keyof typeof CAPTURE_ERRORS] : null;
 // Open requests only: once approved the game lives on /admin/games. Decided ones stay reachable in a collapsed list.
 const OPEN = ['submitted', 'checked', 'manual', 'queued'];
 const rows = (await getPool()!.query(`SELECT r.*, u.display_name requester FROM game_requests r LEFT JOIN users u ON u.id=r.user_id WHERE r.status = ANY($1::text[]) ORDER BY (r.status IN ('submitted','checked','manual')) DESC, r.id DESC LIMIT 50`, [OPEN])).rows;
@@ -73,7 +83,14 @@ const rejectForm = 'flex flex-wrap items-center gap-2';
 ---
 <Admin title="Game requests">
   <p>Users pick a game from a search list (or describe it). Approving the game puts it in the Scout's queue; when the Scout cannot find a publisher rulebook, or search is off, the request lands here for manual research with a Google link. The Scout searches publisher-first (who makes it, their site, their rules or downloads page) and only then falls back to a direct rulebook PDF hit. It hands the rulebook link to the Rights Officer (code), which runs the rights checks (robots.txt, TDM reservation, opt-out headers, reachability). The Terms Agent then finds and reads the <b>publisher's</b> terms (not a CDN's); when rights pass and the terms are clearly fine, the source approves itself (audit-logged, kill switch ROGUE_AUTO_APPROVE_SOURCES=0). <b>You</b> only decide the cases it cannot clear. Approval allowlists that host and starts fetch, index and Librarian. Nothing was downloaded before approval.</p>
-  <AdminGameSearch action="/admin/requests" q={q} matches={matches} error={searchError} searchOn={searchOn} />
+  <AdminGameSearch action="/admin/requests" q={q} matches={matches} error={searchError} note={searchNote} searchOn={searchOn} />
+  <details id="capture" class="mb-3" open={!!captureMsg}><summary>Capture new game (you have the rules page open in your browser)</summary>
+    <Card className="mt-2 text-base"><CardContent>
+      <p class="mt-0">Creates the game at once as an admin-approved game and stores the page text you paste or upload as its first source (a manual capture: link only, terms box, tombstones and the bot-check refusal all apply). No Scout run. The "Send to Rogue" bookmarklet window offers the same as "Add as new game".</p>
+      {captureMsg && <p role="status"><Badge variant="danger" className="h-auto whitespace-normal">{captureMsg}</Badge> <small>Nothing was stored.</small></p>}
+      <CaptureForm from="requests" hostError={captureErr === 'host'} newError />
+    </CardContent></Card>
+  </details>
   <form method="post" class="mb-3"><input type="hidden" name="action" value="queue-top10" /><Button type="submit" variant="outline">Queue BGG top 10</Button> <small>Admin-approved list of {BGG_TOP10_DATE} (docs/BGG_TOP10.md). Skips games already in Rogue or requested; each still goes through Scout, rights and terms checks.</small></form>
   {msg && <p><Badge variant="secondary" className="h-auto whitespace-normal">{msg}</Badge></p>}
   <p><small>Only open requests are listed. An accepted game moves to <a href="/admin/games">Games</a>.</small></p>

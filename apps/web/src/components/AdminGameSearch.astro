@@ -1,12 +1,14 @@
 ---
 // Admin title search (same pick list as /request-game, via adminGameSearch in lib/game-sources.ts). A result already in Rogue
 // links to its game page (/admin/games/<slug>); any other result can start an admin-approved request (POST handled by /admin/requests).
+// No BGG match (or search off): the note says why, and "Add by name" starts the same approved request without a BGG id.
 import type { AdminMatch } from '../lib/game-sources';
 import { Button, buttonVariants } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
-interface Props { action: string; q: string; matches: AdminMatch[] | null; error: string | null; searchOn: boolean }
-const { action, q, matches, error, searchOn } = Astro.props;
+interface Props { action: string; q: string; matches: AdminMatch[] | null; error: string | null; note?: string | null; searchOn: boolean }
+const { action, q, matches, error, note = null, searchOn } = Astro.props;
+const showByName = !searchOn || error !== null || (matches !== null && matches.length === 0);
 ---
 <Card className="mb-3 text-base"><CardContent>
   {searchOn ? (
@@ -33,7 +35,15 @@ const { action, q, matches, error, searchOn } = Astro.props;
           ))}
         </ul>
       )}
-      {matches && matches.length === 0 && !error && <p class="mb-0">No match found for “{q}”.</p>}
+      {matches && matches.length === 0 && !error && <p class="mb-0" role="status">{note ?? `No match found for “${q}”.`}</p>}
     </>
   ) : <p class="m-0">Title search is off (ROGUE_SEARCH_BASE_URL is not set).</p>}
+  {showByName && (
+    <form method="post" action="/admin/requests" class="mt-3 flex flex-wrap items-end gap-2" data-add-by-name>
+      <input type="hidden" name="action" value="request-name" />
+      <label class="grid flex-1 gap-1">Add by name (no BoardGameGeek page) <Input name="title" defaultValue={q} required minLength={2} maxLength={80} className="bg-background" /></label>
+      <label class="grid w-24 gap-1">Year <Input name="year" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} className="bg-background" /></label>
+      <Button type="submit" variant="outline">Request by name (approved; Scout + rights checks run)</Button>
+    </form>
+  )}
 </CardContent></Card>

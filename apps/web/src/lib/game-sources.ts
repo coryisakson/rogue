@@ -1,5 +1,5 @@
 import {
-  CAPTURE_METHOD, RateLimiter, captureLabel, libraryMatch, runtimeEditionLabel, runtimeSeed, slugify, sourceProbeGate, termsGate,
+  CAPTURE_METHOD, RateLimiter, bggSearchNote, captureLabel, libraryMatch, runtimeEditionLabel, runtimeSeed, slugify, sourceProbeGate, termsGate,
   type GameMatch, type SourceInput,
 } from '@rogue/core';
 import { probeRulebook, type RightsReport } from './add-game';
@@ -8,7 +8,7 @@ import { resumeQueue } from './intake';
 import { ingestSeed } from './ingest';
 import { startLibrarian } from './librarian-run';
 import { indexSource } from './rules-index';
-import { searchGameMatches } from './search';
+import { searchGameOutcome } from './search';
 import { ensureMigrated, getPool } from './services';
 import { ALLOWED_HOSTS } from './source-seeds';
 
@@ -177,12 +177,66 @@ const searchLimiter = (g['__rogueSearchLimit'] ??= new RateLimiter(20, 3_600_000
 
 export interface AdminMatch extends GameMatch { inRogue: string | null }
 
-export async function adminGameSearch(userId: number, q: string): Promise<{ matches: AdminMatch[] } | { error: string }> {
+/** Matches with their place in Rogue, plus a note when there are none (search off, provider error, hits but none on BGG). */
+export async function adminGameSearch(userId: number, q: string): Promise<{ matches: AdminMatch[]; note: string | null } | { error: string }> {
   if (!searchLimiter.allow(String(userId))) return { error: 'Too many searches this hour.' };
-  let found: GameMatch[];
-  try { found = await searchGameMatches(q); } catch { return { error: 'Search is not answering right now.' }; }
+  const o = await searchGameOutcome(q);
+  const note = bggSearchNote(o, q);
+  if (o.kind !== 'ok') return { error: note ?? 'Search is not answering right now.' };
   const games = await listGames();
-  return { matches: found.map((m) => ({ ...m, inRogue: libraryMatch(m, games) })) };
+  return { matches: o.matches.map((m) => ({ ...m, inRogue: libraryMatch(m, games) })), note };
+}
+
+/**
+ * "Add by name" when the title search found no BGG page: the same admin-approved request as adminRequestGame, without a
+ * BGG id. Mode 'details' like a user's free-text request, but status 'queued' (the admin approved it), so the Scout,
+ * Rights Officer, Terms Agent and the terms gate still run.
+ */
+export async function adminRequestByName(adminId: number, v: { title: string; year: number | null }): Promise<{ id: number } | { error: string }> {
+  const pool = getPool(); if (!pool) return { error: 'The database is not available.' };
+  await ensureMigrated();
+  const slug = slugify(v.title);
+  if (!slug) return { error: 'That name has no letters or digits.' };
+  if (libraryMatch({ bggId: 0, title: v.title }, await listGames())) return { error: 'That game is already in Rogue.' };
+  if ((await pool.query("SELECT 1 FROM game_requests WHERE slug=$1 AND status IN ('submitted','queued','manual','checked')", [slug])).rowCount) return { error: 'That game is already requested.' };
+  const r = await pool.query("INSERT INTO game_requests(user_id, name, slug, year, mode, details, status, stage, decided_by) VALUES ($1,$2,$3,$4,'details',$5,'queued','in the queue for the Scout',$1) RETURNING id",
+    [adminId, v.title, slug, v.year, `Added by name by an admin (no BoardGameGeek match): ${v.title}${v.year ? ` (${v.year})` : ''}`]);
+  const id = Number(r.rows[0].id);
+  await audit(`admin:${adminId}`, 'game_request_game_approved', { id, via: 'admin-name', title: v.title });
+  void resumeQueue();
+  return { id };
+}
+
+/**
+ * A game added from a capture (/admin/capture with newGame): created directly as an admin-approved game, without the Scout,
+ * because the admin already holds the rules text. Same games row as approveRequest() (add-game.ts) writes on approval:
+ * slug from slugify, name, year, bgg_id, no publisher yet. A game already in Rogue (same BGG id or slug) is used as is.
+ * `created` tells the caller whether to undo the row when the capture itself is then refused (undoCapturedGame).
+ */
+export async function gameForCapture(v: { name: string; bggId: number | null; year: number | null }): Promise<{ slug: string; created: boolean } | { error: string }> {
+  const pool = getPool(); if (!pool) return { error: 'The database is not available.' };
+  await ensureMigrated();
+  const existing = libraryMatch({ bggId: v.bggId ?? 0, title: v.name }, await listGames());
+  if (existing) return { slug: existing, created: false };
+  const slug = slugify(v.name);
+  if (!slug) return { error: 'That name has no letters or digits.' };
+  const r = await pool.query('INSERT INTO games(slug, name, publisher, year, bgg_id) VALUES ($1,$2,NULL,$3,$4) ON CONFLICT DO NOTHING RETURNING slug', [slug, v.name, v.year, v.bggId]);
+  // A parallel insert with the same slug or BGG id won: use that game.
+  if (!r.rowCount) {
+    const other = (await pool.query('SELECT slug FROM games WHERE slug=$1 OR ($2::int IS NOT NULL AND bgg_id=$2)', [slug, v.bggId])).rows[0];
+    return other ? { slug: String(other.slug), created: false } : { error: 'The game could not be created.' };
+  }
+  return { slug, created: true };
+}
+
+/** Remove a game gameForCapture just created when the capture was refused, so no empty game is left behind. */
+export async function undoCapturedGame(slug: string): Promise<void> {
+  await getPool()?.query('DELETE FROM games g WHERE g.slug=$1 AND NOT EXISTS (SELECT 1 FROM editions e WHERE e.game_id=g.id)', [slug]).catch(() => {});
+}
+
+/** Audit the new game once its capture is stored. */
+export async function auditCapturedGame(adminId: number, slug: string, name: string, bggId: number | null, sourceId: number): Promise<void> {
+  await audit(`admin:${adminId}`, 'game_added_by_capture', { slug, name, adminId, bggId, sourceId });
 }
 
 /**

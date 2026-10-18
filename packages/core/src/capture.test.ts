@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CAPTURE_MAX_CHARS, botChallengePhrase, captureBookmarklet, captureFileType, captureHostWarning, captureLabel, checkCapturedText,
-  parseCaptureForm, parseCapturePayload, splitCapturedText,
+  gameNameFromPageTitle, parseCaptureForm, parseCapturePayload, splitCapturedText,
 } from './capture.js';
 import { splitPages } from './index/chunker.js';
 
@@ -123,5 +123,53 @@ describe('bookmarklet payload', () => {
     expect(js).toContain("e.origin===R");
     expect(js).not.toMatch(/token|cookie/i);
     expect(() => new Function(js)).not.toThrow(); // valid JavaScript
+  });
+});
+
+describe('gameNameFromPageTitle', () => {
+  it('strips rules words, how-to-play phrases and site names', () => {
+    const cases: [string, string, string][] = [
+      ['How to Play Wingspan - Official Rules - UltraBoardGames', 'www.ultraboardgames.com', 'Wingspan'],
+      ['Terraforming Mars Rules: How to Play | Official Game Rules', 'officialgamerules.org', 'Terraforming Mars'],
+      ['Ark Nova Rules - officialgamerules.org', 'officialgamerules.org', 'Ark Nova'],
+      ['Catan - Board Game', 'example.com', 'Catan'],
+      ['Ticket to Ride Rules and FAQ', 'example.com', 'Ticket to Ride'],
+      ['Pandemic: Iberia rulebook (PDF)', 'zmangames.com', 'Pandemic: Iberia'],
+      ['Slay the Spire: The Board Game | Board Game | BoardGameGeek', 'boardgamegeek.com', 'Slay the Spire: The Board Game'],
+      ['Rules | Root | Leder Games', 'ledergames.com', 'Root'],
+      ['Spirit Island FAQ – Greater Than Games', 'greaterthangames.com', 'Spirit Island'],
+      ['Azul', '', 'Azul'],
+    ];
+    for (const [title, host, name] of cases) expect([title, gameNameFromPageTitle(title, host)]).toEqual([title, name]);
+  });
+  it('gives an empty name when nothing is left', () => {
+    expect(gameNameFromPageTitle('', 'x.com')).toBe('');
+    expect(gameNameFromPageTitle('Rules', 'x.com')).toBe('');
+    expect(gameNameFromPageTitle('x'.repeat(200)).length).toBe(80);
+  });
+});
+
+describe('parseCaptureForm: add as new game', () => {
+  const page = { url: 'https://officialgamerules.org/ark-nova', hostConfirm: 'officialgamerules.org', terms: 'yes' };
+  it('takes the typed name, BGG id and year, and the slug the name gives', () => {
+    const p = parseCaptureForm({ ...page, target: 'new', newGame: ' Ark  Nova ', newBggId: '342942', newYear: '2021', game: 'pandemic' });
+    expect(p.ok && [p.value.game, p.value.newGame]).toEqual(['ark-nova', { name: 'Ark Nova', bggId: 342942, year: 2021 }]);
+  });
+  it('prefills the name from the page title when none is typed', () => {
+    const p = parseCaptureForm({ ...page, target: 'new', title: 'Ark Nova Rules - officialgamerules.org' });
+    expect(p.ok && p.value.newGame).toEqual({ name: 'Ark Nova', bggId: null, year: null });
+  });
+  it('a newGame name with no game picked means a new game; a picked game without target=new stays as is', () => {
+    expect(parseCaptureForm({ ...page, newGame: 'Ark Nova' }).ok).toBe(true);
+    const p = parseCaptureForm({ ...page, game: 'pandemic', newGame: 'Ark Nova' });
+    expect(p.ok && [p.value.game, p.value.newGame]).toEqual(['pandemic', null]);
+  });
+  it('refuses a bad name, BGG id or year, and keeps the other checks', () => {
+    expect(parseCaptureForm({ ...page, target: 'new', newGame: '!!' })).toEqual({ ok: false, code: 'newgame' });
+    expect(parseCaptureForm({ ...page, target: 'new', title: 'Rules' })).toEqual({ ok: false, code: 'newgame' });
+    expect(parseCaptureForm({ ...page, target: 'new', newGame: 'Ark Nova', newBggId: '12a' })).toEqual({ ok: false, code: 'bggid' });
+    expect(parseCaptureForm({ ...page, target: 'new', newGame: 'Ark Nova', newYear: '1700' })).toEqual({ ok: false, code: 'year' });
+    expect(parseCaptureForm({ ...page, target: 'new', newGame: 'Ark Nova', terms: '' })).toEqual({ ok: false, code: 'terms' });
+    expect(parseCaptureForm({ ...page, target: 'new', newGame: 'Ark Nova', hostConfirm: '' })).toEqual({ ok: false, code: 'host' });
   });
 });

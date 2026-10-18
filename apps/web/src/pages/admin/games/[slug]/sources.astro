@@ -69,8 +69,11 @@ if (!msg && sp.get('linkremoved')) {
 if (!msg && deleteErrMsg) msg = deleteErrMsg;
 // Capture from browser (POST goes to /admin/capture, which redirects back with numbers or an error code only).
 const captureErr = sp.get('capture_err');
+// newgame=created: "Add as new game" created this game from the capture; existing: that game was already in Rogue and was used.
+const newGameNote = sp.get('newgame') === 'created' ? `New game ${slug} added to Rogue from this capture (admin-approved; it is listed under Admin > Games). `
+  : sp.get('newgame') === 'existing' ? `This game was already in Rogue, so the capture was stored here instead of creating a new game. ` : '';
 const captureMsg = captureErr && captureErr in CAPTURE_ERRORS ? CAPTURE_ERRORS[captureErr as keyof typeof CAPTURE_ERRORS]
-  : num('captured') > 0 ? `${sp.get('recapture') === 'yes' ? 'Re-captured' : 'Captured'} source #${num('captured')}: ${num('chars')} characters, ${num('pages')} pages stored. Indexing runs in the background; reload to see it in the table.` : null;
+  : num('captured') > 0 ? `${newGameNote}${sp.get('recapture') === 'yes' ? 'Re-captured' : 'Captured'} source #${num('captured')}: ${num('chars')} characters, ${num('pages')} pages stored. Indexing runs in the background; reload to see it in the table.` : null;
 const bookmarklet = captureBookmarklet(baseUrl(Astro.request));
 const deleteId = num('delete');
 const toDelete = deleteId > 0 && (await sourceInGame(slug, deleteId)) ? await sourceDeletePreview(deleteId) : null;
@@ -178,7 +181,7 @@ const field = 'mt-1 bg-background';
       <p class="mt-0">For a page Rogue cannot fetch because of a bot wall: open it in your own browser, then paste its text here, upload the file you saved, or use the bookmarklet. This fixes access, not permission: read the site's terms first. The source is marked "Manual capture by" you, stays link only and ranks below the publisher's own text. A link that was taken down (tombstoned) is refused. See docs/CAPTURE.md.</p>
       {captureMsg && <p role="status"><Badge variant={captureErr ? 'danger' : 'secondary'} className="h-auto whitespace-normal">{captureMsg}</Badge></p>}
       <p><b>Bookmarklet:</b> drag <a href={bookmarklet} class="rounded-md border border-border px-2 py-0.5 font-semibold">Send to Rogue</a> to your bookmarks bar. On the rules page, select the rules text (or nothing, for the whole page) and click the bookmark: a small Rogue window opens with the text, you pick the game and confirm. Some sites block bookmarklets (Content Security Policy) or the pop-up; then copy and paste here.</p>
-      <CaptureForm from="sources" game={slug} hostError={captureErr === 'host'} />
+      <CaptureForm from="sources" game={slug} hostError={captureErr === 'host'} newError={['newgame', 'bggid', 'year'].includes(captureErr ?? '')} />
     </CardContent>
   </Card>
 </Admin>

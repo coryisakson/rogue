@@ -1,24 +1,43 @@
 ---
 // "Capture from browser" form (docs/CAPTURE.md). Used on /admin/games/<slug>/sources (game fixed, paste or upload) and on
-// /admin/capture-inbox (the bookmarklet fills url/title/text, the admin picks the game). Posts to /admin/capture.
+// /admin/capture-inbox (the bookmarklet fills url/title/text, the admin picks the game). "Add as new game" creates the game
+// from the capture instead; /admin/requests shows only that ("Capture new game", from=requests). Posts to /admin/capture.
 import { CAPTURE_AUTHORITIES, CAPTURE_MAX_CHARS, CAPTURE_NOTES_MAX, CAPTURE_WARNED_HOSTS, SOURCE_KINDS, SOURCE_LANGUAGES } from '@rogue/core';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { NativeSelect, NativeSelectOption } from './ui/native-select';
 import { Textarea } from './ui/textarea';
-interface Props { from: 'sources' | 'inbox'; game?: string; games?: { slug: string; name: string }[]; hostError?: boolean }
-const { from, game, games = [], hostError = false } = Astro.props;
+interface Props { from: 'sources' | 'inbox' | 'requests'; game?: string; games?: { slug: string; name: string }[]; hostError?: boolean; newError?: boolean }
+const { from, game, games = [], hostError = false, newError = false } = Astro.props;
 const field = 'mt-1 bg-background';
 const warned = CAPTURE_WARNED_HOSTS.map((w) => w.host);
+const newOnly = from === 'requests';
 ---
 <form method="post" action="/admin/capture" enctype="multipart/form-data" class="grid max-w-[48rem] gap-1.5" data-capture-form data-warn-hosts={JSON.stringify(CAPTURE_WARNED_HOSTS)}>
   <input type="hidden" name="from" value={from} />
-  {game ? <input type="hidden" name="game" value={game} /> : (
-    <label>Game in Rogue (type to search, pick from the list)
-      <Input name="game" list="capture-games" required pattern="[a-z0-9\-]{1,80}" autoComplete="off" placeholder="slug, e.g. pandemic" className={field} />
-      <datalist id="capture-games">{games.map((g) => <option value={g.slug} label={g.name}>{g.name}</option>)}</datalist>
-    </label>
+  {game && <input type="hidden" name="game" value={game} />}
+  {newOnly ? <input type="hidden" name="target" value="new" /> : (
+    <fieldset class="grid gap-1">
+      <legend>Game</legend>
+      <label class="flex items-center gap-2"><input type="radio" name="target" value="existing" checked={!newError} class="size-4 accent-primary" data-capture-target />
+        {game ? <>This game (<code>{game}</code>)</> : 'A game already in Rogue'}</label>
+      {!game && (
+        <label data-capture-existing>Game in Rogue (type to search, pick from the list)
+          <Input name="game" list="capture-games" pattern="[a-z0-9\-]{1,80}" autoComplete="off" placeholder="slug, e.g. pandemic" className={field} />
+          <datalist id="capture-games">{games.map((g) => <option value={g.slug} label={g.name}>{g.name}</option>)}</datalist>
+        </label>
+      )}
+      <label class="flex items-center gap-2"><input type="radio" name="target" value="new" checked={newError} class="size-4 accent-primary" data-capture-target /> Add as new game (not in Rogue yet)</label>
+    </fieldset>
   )}
+  <div class="grid gap-1.5 rounded-lg border border-border p-2" data-capture-new>
+    <label>New game's name (prefilled from the page title; check it) <Input name="newGame" maxLength={80} className={field} data-capture-newname /></label>
+    <div class="flex flex-wrap gap-4">
+      <label class="grid gap-1">BoardGameGeek id (optional) <Input name="newBggId" inputMode="numeric" pattern="[0-9]{1,8}" maxLength={8} className="bg-background" /></label>
+      <label class="grid gap-1">Year (optional) <Input name="newYear" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} className="bg-background" /></label>
+    </div>
+    <small>The game is created at once as an admin-approved game (no Scout run; you hold the rules text) and shows up under Admin &gt; Games. A game already in Rogue with the same BGG id or name is used instead.</small>
+  </div>
   <label>Page address (the page you captured, https) <Input name="url" type="url" required maxLength={400} className={field} data-capture-url /></label>
   <label>Title (optional; the host name when empty) <Input name="title" maxLength={120} className={field} data-capture-title /></label>
   <div class="flex flex-wrap gap-4">
@@ -26,10 +45,10 @@ const warned = CAPTURE_WARNED_HOSTS.map((w) => w.host);
     <label class="grid gap-1">Kind <NativeSelect name="kind" defaultValue="rulebook">{SOURCE_KINDS.map((k) => <NativeSelectOption value={k}>{k}</NativeSelectOption>)}</NativeSelect></label>
     <label class="grid gap-1">Authority <NativeSelect name="authority" defaultValue="community">{CAPTURE_AUTHORITIES.map((a) => <NativeSelectOption value={a}>{a}</NativeSelectOption>)}</NativeSelect></label>
   </div>
-  <label>Page text (paste the whole page, or only the rules part){from === 'sources' && ' — or upload a file below'}
+  <label>Page text (paste the whole page, or only the rules part){from !== 'inbox' && ' — or upload a file below'}
     <Textarea name="text" rows={14} maxLength={CAPTURE_MAX_CHARS} className={`${field} min-h-64 max-h-[60vh] font-mono`} data-capture-text />
   </label>
-  {from === 'sources' && <label>Or upload a file saved from the browser (.txt, .md, .html, .pdf) <Input name="file" type="file" accept=".txt,.md,.html,.htm,.pdf" className={field} /></label>}
+  {from !== 'inbox' && <label>Or upload a file saved from the browser (.txt, .md, .html, .pdf) <Input name="file" type="file" accept=".txt,.md,.html,.htm,.pdf" className={field} /></label>}
   <div role="alert" class={`rounded-lg border border-destructive p-2 text-destructive ${hostError ? '' : 'hidden'}`} data-capture-warning data-server={hostError ? 'on' : 'off'}>
     <b>Warning: this host is on the do-not-capture list.</b> <span data-capture-why>{CAPTURE_WARNED_HOSTS.map((w) => `${w.host}: ${w.why}`).join(' ')}</span>
     Type the host name below to capture anyway.
@@ -58,4 +77,35 @@ const warned = CAPTURE_WARNED_HOSTS.map((w) => w.host);
     form.addEventListener('rogue-capture-filled', check);
     check();
   })();
+</script>
+<script>
+  // "Add as new game": show its fields only when chosen, require the right field, and prefill the name from the page title
+  // with the same helper the handler falls back to (packages/core/src/capture-name.ts, no imports, safe to bundle).
+  import { gameNameFromPageTitle } from '@rogue/core/src/capture-name';
+  for (const form of document.querySelectorAll<HTMLFormElement>('[data-capture-form]')) {
+    const box = form.querySelector<HTMLElement>('[data-capture-new]');
+    const name = form.querySelector<HTMLInputElement>('[data-capture-newname]');
+    const title = form.querySelector<HTMLInputElement>('[data-capture-title]');
+    const url = form.querySelector<HTMLInputElement>('[data-capture-url]');
+    const picker = form.querySelector<HTMLInputElement>('[data-capture-existing] input[name="game"]');
+    const radios = [...form.querySelectorAll<HTMLInputElement>('[data-capture-target]')];
+    if (!box || !name || !title || !url) continue;
+    let typed = false;
+    name.addEventListener('input', () => { typed = true; });
+    const isNew = () => radios.length === 0 || radios.some((r) => r.checked && r.value === 'new');
+    const sync = () => {
+      box.classList.toggle('hidden', !isNew());
+      name.required = isNew();
+      if (picker) picker.required = !isNew();
+    };
+    const prefill = () => {
+      if (typed) return;
+      let host = ''; try { host = new URL(url.value).host; } catch { /* not a URL yet */ }
+      name.value = gameNameFromPageTitle(title.value, host);
+    };
+    for (const r of radios) r.addEventListener('change', sync);
+    title.addEventListener('input', prefill);
+    form.addEventListener('rogue-capture-filled', prefill);
+    sync();
+  }
 </script>

@@ -15,13 +15,13 @@ const err = Astro.url.searchParams.get('capture_err');
 const errMsg = err && err in CAPTURE_ERRORS ? CAPTURE_ERRORS[err as keyof typeof CAPTURE_ERRORS] : null;
 ---
 <Admin title="Capture inbox">
-  <p>Text sent from your browser with the "Send to Rogue" bookmarklet. Check the address and the text, pick the game, tick the terms box and store it. Without the bookmarklet, paste the text yourself. This fixes access, not permission.</p>
+  <p>Text sent from your browser with the "Send to Rogue" bookmarklet. Check the address and the text, pick the game (or "Add as new game" when it is not in Rogue yet), tick the terms box and store it. Without the bookmarklet, paste the text yourself. This fixes access, not permission.</p>
   {errMsg && <p role="status"><Badge variant="danger" className="h-auto whitespace-normal">{errMsg}</Badge> <small>The text was not stored; send it again from the page.</small></p>}
   <Card className="mb-3 text-base"><CardContent>
     <p class="m-0" role="status" data-inbox-status>Waiting for the page text from the bookmarklet…</p>
   </CardContent></Card>
   <Card className="text-base"><CardContent>
-    <CaptureForm from="inbox" games={games} hostError={err === 'host'} />
+    <CaptureForm from="inbox" games={games} hostError={err === 'host'} newError={['newgame', 'bggid', 'year'].includes(err ?? '')} />
   </CardContent></Card>
   <script is:inline define:vars={{ MAX: CAPTURE_MAX_CHARS }}>
     // Same checks as parseCapturePayload (packages/core/src/capture.ts): only the window that opened this one, only the

@@ -10,7 +10,17 @@ rights changes.
   (.txt, .md, .html, .pdf), plus URL, title, language, kind, authority (default `community`), notes and the terms box.
 - `/admin/capture-inbox`: the window the bookmarklet opens. It shows the address, title and text, you pick the game
   (games already in Rogue) and store it.
-- Both post to `/admin/capture` (admin session + same-origin only).
+- `/admin/requests`, "Capture new game": the same form for a game that is not in Rogue yet.
+- All post to `/admin/capture` (admin session + same-origin only).
+
+## Add as new game (Cory 2026-10-18)
+When the page's game is not in Rogue, choose "Add as new game" (inbox and Manage sources) or use "Capture new game" on
+`/admin/requests`. Give the name (prefilled from the page title by `gameNameFromPageTitle`, which drops "rules", "how
+to play", "- Board Game" and the site's name) and, if known, the BGG id and year. The handler creates the game directly
+as an admin-approved game, the same `games` row an approved request gets (slug from `slugify`, name, year, BGG id), with
+no Scout run, because the admin already holds the rules text. A game already in Rogue (same BGG id or slug) is used
+instead. Every capture check above still applies; when the capture is refused the new, still empty game is removed
+again. Audit `game_added_by_capture` (slug, name, admin id, source id). You land on the new game's Manage sources page.
 
 ## What happens
 1. Checks: game exists; link is a public https address; the terms box is ticked; a **tombstoned link is refused**; a link
