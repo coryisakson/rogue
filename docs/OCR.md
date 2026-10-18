@@ -17,6 +17,8 @@ tokens (`few-words`). The word checks are skipped on mostly-CJK pages. Pages bel
 production to `auto` is a later decision after measuring. Measure a PDF with `node scripts/textlayer-report.mjs <file.pdf>`
 (per page: letters/digits, score, decision; counts only, no text).
 
+**Measured 2026-10-18** (`textlayer-report.mjs`, public rulebook PDFs): Slay the Spire 24 pp: 23 clean text layers, 1 empty (cover) -> OCR 1. Azul EN 6 pp: 5 clean, 1 empty cover. Pandemic sample 1 pp clean. So `auto` would skip OCR on ~95% of pages for these text-born PDFs. Open question before switching the chart: does text-layer order and heading structure retrieve as well as MinerU output (compare Ask evals with `ROGUE_OCR_MODE=auto` vs `all` on one game). Scanned PDFs untested (none in the set).
+
 ## Behaviour
 - **No provider configured** (`ROGUE_OCR_COMMAND` unset): text layers are used as they are; the audit detail still records the scores and `pagesWithoutText`.
 - **Provider configured**: each picked page is OCR'd and its text replaces the text layer when OCR returns text. A failing page keeps its text layer and never fails ingestion.
