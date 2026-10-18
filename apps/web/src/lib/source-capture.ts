@@ -68,7 +68,16 @@ export async function captureSource(form: CaptureForm, captured: CapturedText, a
   if (old && !old.in_game) return { ok: false, code: 'othergame' };
   // A source Rogue fetched itself keeps its fetched text; a capture only replaces an earlier capture or an empty source.
   if (old && old.capture_method !== CAPTURE_METHOD && old.text_path) return { ok: false, code: 'fetched' };
-  if (!old && (await pool.query('SELECT 1 FROM runtime_sources WHERE url=$1', [form.url])).rowCount) return { ok: false, code: 'queued' };
+  // An admin-added link for this URL that never produced a source (its fetch failed, e.g. a bot wall) is exactly what a
+  // capture is for: the capture takes its place. A link that is still running keeps blocking.
+  if (!old) {
+    const link = (await pool.query('SELECT id, progress FROM runtime_sources WHERE url=$1', [form.url])).rows[0];
+    if (link) {
+      if (/running|queued|fetching|indexing/i.test(String(link.progress ?? '')) && !/fail|error|no readable|denied|refused/i.test(String(link.progress ?? ''))) return { ok: false, code: 'queued' };
+      await pool.query('DELETE FROM runtime_sources WHERE id=$1', [link.id]);
+      await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [`admin:${adminId}`, 'link_replaced_by_capture', { slug: form.game, url: form.url, runtimeSourceId: link.id }]);
+    }
+  }
 
   const sha = createHash('sha256').update(captured.bytes).digest('hex');
   const textPath = `private/sources/${sha}.txt`;

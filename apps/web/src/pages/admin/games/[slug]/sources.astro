@@ -60,7 +60,9 @@ const sp = Astro.url.searchParams;
 const num = (k: string) => { const x = Number(sp.get(k)); return Number.isInteger(x) && x >= 0 ? x : 0; };
 const deleteErr = sp.get('err');
 const deleteErrMsg = deleteErr && deleteErr in SOURCE_DELETE_ERRORS ? SOURCE_DELETE_ERRORS[deleteErr as keyof typeof SOURCE_DELETE_ERRORS] : null;
-if (!msg && num('deleted') > 0) {
+if (!msg && sp.get('linkremoved')) {
+  msg = 'Admin-added link removed.';
+} else if (!msg && num('deleted') > 0) {
   msg = `Source #${num('deleted')} deleted: ${num('chunks')} chunks, ${num('files')} files removed; ${num('rejected')} facts rejected, ${num('kept')} kept with their other sources. `
     + (sp.get('reingest') === 'yes' ? 'Re-ingest stays allowed.' : 'Its link is tombstoned, so ingest will not fetch it again.');
 }
@@ -119,7 +121,7 @@ const field = 'mt-1 bg-background';
     {pending.length > 0 && (
       <>
         <h2 class="mt-4 text-lg">Admin-added links</h2>
-        <ul class="mb-0">{pending.map((p) => <li><a href={p.url} rel="noopener nofollow">{p.title}</a> · <small>{p.progress ?? 'no progress yet'}</small></li>)}</ul>
+        <ul class="mb-0">{pending.map((p) => <li><a href={p.url} rel="noopener nofollow">{p.title}</a> · <small>{p.progress ?? 'no progress yet'}</small> {!p.hasSource && <form method="post" action="/admin/source-delete" class="inline"><input type="hidden" name="game" value={slug} /><input type="hidden" name="link" value={p.id} /><Button type="submit" size="sm" variant="secondary">Remove link</Button></form>}</li>)}</ul>
       </>
     )}
   </CardContent></Card>

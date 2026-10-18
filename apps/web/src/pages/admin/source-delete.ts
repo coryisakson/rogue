@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { parseSourceDeleteForm, sameOrigin } from '@rogue/core';
 import { isAdmin } from '../../lib/admin';
 import { deleteSource, sourceInGame } from '../../lib/source-delete';
+import { removePendingLink } from '../../lib/game-sources';
 
 /**
  * POST from /admin/games/<slug>/sources: permanently delete one source and everything derived from it (lib/source-delete.ts).
@@ -22,6 +23,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       'cache-control': 'no-store',
     },
   });
+  // Admin-added link that never produced a source row (fetch failed or still queued): remove the link itself.
+  if (typeof form['link'] === 'string' && /^[1-9][0-9]{0,15}$/.test(form['link'])) {
+    const n = await removePendingLink(game, Number(form['link']), `admin:${locals.user.id}`);
+    return back(n ? { linkremoved: 1 } : { err: 'missing' });
+  }
   const p = parseSourceDeleteForm(form);
   const id = typeof form['source'] === 'string' && /^[1-9][0-9]{0,15}$/.test(form['source']) ? form['source'] : '';
   if (!p.ok) return back({ ...(id ? { delete: id } : {}), err: p.code });

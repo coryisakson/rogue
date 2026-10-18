@@ -59,9 +59,9 @@ export async function factsCount(slug: string): Promise<number> {
 }
 
 /** Admin-added links of a game that have not produced a source row yet, or are still running (pipeline progress). */
-export async function pendingRuntimeSources(slug: string): Promise<{ id: number; url: string; title: string; progress: string | null }[]> {
+export async function pendingRuntimeSources(slug: string): Promise<{ id: number; url: string; title: string; progress: string | null; hasSource: boolean }[]> {
   const pool = getPool(); if (!pool) return [];
-  return (await pool.query('SELECT id, url, title, progress FROM runtime_sources WHERE game_slug=$1 ORDER BY id DESC LIMIT 20', [slug])).rows.map((r) => ({ id: Number(r.id), url: r.url, title: r.title, progress: r.progress }));
+  return (await pool.query('SELECT rs.id, rs.url, rs.title, rs.progress, EXISTS (SELECT 1 FROM sources s WHERE s.url=rs.url) has_source FROM runtime_sources rs WHERE rs.game_slug=$1 ORDER BY rs.id DESC LIMIT 20', [slug])).rows.map((r) => ({ id: Number(r.id), url: r.url, title: r.title, progress: r.progress, hasSource: !!r.has_source }));
 }
 
 export type AddResult = { ok: true; id: number; report: RightsReport } | { ok: false; error: string; report?: RightsReport };
@@ -200,4 +200,16 @@ export async function adminRequestGame(adminId: number, m: GameMatch): Promise<{
   await audit(`admin:${adminId}`, 'game_request_game_approved', { id, via: 'admin-search', bggId: m.bggId });
   void resumeQueue(); // picks up every 'queued' request, this one included
   return { id };
+}
+
+/**
+ * Remove an admin-added link that has no source row (its fetch failed or it is stuck in the pipeline). Links that did
+ * produce a source are deleted with the source (lib/source-delete.ts). Audited; ids and URL only.
+ */
+export async function removePendingLink(slug: string, runtimeId: number, actor: string): Promise<boolean> {
+  const pool = getPool(); if (!pool) return false;
+  const r = await pool.query('DELETE FROM runtime_sources rs WHERE rs.id=$1 AND rs.game_slug=$2 AND NOT EXISTS (SELECT 1 FROM sources s WHERE s.url=rs.url) RETURNING rs.url', [runtimeId, slug]);
+  if (!r.rowCount) return false;
+  await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [actor, 'link_removed', { slug, runtimeSourceId: runtimeId, url: r.rows[0].url }]);
+  return true;
 }
