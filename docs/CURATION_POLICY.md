@@ -16,5 +16,6 @@ Decided with Cory 2026-10-15. Goal: no human monitoring. The system acts on rule
 Principles
 - Nothing is hard-deleted except what a takedown, a privacy erasure or an admin source delete requires.
 - Rejection is reversible (row stays, reason and evidence stored).
+- Where admins look (Cory 2026-10-18): `/admin/requests` lists only open requests (Accept, Reject, Open for details) and is the only admin search that adds new games (BoardGameGeek). An accepted game is followed on `/admin/games`: a search box over games already in Rogue (at least one source), the recently added or updated games, and one page per game (`/admin/games/<slug>`) with the request and its rights/terms verdicts, sources with chunk and embedding counts, extract notes, and the audit log for its links (fetched, extract_empty/failed, source_deleted, takedown). Changes (add, replace, re-ingest, delete) stay on `/admin/sources`, linked from the game page, so each gate exists once.
 - Escalation ladder: local small model (cheap, flags) -> frontier model via Claude subscription (confirms) -> if still unsure, `needs_review` and a line in the weekly digest.
 - The weekly digest (Discord) lists what changed and why; it asks nothing except for irreversible, high-impact items (removing a whole game, overriding a publisher opt-out).
