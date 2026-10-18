@@ -1,11 +1,11 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-import { sameOrigin, parseGameRequest, googleLink, adminSearchQuery, BGG_TOP10_DATE } from '@rogue/core';
+import { sameOrigin, parseGameRequest, parsePick, googleLink, adminSearchQuery, BGG_TOP10_DATE } from '@rogue/core';
 import { approveGame, completeManual, editSource, queueTopGames, resumeQueue } from '../../lib/intake';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
 import { isAdmin } from '../../lib/admin';
 import AdminGameSearch from '../../components/AdminGameSearch.astro';
-import { adminGameSearch, type AdminMatch } from '../../lib/game-sources';
+import { adminGameSearch, adminRequestGame, type AdminMatch } from '../../lib/game-sources';
 import { searchEnabled } from '../../lib/search';
 import { ensureMigrated, getPool } from '../../lib/services';
 import { Badge } from '../../components/ui/badge';
@@ -23,7 +23,13 @@ if (Astro.request.method === 'POST') {
   const f = await Astro.request.formData();
   const id = Number(f.get('id')); const action = String(f.get('action'));
   const me = Astro.locals.user!.id;
-  if (action === 'queue-top10') {
+  if (action === 'request-game') {
+    // A title search result that is not in Rogue yet (AdminGameSearch): an admin request is approved at once.
+    const m = parsePick(Object.fromEntries(f.entries()));
+    if (!m) msg = 'That choice was not valid. Search again.';
+    else { const r = await adminRequestGame(me, m); msg = 'error' in r ? r.error : `Request #${r.id} for ${m.title} is approved and in the Scout's queue.`; }
+  }
+  else if (action === 'queue-top10') {
     const r = await queueTopGames(me);
     msg = 'error' in r ? r.error : `BGG top 10: queued ${r.queued.length}${r.queued.length ? ` (${r.queued.join(', ')})` : ''}; skipped ${r.skipped.length}${r.skipped.length ? ` (${r.skipped.map((s) => `${s.title}: ${s.reason}`).join(', ')})` : ''}.`;
   }
@@ -46,7 +52,7 @@ if (Astro.request.method === 'POST') {
   }
   else msg = 'Unknown action.';
 }
-// Title search (GET ?q=): same pick list and rate limit as /request-game; results link to /admin/sources or start a request there.
+// Title search (GET ?q=): same pick list and rate limit as /request-game; results in Rogue link to their game page, others start an approved request here.
 const q = (Astro.url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
 const searchOn = searchEnabled();
 let matches: AdminMatch[] | null = null; let searchError: string | null = null;
@@ -161,7 +167,7 @@ const rejectForm = 'flex flex-wrap items-center gap-2';
         {decided.map((r) => (
           <li class="border-t border-border py-1.5">
             <b>#{r.id} {r.name}</b> <Badge variant={r.status === 'approved' ? 'success' : 'danger'}>{r.status}</Badge> <small>· {r.requester ?? 'deleted user'} · {day(r.decided_at)}</small>
-            {r.status === 'approved' && <> · <a href={`/admin/games/${encodeURIComponent(r.slug)}`}>Open game</a> · <a href={`/admin/sources?game=${encodeURIComponent(r.slug)}`}>sources</a></>}
+            {r.status === 'approved' && <> · <a href={`/admin/games/${encodeURIComponent(r.slug)}`}>Open game</a> · <a href={`/admin/games/${encodeURIComponent(r.slug)}/sources`}>sources</a></>}
             {r.reject_reason && <div><small>Rejected: {r.reject_reason}</small></div>}
           </li>
         ))}

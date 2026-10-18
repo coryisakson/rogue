@@ -1,11 +1,19 @@
-import { extractNote, type IngestedGame } from '@rogue/core';
+import { extractNote, type IngestedGame, type PageScore } from '@rogue/core';
 import { gameSources, type SourceRow } from './game-sources';
 import { ensureMigrated, getPool } from './services';
 
 /**
- * Admin game hub (/admin/games and /admin/games/<slug>): the SQL. Pure ordering, search and timeline helpers are in
- * packages/core/src/admin-games.ts; the source list reuses gameSources() from /admin/sources.
+ * Admin game hub (/admin/games, /admin/games/<slug> and its sources/extracts subpages): the SQL. Pure ordering, search,
+ * timeline and quality helpers are in packages/core/src/admin-games.ts; the source list reuses gameSources().
  */
+
+/** The game a source belongs to (first by name), for old /admin/extracts?source= links. */
+export async function sourceGameSlug(sourceId: number): Promise<string | null> {
+  const pool = getPool(); if (!pool) return null;
+  await ensureMigrated();
+  const r = (await pool.query('SELECT g.slug FROM documents d JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id WHERE d.source_id=$1 ORDER BY g.name LIMIT 1', [sourceId])).rows[0];
+  return r ? String(r.slug) : null;
+}
 
 const date = (v: unknown): Date | null => (v instanceof Date ? v : v == null ? null : new Date(String(v)));
 
@@ -54,6 +62,8 @@ export async function hubRequests(slug: string): Promise<HubRequest[]> {
 
 export interface HubSource extends SourceRow {
   authority: string; fetchedAtDate: Date | null; chunks: number; embedded: number; hasText: boolean; extract: string;
+  /** Detail of the latest 'fetched' audit entry (page counts, OCR notes; never text). */
+  fetchedDetail: Record<string, unknown> | null;
 }
 
 /** gameSources() plus authority, chunk/embedding counts and how the text was made (latest 'fetched' audit entry). */
@@ -71,14 +81,14 @@ export async function hubSources(slug: string): Promise<HubSource[]> {
     const x = extra.get(s.id);
     return {
       ...s, authority: x?.authority ?? '?', fetchedAtDate: date(x?.fetched_at), chunks: Number(x?.chunks ?? 0), embedded: Number(x?.embedded ?? 0),
-      hasText: !!x?.has_text, extract: extractNote(x?.fetched_detail ?? null),
+      hasText: !!x?.has_text, extract: extractNote(x?.fetched_detail ?? null), fetchedDetail: x?.fetched_detail ?? null,
     };
   });
 }
 
 export interface HubAudit { id: number; actor: string; action: string; at: Date | null; url: string | null; detail: Record<string, unknown> }
 
-export const HUB_AUDIT_ACTIONS = ['fetched', 'extract_empty', 'extract_failed', 'source_deleted', 'takedown'] as const;
+export const HUB_AUDIT_ACTIONS = ['fetched', 'extract_empty', 'extract_failed', 'extract_deleted', 'source_deleted', 'takedown'] as const;
 
 /**
  * audit_log entries about this game's links. The log stores URLs, not games, so the URLs come from the game's sources, its
@@ -95,4 +105,33 @@ export async function hubAudit(slug: string, sourceUrls: string[]): Promise<HubA
      WHERE action = ANY($2::text[]) AND (detail->>'url' = ANY($1::text[]) OR (jsonb_typeof(detail->'urls')='array' AND detail->'urls' ?| $1::text[]))
      ORDER BY id DESC LIMIT 200`, [urls, [...HUB_AUDIT_ACTIONS]])).rows;
   return rows.map((r) => ({ id: Number(r.id), actor: r.actor, action: r.action, at: date(r.created_at), url: typeof r.detail?.url === 'string' ? r.detail.url : null, detail: r.detail ?? {} }));
+}
+
+/** page_quality rows per source (same table /admin/quality summarizes), for the text quality card on the game page. */
+export async function hubPageScores(sourceIds: number[]): Promise<Map<number, PageScore[]>> {
+  const out = new Map<number, PageScore[]>();
+  const pool = getPool(); if (!pool || !sourceIds.length) return out;
+  const rows = (await pool.query('SELECT source_id, page, score, verdict, state FROM page_quality WHERE source_id = ANY($1::bigint[]) ORDER BY source_id, page', [sourceIds])).rows;
+  for (const r of rows) {
+    const id = Number(r.source_id);
+    out.set(id, [...(out.get(id) ?? []), { page: Number(r.page), score: Number(r.score), verdict: r.verdict, state: r.state }]);
+  }
+  return out;
+}
+
+export interface ViewerSource { id: number; url: string; title: string | null; publisher: string | null; pageCount: number | null; contentType: string | null; ocr: string }
+
+/** One source for the extract viewer (/admin/games/<slug>/extracts?source=), with how its text was made. */
+export async function viewerSource(sourceId: number): Promise<ViewerSource | null> {
+  const pool = getPool(); if (!pool) return null;
+  await ensureMigrated();
+  const r = (await pool.query(
+    `SELECT s.id, s.url, s.title, s.publisher, s.page_count, s.content_type,
+       (SELECT a.detail FROM audit_log a WHERE a.action='fetched' AND a.detail->>'url'=s.url ORDER BY a.id DESC LIMIT 1) fetched_detail
+     FROM sources s WHERE s.id=$1`, [sourceId])).rows[0];
+  if (!r) return null;
+  return {
+    id: Number(r.id), url: r.url, title: r.title, publisher: r.publisher, pageCount: r.page_count == null ? null : Number(r.page_count),
+    contentType: r.content_type, ocr: extractNote(r.fetched_detail ?? null),
+  };
 }

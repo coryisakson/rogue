@@ -1,6 +1,6 @@
 ---
 // Admin title search (same pick list as /request-game, via adminGameSearch in lib/game-sources.ts). A result already in Rogue
-// links to its game page (/admin/games/<slug>); any other result can start an admin-approved request (POST handled by /admin/sources).
+// links to its game page (/admin/games/<slug>); any other result can start an admin-approved request (POST handled by /admin/requests).
 import type { AdminMatch } from '../lib/game-sources';
 import { Button, buttonVariants } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -24,7 +24,7 @@ const { action, q, matches, error, searchOn } = Astro.props;
               {m.inRogue ? (
                 <a data-slot="button" class={buttonVariants({ variant: 'secondary' })} href={`/admin/games/${encodeURIComponent(m.inRogue)}`}>In Rogue: open game</a>
               ) : (
-                <form method="post" action="/admin/sources">
+                <form method="post" action="/admin/requests">
                   <input type="hidden" name="action" value="request-game" /><input type="hidden" name="bggId" value={m.bggId} /><input type="hidden" name="title" value={m.title} /><input type="hidden" name="year" value={m.year ?? ''} />
                   <Button type="submit" variant="outline">Request (approved; Scout + rights checks run)</Button>
                 </form>

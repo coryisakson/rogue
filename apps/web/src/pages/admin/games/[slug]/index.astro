@@ -1,22 +1,24 @@
 ---
-import Admin from '../../../layouts/Admin.astro';
-import { mergeTimeline, type TimelineEvent } from '@rogue/core';
-import { isAdmin } from '../../../lib/admin';
-import { HUB_AUDIT_ACTIONS, hubAudit, hubGame, hubRequests, hubSources, type HubAudit } from '../../../lib/admin-games';
-import { factsCount } from '../../../lib/game-sources';
-import { Badge } from '../../../components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table';
-// Read-only history of one game. Changes (add, replace, re-ingest, delete) stay on /admin/sources, which this page links to,
-// so the rights gates and the delete confirmation exist in one place only.
+import Admin from '../../../../layouts/Admin.astro';
+import { mergeTimeline, pageSourceCounts, summarizeQuality, type TimelineEvent } from '@rogue/core';
+import GameManageBar from '../../../../components/GameManageBar.astro';
+import { isAdmin } from '../../../../lib/admin';
+import { HUB_AUDIT_ACTIONS, hubAudit, hubGame, hubPageScores, hubRequests, hubSources, type HubAudit } from '../../../../lib/admin-games';
+import { factsCount } from '../../../../lib/game-sources';
+import { Badge } from '../../../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
+// Read-only overview of one game: text quality first, then history, request, sources, extracts and audit log. Every change
+// (add, replace, re-ingest, delete a source or an extract) is on the Manage subpages, so each gate exists in one place.
 if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
 const slug = String(Astro.params.slug ?? '');
 if (!/^[a-z0-9-]{1,80}$/.test(slug)) return new Response('Not found', { status: 404 });
 const game = await hubGame(slug);
 if (!game) return new Response('Not found', { status: 404 });
 const [requests, sources, facts] = await Promise.all([hubRequests(slug), hubSources(slug), factsCount(slug)]);
-const audit = await hubAudit(slug, sources.map((s) => s.url));
-const sourcesPage = `/admin/sources?game=${encodeURIComponent(slug)}`;
+const [audit, scores] = await Promise.all([hubAudit(slug, sources.map((s) => s.url)), hubPageScores(sources.map((s) => s.id))]);
+const base = `/admin/games/${encodeURIComponent(slug)}`;
+const viewer = (id: number, page?: number) => `${base}/extracts?source=${id}${page ? `&page=${page}` : ''}`;
 
 const when = (d: Date | null) => (d ? d.toISOString().slice(0, 16).replace('T', ' ') : 'unknown');
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
@@ -26,6 +28,7 @@ function auditText(a: HubAudit): string {
   if (a.action === 'fetched') return `Fetched ${a.url ?? ''}${num(d['pages']) !== null ? ` (${d['pages']} pages)` : ''}`;
   if (a.action === 'extract_empty') return `Extraction empty, nothing stored: ${a.url ?? ''}`;
   if (a.action === 'extract_failed') return `Extraction failed: ${a.url ?? ''}${typeof d['error'] === 'string' ? ` (${d['error'].slice(0, 160)})` : ''}`;
+  if (a.action === 'extract_deleted') return `Extract of source #${d['sourceId'] ?? '?'}${num(d['page']) !== null ? ` (page ${d['page']} only)` : ''} deleted by ${a.actor}: ${num(d['chunks']) ?? '?'} chunks${typeof d['reason'] === 'string' ? `, reason: ${d['reason']}` : ''}`;
   if (a.action === 'source_deleted') return `Source #${d['sourceId'] ?? '?'} deleted by ${a.actor}: ${a.url ?? ''}${typeof d['reason'] === 'string' ? `, reason: ${d['reason']}` : ''}`;
   if (a.action === 'takedown') return `Takedown #${d['requestId'] ?? '?'}: ${num(d['sources']) ?? '?'} sources, ${num(d['claims']) ?? '?'} facts`;
   return a.action;
@@ -43,10 +46,41 @@ const availBadge: Record<string, Status> = { available: 'success', changed: 'war
 const verdictBadge: Record<string, Status> = { pass: 'success', problem: 'warning', blocked: 'danger', clear: 'success', restricted: 'danger' };
 const statusBadge: Record<string, Status> = { approved: 'success', rejected: 'danger' };
 const extractProblems = (url: string) => audit.filter((a) => a.url === url && (a.action === 'extract_empty' || a.action === 'extract_failed'));
+// Text quality per source: page_quality scores, how the pages were read, extraction problems and chunks still waiting for an embedding.
+const quality = sources.map((s) => ({ s, q: summarizeQuality(scores.get(s.id) ?? [], 3), via: pageSourceCounts(s.fetchedDetail), problems: extractProblems(s.url), unembedded: s.chunks - s.embedded }));
+const anyQuality = quality.some((x) => x.q.pages > 0 || x.problems.length > 0 || x.s.chunks > 0);
 ---
 <Admin title={game.name}>
-  <p><a href="/admin/games">All games</a> · <a href={`/games/${encodeURIComponent(slug)}`}>Public game page</a> · <a href={sourcesPage}>Add, replace or re-ingest sources</a></p>
+  <GameManageBar slug={slug} current="overview" />
   <p><small>{game.publisher ?? 'publisher unknown'} · {game.year ?? 'year ?'} · slug <code>{slug}</code>{game.bggId && <> · <a href={`https://boardgamegeek.com/boardgame/${game.bggId}`} rel="noopener nofollow">BGG {game.bggId}</a></>} · {sources.length} sources · {facts} published facts</small></p>
+
+  <Card className="mb-3 text-base">
+    <CardHeader><CardTitle><h2 class="m-0 text-lg">Text quality</h2></CardTitle></CardHeader>
+    <CardContent>
+      {!anyQuality && <p class="m-0" role="status">No quality data yet: no source of this game has been extracted and scored. Scoring runs when a source is indexed.</p>}
+      {anyQuality && (
+        <ul class="m-0 list-none p-0">
+          {quality.map(({ s, q, via, problems, unembedded }) => (
+            <li class="border-t border-border py-1.5">
+              <b>#{s.id} {s.title ?? s.url}</b>
+              {q.avg !== null && <> <Badge variant={q.low > 0 ? 'warning' : 'success'}>average score {q.avg.toFixed(2)}</Badge></>}
+              {problems.map((a) => <> <Badge variant="danger">{a.action}</Badge></>)}
+              {unembedded > 0 && <> <Badge variant="warning">{unembedded} chunks without embeddings</Badge></>}
+              <div><small>
+                {q.pages > 0 ? `${q.pages} scored pages · ${q.low} low-scoring` : 'not scored yet'}
+                {' · '}{via ? `${via.textLayer} text-layer, ${via.ocr} OCR pages` : 'text layer vs OCR unknown'}
+                {' · '}{s.hasText ? `${s.chunks} chunks (${s.embedded} embedded)` : 'not extracted'}
+              </small></div>
+              {q.worst.length > 0 && s.hasText && (
+                <div><small>Worst pages: {q.worst.map((p, i) => <>{i > 0 && ', '}<a href={viewer(s.id, p.page)}>page {p.page}</a> ({p.verdict}, {p.score.toFixed(2)})</>)}</small></div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p class="mb-0"><small>Low-scoring means the scorer did not call the page ok (suspect, garbled or empty). Fix or delete bad extracts on <a href={`${base}/extracts`}>Manage extracts</a>.</small></p>
+    </CardContent>
+  </Card>
 
   <Card className="mb-3 text-base">
     <CardHeader><CardTitle><h2 class="m-0 text-lg">History</h2></CardTitle></CardHeader>
@@ -82,10 +116,10 @@ const extractProblems = (url: string) => audit.filter((a) => a.url === url && (a
         <TableCaption className="mt-0 mb-2 caption-top text-left"><h2 class="m-0 text-lg">Sources</h2></TableCaption>
         <TableHeader><TableRow>
           <TableHead scope="col">Source</TableHead><TableHead scope="col">Authority</TableHead><TableHead scope="col">Lang</TableHead><TableHead scope="col">Availability</TableHead>
-          <TableHead scope="col">Fetched</TableHead><TableHead scope="col">Pages</TableHead><TableHead scope="col">Chunks (embedded)</TableHead><TableHead scope="col">Actions</TableHead>
+          <TableHead scope="col">Fetched</TableHead><TableHead scope="col">Pages</TableHead><TableHead scope="col">Chunks (embedded)</TableHead>
         </TableRow></TableHeader>
         <TableBody>
-          {sources.length === 0 && <TableRow><TableCell colSpan={8}>No sources.</TableCell></TableRow>}
+          {sources.length === 0 && <TableRow><TableCell colSpan={7}>No sources.</TableCell></TableRow>}
           {sources.map((s) => (
             <TableRow>
               <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.kind} · {s.edition}{s.runtime && ' · admin-added'}</small></TableCell>
@@ -95,15 +129,11 @@ const extractProblems = (url: string) => audit.filter((a) => a.url === url && (a
               <TableCell>{s.fetchedAt ?? 'never'}</TableCell>
               <TableCell>{s.indexedPages} / {s.pageCount ?? '?'}</TableCell>
               <TableCell>{s.chunks} ({s.embedded})</TableCell>
-              <TableCell className="whitespace-normal">
-                {s.hasText && <><a href={`/admin/extracts?source=${s.id}`}>Extract</a> · </>}
-                <a href={`${sourcesPage}&delete=${s.id}#delete`}>Delete</a>
-              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      <small>Delete opens the confirmation on Game sources (same form, same checks).</small>
+      <small>Add, replace, re-ingest or delete a source on <a href={`${base}/sources`}>Manage sources</a>.</small>
     </CardContent>
   </Card>
 
@@ -114,12 +144,13 @@ const extractProblems = (url: string) => audit.filter((a) => a.url === url && (a
       <ul class="m-0 list-none p-0">
         {sources.map((s) => (
           <li class="border-t border-border py-1.5">
-            #{s.id} {s.hasText ? <a href={`/admin/extracts?source=${s.id}`}>{s.title ?? s.url}</a> : (s.title ?? s.url)}
-            <div><small>{s.pageCount ?? '?'} pages · {s.indexedPages} indexed · {s.extract}{!s.hasText && ' · no stored text'}</small></div>
+            #{s.id} {s.hasText ? <a href={viewer(s.id)}>{s.title ?? s.url}</a> : (s.title ?? s.url)}
+            <div><small>{s.pageCount ?? '?'} pages · {s.indexedPages} indexed · {s.extract}{!s.hasText && ' · not extracted'}</small></div>
             {extractProblems(s.url).map((a) => <div><small><Badge variant="warning">{a.action}</Badge> {when(a.at)}</small></div>)}
           </li>
         ))}
       </ul>
+      <p class="mb-0"><small>Read page by page, download or delete an extract on <a href={`${base}/extracts`}>Manage extracts</a>.</small></p>
     </CardContent>
   </Card>
 

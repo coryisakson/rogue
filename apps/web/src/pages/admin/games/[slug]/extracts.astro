@@ -1,0 +1,162 @@
+---
+import Admin from '../../../../layouts/Admin.astro';
+import { EXTRACT_DELETE_ERRORS, EXTRACT_DELETE_REASON_MAX, renderMarkdown, scorePage } from '@rogue/core';
+import GameManageBar from '../../../../components/GameManageBar.astro';
+import { isAdmin } from '../../../../lib/admin';
+import { hubGame, hubSources, viewerSource, type ViewerSource } from '../../../../lib/admin-games';
+import { extractDeletePreview } from '../../../../lib/extract-delete';
+import { loadSourcePages, loadOverrideMethods, pagesToMarkdown, summarizePages } from '../../../../lib/page-text';
+import { Badge } from '../../../../components/ui/badge';
+import { Button } from '../../../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Input } from '../../../../components/ui/input';
+// Extracted page text of one game's sources (was /admin/extracts, which now redirects here) and the extract delete.
+// Middleware already limits /admin to admins; repeated here because the ?format=md download returns the whole extracted
+// text and must never leak. The delete POST goes to /admin/extract-delete, which redirects back here.
+if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
+const slug = String(Astro.params.slug ?? '');
+if (!/^[a-z0-9-]{1,80}$/.test(slug)) return new Response('Not found', { status: 404 });
+const game = await hubGame(slug);
+if (!game) return new Response('Not found', { status: 404 });
+const self = `/admin/games/${encodeURIComponent(slug)}/extracts`;
+const params = Astro.url.searchParams;
+const int = (k: string) => (/^[1-9]\d{0,15}$/.test(params.get(k) ?? '') ? Number(params.get(k)) : null);
+const sourceId = int('source');
+const onlyPage = int('page');
+const sources = await hubSources(slug);
+const inGame = (id: number | null) => id !== null && sources.some((s) => s.id === id);
+
+const verdictBadge = (v: string) => (v === 'ok' ? 'secondary' : 'danger') as 'secondary' | 'danger';
+let source: ViewerSource | null = null;
+let view: { n: number; text: string; verdict: string; score: number; override?: string; leftOut: boolean }[] = [];
+let allPages: number[] = [];
+let summaries = new Map<number, ReturnType<typeof summarizePages> | null>();
+
+if (sourceId !== null) {
+  // Only this game's sources: the viewer is reached from the game page, and a source id from another game is refused.
+  if (!inGame(sourceId)) return new Response('Not found', { status: 404 });
+  source = await viewerSource(sourceId);
+  if (!source) return new Response('Not found', { status: 404 });
+  const sp = await loadSourcePages(sourceId);
+  if (!sp) return new Response('This source has no stored text.', { status: 404 });
+  if (params.get('format') === 'md') {
+    const name = (source.title ?? `source-${sourceId}`).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `source-${sourceId}`;
+    return new Response(pagesToMarkdown(source.title ?? `Source ${sourceId}`, sp.pages), {
+      headers: { 'content-type': 'text/markdown; charset=utf-8', 'content-disposition': `attachment; filename="${name}.md"`, 'cache-control': 'no-store' },
+    });
+  }
+  const overrides = await loadOverrideMethods(sourceId, sp.contentHash);
+  allPages = [...sp.raw.keys()].sort((a, b) => a - b);
+  view = allPages.filter((n) => onlyPage === null || n === onlyPage).map((n) => {
+    const leftOut = sp.unusable.has(n);
+    // Pages an agent judged unreadable are left out of the index; show their raw text so the judgement can be checked.
+    const text = leftOut ? sp.raw.get(n) ?? '' : sp.pages.get(n) ?? '';
+    const pq = scorePage(text);
+    return { n, text, verdict: pq.verdict, score: pq.score, override: overrides.get(n), leftOut };
+  });
+} else {
+  summaries = new Map(await Promise.all(sources.filter((s) => s.hasText).map(async (s) => {
+    const sp = await loadSourcePages(s.id);
+    return [s.id, sp ? summarizePages(sp) : null] as const;
+  })));
+}
+
+// Delete confirmation (?delete=<source>[&delpage=<n>]) and the result or error code the handler redirects back with.
+const num = (k: string) => { const x = Number(params.get(k)); return Number.isInteger(x) && x >= 0 ? x : 0; };
+const deleteId = int('delete');
+const delPage = int('delpage');
+const toDelete = sourceId === null && inGame(deleteId) ? await extractDeletePreview(deleteId!, delPage) : null;
+const err = params.get('err');
+let msg: string | null = err && err in EXTRACT_DELETE_ERRORS ? EXTRACT_DELETE_ERRORS[err as keyof typeof EXTRACT_DELETE_ERRORS] : null;
+if (!msg && num('deleted') > 0) {
+  msg = num('page') > 0
+    ? `Page ${num('page')} of source #${num('deleted')}: ${num('chunks')} chunks deleted. A re-index of the source brings them back.`
+    : `Extract of source #${num('deleted')} deleted: ${num('chunks')} chunks, ${num('quality')} page scores, ${num('overrides')} page repairs, ${num('variants')} text versions. The source is kept; Re-ingest now on Manage sources extracts it again.`;
+}
+const base = `${self}?source=${sourceId}`;
+const field = 'mt-1 bg-background';
+---
+<Admin title={`${game.name}: extracts`}>
+  <style>
+    .md table { border-collapse: collapse; margin: .5rem 0; }
+    .md th, .md td { border: 1px solid var(--border); padding: .2rem .45rem; vertical-align: top; }
+    .md h1, .md h2, .md h3 { font-size: 1.05rem; margin: .6rem 0 .3rem; }
+    .raw { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: .85rem; display: none; margin: 0; }
+    #mode-raw:checked ~ .pages .raw { display: block; }
+    #mode-raw:checked ~ .pages .md { display: none; }
+    .jump a { margin-right: .4rem; }
+  </style>
+  <GameManageBar slug={slug} current="extracts" />
+  {msg && <p role="status"><Badge variant="secondary" className="h-auto whitespace-normal">{msg}</Badge></p>}
+
+  {source === null && <>
+    <p>What the extractor (text layer, OCR, agent repairs) produced for each source of this game. Quality is scored live by code. Delete extract removes a bad extraction (text, chunks, page scores and repairs) but keeps the source, its private copy and its link, so it can be re-ingested.</p>
+    {toDelete && (
+      <Card className="mb-3 text-base" id="delete">
+        <CardHeader><CardTitle><h2 class="m-0 text-lg">{toDelete.pageChunks === null ? `Delete the extract of source #${toDelete.id}` : `Delete page ${delPage} of source #${toDelete.id} from the index`}</h2></CardTitle></CardHeader>
+        <CardContent>
+          <ul class="mt-0">
+            <li>{toDelete.title ?? toDelete.url}<br /><small>{toDelete.url}</small></li>
+            {toDelete.pageChunks === null
+              ? <li>{toDelete.hasText ? 'The extracted text' : 'No extracted text'}, {toDelete.chunks} indexed chunks, page scores, page repairs and text-version proposals are deleted. The source row, its private copy and its link stay; it shows as not extracted until it is re-ingested.</li>
+              : <li>{toDelete.pageChunks} indexed chunks of page {delPage} are deleted. The extracted text stays, so a re-index brings them back.</li>}
+            <li>Facts keep their citations. Chat answers and FAQ entries that cite this source stop being shown.</li>
+          </ul>
+          <form method="post" action="/admin/extract-delete" class="grid max-w-[36rem] gap-1.5">
+            <input type="hidden" name="game" value={slug} /><input type="hidden" name="source" value={toDelete.id} />
+            {delPage !== null && <input type="hidden" name="page" value={delPage} />}
+            <label>Reason (goes to the audit log) <Input name="reason" required minLength={3} maxLength={EXTRACT_DELETE_REASON_MAX} className={field} /></label>
+            <label>Type the source id ({toDelete.id}) to confirm <Input name="confirm" required inputMode="numeric" autoComplete="off" className={field} /></label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="really" value="yes" required class="size-4 accent-primary" /> I understand this deletes {delPage === null ? 'the extract' : 'these chunks'}</label>
+            <div class="flex flex-wrap items-center gap-2">
+              <Button type="submit" variant="destructive">{delPage === null ? 'Delete extract' : `Delete page ${delPage} chunks`}</Button>
+              <a href={self}>Cancel</a>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    )}
+    {sources.length === 0 && <Card className="text-base"><CardContent>This game has no sources.</CardContent></Card>}
+    <div class="grid gap-2">
+      {sources.map((s) => {
+        const sum = summaries.get(s.id);
+        return (
+          <Card className="text-base"><CardContent>
+            {s.hasText ? <a href={`${self}?source=${s.id}`}><b>{s.title ?? `Source ${s.id}`}</b></a> : <b>{s.title ?? `Source ${s.id}`}</b>} <small>#{s.id}</small>
+            <div><small>{s.pageCount ?? sum?.pages ?? '?'} pages · {s.extract} · {s.chunks} chunks ({s.embedded} embedded)</small></div>
+            <div><small>{!s.hasText ? 'not extracted' : sum ? `${sum.ok} ok · ${sum.suspect} suspect · ${sum.garbled} garbled · ${sum.empty} empty · ${sum.leftOut} left out` : 'stored text not found'}</small></div>
+            {(s.hasText || s.chunks > 0) && <div class="mt-1"><a href={`${self}?delete=${s.id}#delete`}>Delete extract</a></div>}
+          </CardContent></Card>
+        );
+      })}
+    </div>
+  </>}
+
+  {source !== null && <>
+    <p><a href={self}>All sources of this game</a> · <a href={`${base}&format=md`}>Download as markdown</a>{onlyPage !== null && <> · <a href={base}>Show all pages</a></>} · <a href={`${self}?delete=${source.id}#delete`}>Delete extract</a></p>
+    <h2 style="margin-bottom:.2rem">{source.title ?? `Source ${source.id}`}</h2>
+    <p><small>{source.publisher ?? 'publisher unknown'} · {source.pageCount ?? allPages.length} pages · {source.ocr} · {String(source.contentType ?? '').split(';')[0] || 'unknown type'}</small></p>
+    <p class="jump"><small>Pages: {allPages.map((n) => <a href={onlyPage === null ? `#p${n}` : `${base}#p${n}`}>{n}</a>)}</small></p>
+    <form method="get" action={self} class="my-1.5 flex flex-wrap items-center gap-2">
+      <input type="hidden" name="source" value={source.id} />
+      <label class="flex items-center gap-2">Only page <Input type="number" name="page" min={1} defaultValue={onlyPage ?? ''} className="w-20 bg-background" /></label> <Button type="submit">Show</Button>
+    </form>
+
+    <input type="radio" name="mode" id="mode-rendered" checked /> <label for="mode-rendered">Rendered</label>
+    <input type="radio" name="mode" id="mode-raw" /> <label for="mode-raw">Raw</label>
+    <div class="pages mt-2.5 grid gap-2.5">
+      {view.length === 0 && <Card className="text-base"><CardContent>No such page.</CardContent></Card>}
+      {view.map((p) => (
+        <Card className="text-base" id={`p${p.n}`}><CardContent>
+          <b>Page {p.n}</b> <Badge variant={verdictBadge(p.verdict)} title={`score ${p.score.toFixed(2)}`}>{p.verdict}</Badge>
+          {p.override && <Badge variant="secondary">override: {p.override}</Badge>}
+          {p.leftOut && <Badge variant="danger">left out of the index</Badge>}
+          <a href={`${base}&page=${p.n}`} class="ml-2"><small>link</small></a>
+          <a href={`${self}?delete=${source!.id}&delpage=${p.n}#delete`} class="ml-2"><small>delete this page's chunks</small></a>
+          <div class="md" set:html={renderMarkdown(p.text)} />
+          <pre class="raw">{p.text}</pre>
+        </CardContent></Card>
+      ))}
+    </div>
+  </>}
+</Admin>

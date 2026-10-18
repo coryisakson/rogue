@@ -1,134 +1,19 @@
 ---
-import Admin from '../../layouts/Admin.astro';
-import { gameMatches, normalizeGameQuery, renderMarkdown, scorePage } from '@rogue/core';
-import IngestedGameSearch from '../../components/IngestedGameSearch.astro';
+// Old URL, kept for deep links: the extract viewer moved to /admin/games/<slug>/extracts (Cory 2026-10-18).
+// ?game=<slug>, or ?source=<id> (its game is looked up; ?page and ?format=md are kept); otherwise the games list.
 import { isAdmin } from '../../lib/admin';
-import { getPool, ensureMigrated } from '../../lib/services';
-import { loadSourcePages, loadOverrideMethods, pagesToMarkdown, summarizePages } from '../../lib/page-text';
-import { Badge } from '../../components/ui/badge';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent } from '../../components/ui/card';
-import { Input } from '../../components/ui/input';
-// Read-only review of extracted page text. Middleware already limits /admin to admins; repeated here because the
-// ?format=md download returns the whole extracted text and must never leak.
+import { sourceGameSlug } from '../../lib/admin-games';
 if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
-await ensureMigrated();
-const pool = getPool();
-const q = async (sql: string, args: unknown[] = []) => (pool ? (await pool.query(sql, args)).rows : []);
-const params = Astro.url.searchParams;
-const sourceId = /^\d+$/.test(params.get('source') ?? '') ? Number(params.get('source')) : null;
-const onlyPage = /^\d+$/.test(params.get('page') ?? '') ? Number(params.get('page')) : null;
-
-// How the text was made: the ingest audit entry for this file records which pages went through OCR.
-const OCR_SQL = `(SELECT CASE WHEN jsonb_array_length(COALESCE(a.detail->'ocrPages','[]'::jsonb)) > 0 THEN 'OCR, ' || jsonb_array_length(a.detail->'ocrPages') || ' pages'
-    WHEN a.id IS NULL THEN 'unknown' ELSE 'text layer' END
-    || CASE WHEN a.detail ? 'ocrErrors' THEN ' (OCR errors)' ELSE '' END
-  FROM (SELECT 1) x LEFT JOIN LATERAL (SELECT id, detail FROM audit_log WHERE action='fetched' AND detail->>'url'=s.url ORDER BY id DESC LIMIT 1) a ON true)`;
-
-type Source = { id: number; title: string; publisher: string | null; page_count: number | null; content_type: string | null; ocr: string; game: string | null; slug: string | null };
-const verdictBadge = (v: string) => (v === 'ok' ? 'secondary' : 'danger') as 'secondary' | 'danger';
-
-let source: Source | null = null;
-let view: { n: number; text: string; verdict: string; score: number; override?: string; leftOut: boolean }[] = [];
-let allPages: number[] = [];
-const groups = new Map<string, (Source & { summary: ReturnType<typeof summarizePages> | null })[]>();
-// Game search (GET ?q=) narrows the list to games already in Rogue whose name or slug matches.
-const gq = normalizeGameQuery(params.get('q'));
-const found = new Map<string, { slug: string; name: string }>();
-
-if (sourceId !== null) {
-  source = (await q(`SELECT s.id, s.title, s.publisher, s.page_count, s.content_type, ${OCR_SQL} ocr, NULL game, NULL slug FROM sources s WHERE s.id=$1`, [sourceId]))[0] ?? null;
-  if (!source) return new Response('Not found', { status: 404 });
-  const sp = await loadSourcePages(sourceId);
-  if (!sp) return new Response('This source has no stored text.', { status: 404 });
-  if (params.get('format') === 'md') {
-    const name = (source.title ?? `source-${sourceId}`).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `source-${sourceId}`;
-    return new Response(pagesToMarkdown(source.title ?? `Source ${sourceId}`, sp.pages), {
-      headers: { 'content-type': 'text/markdown; charset=utf-8', 'content-disposition': `attachment; filename="${name}.md"`, 'cache-control': 'no-store' },
-    });
-  }
-  const overrides = await loadOverrideMethods(sourceId, sp.contentHash);
-  allPages = [...sp.raw.keys()].sort((a, b) => a - b);
-  view = allPages.filter((n) => onlyPage === null || n === onlyPage).map((n) => {
-    const leftOut = sp.unusable.has(n);
-    // Pages an agent judged unreadable are left out of the index; show their raw text so the judgement can be checked.
-    const text = leftOut ? sp.raw.get(n) ?? '' : sp.pages.get(n) ?? '';
-    const pq = scorePage(text);
-    return { n, text, verdict: pq.verdict, score: pq.score, override: overrides.get(n), leftOut };
-  });
-} else {
-  const rows: Source[] = await q(`SELECT DISTINCT ON (s.id) s.id, s.title, s.publisher, s.page_count, s.content_type, ${OCR_SQL} ocr, g.name game, g.slug
-    FROM sources s LEFT JOIN documents d ON d.source_id=s.id LEFT JOIN editions e ON e.id=d.edition_id LEFT JOIN games g ON g.id=e.game_id
-    WHERE s.text_path IS NOT NULL ORDER BY s.id, g.name`);
-  rows.sort((a, b) => String(a.game ?? '~').localeCompare(String(b.game ?? '~')) || a.id - b.id);
-  for (const r of rows) {
-    if (gq) {
-      if (!r.slug || !r.game || !gameMatches({ name: r.game, slug: r.slug }, gq)) continue;
-      found.set(r.slug, { slug: r.slug, name: r.game });
-    }
-    const sp = await loadSourcePages(r.id);
-    const key = r.game ?? 'No game linked';
-    groups.set(key, [...(groups.get(key) ?? []), { ...r, summary: sp ? summarizePages(sp) : null }]);
-  }
+const sp = Astro.url.searchParams;
+const id = (k: string) => (/^[1-9]\d{0,15}$/.test(sp.get(k) ?? '') ? sp.get(k)! : null);
+const source = id('source');
+const game = source ? await sourceGameSlug(Number(source)) : sp.get('game');
+if (!game || !/^[a-z0-9-]{1,80}$/.test(game)) return Astro.redirect('/admin/games', 302);
+const keep = new URLSearchParams();
+if (source) {
+  keep.set('source', source);
+  if (id('page')) keep.set('page', id('page')!);
+  if (sp.get('format') === 'md') keep.set('format', 'md');
 }
-const base = `/admin/extracts?source=${sourceId}`;
+return Astro.redirect(`/admin/games/${encodeURIComponent(game)}/extracts${keep.size ? `?${keep}` : ''}`, 302);
 ---
-<Admin title="Extracted text">
-  <style>
-    .md table { border-collapse: collapse; margin: .5rem 0; }
-    .md th, .md td { border: 1px solid var(--border); padding: .2rem .45rem; vertical-align: top; }
-    .md h1, .md h2, .md h3 { font-size: 1.05rem; margin: .6rem 0 .3rem; }
-    .raw { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: .85rem; display: none; margin: 0; }
-    #mode-raw:checked ~ .pages .raw { display: block; }
-    #mode-raw:checked ~ .pages .md { display: none; }
-    .jump a { margin-right: .4rem; }
-  </style>
-
-  {source === null && <>
-    <p>Review what the extractor (text layer, OCR, agent repairs) produced for each source. Read-only; quality is scored live by code and nothing is stored.</p>
-    <IngestedGameSearch action="/admin/extracts" q={gq} results={gq ? [...found.values()] : null} />
-    {gq && <p><a href="/admin/extracts">Show all sources</a></p>}
-    {groups.size === 0 && !gq && <Card className="text-base"><CardContent>No sources with stored text yet.</CardContent></Card>}
-    {[...groups].map(([game, list]) => (
-      <section>
-        <h2 class="text-lg">{game}{list[0]?.slug && <> <small><a href={`/admin/games/${encodeURIComponent(list[0].slug)}`}>history</a></small></>}</h2>
-        <div class="grid gap-2">
-          {list.map((s) => (
-            <Card className="text-base"><CardContent>
-              <a href={`/admin/extracts?source=${s.id}`}><b>{s.title ?? `Source ${s.id}`}</b></a> <Badge variant="secondary">{String(s.content_type ?? '').split(';')[0] || 'unknown type'}</Badge>
-              <div><small>{s.publisher ?? 'publisher unknown'} · {s.page_count ?? s.summary?.pages ?? '?'} pages · {s.ocr}</small></div>
-              <div><small>{s.summary ? `${s.summary.ok} ok · ${s.summary.suspect} suspect · ${s.summary.garbled} garbled · ${s.summary.empty} empty · ${s.summary.leftOut} left out` : 'stored text not found'}</small></div>
-            </CardContent></Card>
-          ))}
-        </div>
-      </section>
-    ))}
-  </>}
-
-  {source !== null && <>
-    <p><a href="/admin/extracts">All sources</a> · <a href={`${base}&format=md`}>Download as markdown</a>{onlyPage !== null && <> · <a href={base}>Show all pages</a></>}</p>
-    <h2 style="margin-bottom:.2rem">{source.title ?? `Source ${source.id}`}</h2>
-    <p><small>{source.publisher ?? 'publisher unknown'} · {source.page_count ?? allPages.length} pages · {source.ocr}</small></p>
-    <p class="jump"><small>Pages: {allPages.map((n) => <a href={onlyPage === null ? `#p${n}` : `${base}#p${n}`}>{n}</a>)}</small></p>
-    <form method="get" action="/admin/extracts" class="my-1.5 flex flex-wrap items-center gap-2">
-      <input type="hidden" name="source" value={source.id} />
-      <label class="flex items-center gap-2">Only page <Input type="number" name="page" min={1} defaultValue={onlyPage ?? ''} className="w-20 bg-background" /></label> <Button type="submit">Show</Button>
-    </form>
-
-    <input type="radio" name="mode" id="mode-rendered" checked /> <label for="mode-rendered">Rendered</label>
-    <input type="radio" name="mode" id="mode-raw" /> <label for="mode-raw">Raw</label>
-    <div class="pages mt-2.5 grid gap-2.5">
-      {view.length === 0 && <Card className="text-base"><CardContent>No such page.</CardContent></Card>}
-      {view.map((p) => (
-        <Card className="text-base" id={`p${p.n}`}><CardContent>
-          <b>Page {p.n}</b> <Badge variant={verdictBadge(p.verdict)} title={`score ${p.score.toFixed(2)}`}>{p.verdict}</Badge>
-          {p.override && <Badge variant="secondary">override: {p.override}</Badge>}
-          {p.leftOut && <Badge variant="danger">left out of the index</Badge>}
-          <a href={`${base}&page=${p.n}`} class="ml-2"><small>link</small></a>
-          <div class="md" set:html={renderMarkdown(p.text)} />
-          <pre class="raw">{p.text}</pre>
-        </CardContent></Card>
-      ))}
-    </div>
-  </>}
-</Admin>

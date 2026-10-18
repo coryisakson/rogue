@@ -1,0 +1,16 @@
+---
+// Top of every /admin/games/<slug> page: the read-only overview and the two management subpages (sources, extracts).
+// Plain links styled like the admin tabs; the current page is filled.
+import { buttonVariants } from './ui/button';
+interface Props { slug: string; current: 'overview' | 'sources' | 'extracts' }
+const { slug, current } = Astro.props;
+const base = `/admin/games/${encodeURIComponent(slug)}`;
+const links: [Props['current'], string, string][] = [['overview', base, 'Overview'], ['sources', `${base}/sources`, 'Manage sources'], ['extracts', `${base}/extracts`, 'Manage extracts']];
+---
+<nav aria-label="Manage this game" class="mb-3 flex flex-wrap items-center gap-1">
+  <a href="/admin/games" class="mr-2">All games</a>
+  {links.map(([key, href, label]) => (
+    <a data-slot="button" href={href} aria-current={key === current ? 'page' : undefined} class={buttonVariants({ variant: key === current ? 'secondary' : 'outline', size: 'sm' })}>{label}</a>
+  ))}
+  <a href={`/games/${encodeURIComponent(slug)}`} class="ml-2">Public game page</a>
+</nav>
