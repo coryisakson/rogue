@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-18 (Hermes): 0.0.126: ROGUE_OCR_MODE (auto/all/off) per-page text-layer vs OCR selection, quality scorer + textlayer-report.mjs. Chart still sets ROGUE_OCR_ALL_PAGES; not switched until real PDFs are measured.
 - 2026-10-18 (Hermes): 0.0.125: site name "T-AI-bletop Rogue" from the instance profile in title, header, footer and Olares title; hex logo is the header logo.
 - 2026-10-18 (Hermes): 0.0.124: theme recoloured to the logo (navy/teal-green; light + dark, a11y-check OK 27 pairs), header shows the hex logo instead of the dice emoji. Needs Cory eyes in both modes.
 - 2026-10-18 (Hermes): 0.0.123: new hex logo (transparent) as favicon, apple-touch icon, Olares icon (icon-256.png), public/ assets. Discord bot icon file ready, upload needs Cory/portal.
