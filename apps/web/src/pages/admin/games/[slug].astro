@@ -1,0 +1,136 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import { mergeTimeline, type TimelineEvent } from '@rogue/core';
+import { isAdmin } from '../../../lib/admin';
+import { HUB_AUDIT_ACTIONS, hubAudit, hubGame, hubRequests, hubSources, type HubAudit } from '../../../lib/admin-games';
+import { factsCount } from '../../../lib/game-sources';
+import { Badge } from '../../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table';
+// Read-only history of one game. Changes (add, replace, re-ingest, delete) stay on /admin/sources, which this page links to,
+// so the rights gates and the delete confirmation exist in one place only.
+if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
+const slug = String(Astro.params.slug ?? '');
+if (!/^[a-z0-9-]{1,80}$/.test(slug)) return new Response('Not found', { status: 404 });
+const game = await hubGame(slug);
+if (!game) return new Response('Not found', { status: 404 });
+const [requests, sources, facts] = await Promise.all([hubRequests(slug), hubSources(slug), factsCount(slug)]);
+const audit = await hubAudit(slug, sources.map((s) => s.url));
+const sourcesPage = `/admin/sources?game=${encodeURIComponent(slug)}`;
+
+const when = (d: Date | null) => (d ? d.toISOString().slice(0, 16).replace('T', ' ') : 'unknown');
+const num = (v: unknown) => (typeof v === 'number' ? v : null);
+// Audit lines carry ids, counts and URLs only (never source text), so they can be shown as they are.
+function auditText(a: HubAudit): string {
+  const d = a.detail;
+  if (a.action === 'fetched') return `Fetched ${a.url ?? ''}${num(d['pages']) !== null ? ` (${d['pages']} pages)` : ''}`;
+  if (a.action === 'extract_empty') return `Extraction empty, nothing stored: ${a.url ?? ''}`;
+  if (a.action === 'extract_failed') return `Extraction failed: ${a.url ?? ''}${typeof d['error'] === 'string' ? ` (${d['error'].slice(0, 160)})` : ''}`;
+  if (a.action === 'source_deleted') return `Source #${d['sourceId'] ?? '?'} deleted by ${a.actor}: ${a.url ?? ''}${typeof d['reason'] === 'string' ? `, reason: ${d['reason']}` : ''}`;
+  if (a.action === 'takedown') return `Takedown #${d['requestId'] ?? '?'}: ${num(d['sources']) ?? '?'} sources, ${num(d['claims']) ?? '?'} facts`;
+  return a.action;
+}
+const timeline = mergeTimeline(
+  [{ at: game.createdAt, kind: 'game', text: 'Game added to Rogue', key: 'g' }],
+  requests.flatMap((r): TimelineEvent[] => [
+    { at: r.createdAt, kind: 'request', text: `Request #${r.id} by ${r.requester ?? 'deleted user'}`, key: `r${r.id}` },
+    ...(r.decidedAt ? [{ at: r.decidedAt, kind: 'request', text: `Request #${r.id} ${r.status} by ${r.decider ?? 'an admin'}${r.rejectReason ? `: ${r.rejectReason}` : ''}`, key: `r${r.id}d` }] : []),
+  ]),
+  audit.map((a) => ({ at: a.at, kind: a.action, text: auditText(a), key: `a${String(a.id).padStart(12, '0')}` })),
+);
+type Status = 'success' | 'warning' | 'danger' | 'secondary';
+const availBadge: Record<string, Status> = { available: 'success', changed: 'warning', unavailable: 'danger' };
+const verdictBadge: Record<string, Status> = { pass: 'success', problem: 'warning', blocked: 'danger', clear: 'success', restricted: 'danger' };
+const statusBadge: Record<string, Status> = { approved: 'success', rejected: 'danger' };
+const extractProblems = (url: string) => audit.filter((a) => a.url === url && (a.action === 'extract_empty' || a.action === 'extract_failed'));
+---
+<Admin title={game.name}>
+  <p><a href="/admin/games">All games</a> · <a href={`/games/${encodeURIComponent(slug)}`}>Public game page</a> · <a href={sourcesPage}>Add, replace or re-ingest sources</a></p>
+  <p><small>{game.publisher ?? 'publisher unknown'} · {game.year ?? 'year ?'} · slug <code>{slug}</code>{game.bggId && <> · <a href={`https://boardgamegeek.com/boardgame/${game.bggId}`} rel="noopener nofollow">BGG {game.bggId}</a></>} · {sources.length} sources · {facts} published facts</small></p>
+
+  <Card className="mb-3 text-base">
+    <CardHeader><CardTitle><h2 class="m-0 text-lg">History</h2></CardTitle></CardHeader>
+    <CardContent>
+      <ol class="m-0 list-none p-0">
+        {timeline.map((e) => <li class="border-t border-border py-1"><small>{when(e.at)}</small> <Badge variant="secondary">{e.kind}</Badge> {e.text}</li>)}
+      </ol>
+    </CardContent>
+  </Card>
+
+  <Card className="mb-3 text-base">
+    <CardHeader><CardTitle><h2 class="m-0 text-lg">Request</h2></CardTitle></CardHeader>
+    <CardContent>
+      {requests.length === 0 && <p class="m-0">No request: this game was seeded or added by an admin.</p>}
+      {requests.map((r) => (
+        <div class="border-t border-border py-1.5">
+          <b>#{r.id} {r.name}</b> <Badge variant={statusBadge[r.status] ?? 'secondary'}>{r.status}</Badge>
+          {r.rightsVerdict && <> <Badge variant={verdictBadge[r.rightsVerdict] ?? 'secondary'}>rights: {r.rightsVerdict}</Badge></>}
+          {r.termsVerdict && <> <Badge variant={verdictBadge[r.termsVerdict] ?? 'warning'}>terms: {r.termsVerdict}</Badge></>}
+          <div><small>Asked by {r.requester ?? 'deleted user'} on {when(r.createdAt)} ({r.mode}) · decided {r.decidedAt ? `${when(r.decidedAt)} by ${r.decider ?? 'an admin'}` : 'not yet'}</small></div>
+          {r.rulebookUrl && <div><small>Rulebook link: <a href={r.rulebookUrl} rel="noopener nofollow">{r.rulebookUrl}</a></small></div>}
+          {r.termsUrl && <div><small>Terms read: <a href={r.termsUrl} rel="noopener nofollow">{r.termsUrl}</a></small></div>}
+          {r.rejectReason && <div><small>Rejected: {r.rejectReason}</small></div>}
+          {(r.progress || r.stage) && <div><small>{r.progress ? `Pipeline: ${r.progress}` : `Stage: ${r.stage}`}</small></div>}
+        </div>
+      ))}
+    </CardContent>
+  </Card>
+
+  <Card className="mb-3 text-base">
+    <CardContent>
+      <Table>
+        <TableCaption className="mt-0 mb-2 caption-top text-left"><h2 class="m-0 text-lg">Sources</h2></TableCaption>
+        <TableHeader><TableRow>
+          <TableHead scope="col">Source</TableHead><TableHead scope="col">Authority</TableHead><TableHead scope="col">Lang</TableHead><TableHead scope="col">Availability</TableHead>
+          <TableHead scope="col">Fetched</TableHead><TableHead scope="col">Pages</TableHead><TableHead scope="col">Chunks (embedded)</TableHead><TableHead scope="col">Actions</TableHead>
+        </TableRow></TableHeader>
+        <TableBody>
+          {sources.length === 0 && <TableRow><TableCell colSpan={8}>No sources.</TableCell></TableRow>}
+          {sources.map((s) => (
+            <TableRow>
+              <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.kind} · {s.edition}{s.runtime && ' · admin-added'}</small></TableCell>
+              <TableCell>{s.authority}</TableCell>
+              <TableCell>{s.language ?? '?'}</TableCell>
+              <TableCell><Badge variant={availBadge[s.availability] ?? 'secondary'}>{s.availability}</Badge></TableCell>
+              <TableCell>{s.fetchedAt ?? 'never'}</TableCell>
+              <TableCell>{s.indexedPages} / {s.pageCount ?? '?'}</TableCell>
+              <TableCell>{s.chunks} ({s.embedded})</TableCell>
+              <TableCell className="whitespace-normal">
+                {s.hasText && <><a href={`/admin/extracts?source=${s.id}`}>Extract</a> · </>}
+                <a href={`${sourcesPage}&delete=${s.id}#delete`}>Delete</a>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <small>Delete opens the confirmation on Game sources (same form, same checks).</small>
+    </CardContent>
+  </Card>
+
+  <Card className="mb-3 text-base">
+    <CardHeader><CardTitle><h2 class="m-0 text-lg">Extracts</h2></CardTitle></CardHeader>
+    <CardContent>
+      {sources.length === 0 && <p class="m-0">Nothing extracted.</p>}
+      <ul class="m-0 list-none p-0">
+        {sources.map((s) => (
+          <li class="border-t border-border py-1.5">
+            #{s.id} {s.hasText ? <a href={`/admin/extracts?source=${s.id}`}>{s.title ?? s.url}</a> : (s.title ?? s.url)}
+            <div><small>{s.pageCount ?? '?'} pages · {s.indexedPages} indexed · {s.extract}{!s.hasText && ' · no stored text'}</small></div>
+            {extractProblems(s.url).map((a) => <div><small><Badge variant="warning">{a.action}</Badge> {when(a.at)}</small></div>)}
+          </li>
+        ))}
+      </ul>
+    </CardContent>
+  </Card>
+
+  <Card className="text-base">
+    <CardHeader><CardTitle><h2 class="m-0 text-lg">Audit log</h2></CardTitle></CardHeader>
+    <CardContent>
+      <p class="mt-0"><small>Entries {HUB_AUDIT_ACTIONS.join(', ')} for this game's links, newest first.</small></p>
+      {audit.length === 0 && <p class="m-0">No entries.</p>}
+      <ul class="m-0 list-none p-0">
+        {audit.map((a) => <li class="border-t border-border py-1"><small>{when(a.at)} · {a.actor}</small> <Badge variant="secondary">{a.action}</Badge> {auditText(a)}</li>)}
+      </ul>
+    </CardContent>
+  </Card>
+</Admin>
