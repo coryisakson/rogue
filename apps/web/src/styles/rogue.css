@@ -9,7 +9,8 @@ a { color: var(--primary); }
 h1,h2,h3 { font-family: var(--font-heading); }
 header.site { background: var(--sidebar); color: var(--sidebar-foreground); border-bottom: 4px solid var(--sidebar-border); padding: .6rem 1rem; display:flex; gap:1rem; align-items:baseline; flex-wrap:wrap; }
 header.site a { color: var(--sidebar-foreground); }
-header.site a.brand { font-size:1.4rem; font-weight:bold; text-decoration:none; letter-spacing:.04em; }
+header.site a.brand { font-size:1.4rem; font-weight:bold; text-decoration:none; letter-spacing:.04em; display:inline-flex; align-items:center; gap:.5rem; }
+header.site .brand-logo { height:2.25rem; width:auto; }
 header.site nav a { margin-right:1rem; }
 header.site :focus-visible { outline-color: var(--sidebar-ring); }
 main { max-width: 62rem; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
