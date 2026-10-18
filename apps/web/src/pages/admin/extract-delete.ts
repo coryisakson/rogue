@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { parseExtractDeleteForm, sameOrigin } from '@rogue/core';
 import { isAdmin } from '../../lib/admin';
 import { deleteExtract } from '../../lib/extract-delete';
-import { sourceInGame } from '../../lib/source-delete';
+import { sourceInGame, deleteSource } from '../../lib/source-delete';
 
 /**
  * POST from /admin/games/<slug>/extracts: delete a source's extract, or one page's chunks (lib/extract-delete.ts). The
@@ -27,6 +27,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const page = typeof form['page'] === 'string' && /^[1-9][0-9]{0,3}$/.test(form['page']) ? form['page'] : '';
   if (!p.ok) return back({ ...(id ? { delete: id } : {}), ...(page ? { delpage: page } : {}), err: p.code });
   if (!(await sourceInGame(p.value.game, p.value.sourceId))) return back({ err: 'missing' });
+  // Whole-extract delete removes the data source itself (Cory 2026-10-18); replacement is the separate Replace action.
+  // Only a single page's chunks stay a partial delete. URL is tombstoned unless "allow re-ingest" is ticked.
+  if (p.value.page === null) {
+    const d = await deleteSource(p.value.sourceId, `admin:${locals.user.id}`, p.value.reason, form['reingest'] === 'yes');
+    if (d === null) return back({ err: 'missing' });
+    return back({ removed: d.id, chunks: d.chunks, claims: d.claimsRejected, tombstoned: d.tombstoned ? 1 : 0 });
+  }
   const r = await deleteExtract(p.value.sourceId, p.value.page, `admin:${locals.user.id}`, p.value.reason);
   if (r === null) return back({ err: 'missing' });
   if (r === 'nothing') return back({ err: 'nothing' });

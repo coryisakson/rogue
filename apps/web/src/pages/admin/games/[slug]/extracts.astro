@@ -68,7 +68,9 @@ const delPage = int('delpage');
 const toDelete = sourceId === null && inGame(deleteId) ? await extractDeletePreview(deleteId!, delPage) : null;
 const err = params.get('err');
 let msg: string | null = err && err in EXTRACT_DELETE_ERRORS ? EXTRACT_DELETE_ERRORS[err as keyof typeof EXTRACT_DELETE_ERRORS] : null;
-if (!msg && num('deleted') > 0) {
+if (!msg && num('removed') > 0) {
+  msg = `Source #${num('removed')} deleted with its extract: ${num('chunks')} chunks, ${num('claims')} facts rejected${num('tombstoned') ? '; its URL is blocked from re-fetching' : ''}.`;
+} else if (!msg && num('deleted') > 0) {
   msg = num('page') > 0
     ? `Page ${num('page')} of source #${num('deleted')}: ${num('chunks')} chunks deleted. A re-index of the source brings them back.`
     : `Extract of source #${num('deleted')} deleted: ${num('chunks')} chunks, ${num('quality')} page scores, ${num('overrides')} page repairs, ${num('variants')} text versions. The source is kept; Re-ingest now on Manage sources extracts it again.`;
@@ -98,7 +100,7 @@ const field = 'mt-1 bg-background';
           <ul class="mt-0">
             <li>{toDelete.title ?? toDelete.url}<br /><small>{toDelete.url}</small></li>
             {toDelete.pageChunks === null
-              ? <li>{toDelete.hasText ? 'The extracted text' : 'No extracted text'}, {toDelete.chunks} indexed chunks, page scores, page repairs and text-version proposals are deleted. The source row, its private copy and its link stay; it shows as not extracted until it is re-ingested.</li>
+              ? <li>{toDelete.hasText ? 'The extracted text' : 'No extracted text'}, {toDelete.chunks} indexed chunks, page scores, page repairs and text-version proposals are deleted, and so is the data source itself (row, private copy). Its URL is blocked from re-fetching unless you tick the box below. To swap a source for a better one, use Replace on Manage sources instead.</li>
               : <li>{toDelete.pageChunks} indexed chunks of page {delPage} are deleted. The extracted text stays, so a re-index brings them back.</li>}
             <li>Facts keep their citations. Chat answers and FAQ entries that cite this source stop being shown.</li>
           </ul>
@@ -107,9 +109,10 @@ const field = 'mt-1 bg-background';
             {delPage !== null && <input type="hidden" name="page" value={delPage} />}
             <label>Reason (goes to the audit log) <Input name="reason" required minLength={3} maxLength={EXTRACT_DELETE_REASON_MAX} className={field} /></label>
             <label>Type the source id ({toDelete.id}) to confirm <Input name="confirm" required inputMode="numeric" autoComplete="off" className={field} /></label>
+            {delPage === null && <label class="flex items-center gap-2"><input type="checkbox" name="reingest" value="yes" class="size-4 accent-primary" /> Allow re-ingest of this URL later</label>}
             <label class="flex items-center gap-2"><input type="checkbox" name="really" value="yes" required class="size-4 accent-primary" /> I understand this deletes {delPage === null ? 'the extract' : 'these chunks'}</label>
             <div class="flex flex-wrap items-center gap-2">
-              <Button type="submit" variant="destructive">{delPage === null ? 'Delete extract' : `Delete page ${delPage} chunks`}</Button>
+              <Button type="submit" variant="destructive">{delPage === null ? 'Delete source and extract' : `Delete page ${delPage} chunks`}</Button>
               <a href={self}>Cancel</a>
             </div>
           </form>
@@ -126,7 +129,7 @@ const field = 'mt-1 bg-background';
             {s.capture && <div><Badge variant="warning">{s.capture}</Badge></div>}
             <div><small>{s.pageCount ?? sum?.pages ?? '?'} pages · {s.extract} · {s.chunks} chunks ({s.embedded} embedded)</small></div>
             <div><small>{!s.hasText ? 'not extracted' : sum ? `${sum.ok} ok · ${sum.suspect} suspect · ${sum.garbled} garbled · ${sum.empty} empty · ${sum.leftOut} left out` : 'stored text not found'}</small></div>
-            {(s.hasText || s.chunks > 0) && <div class="mt-1"><a href={`${self}?delete=${s.id}#delete`}>Delete extract</a></div>}
+            {(s.hasText || s.chunks > 0) && <div class="mt-1"><a href={`${self}?delete=${s.id}#delete`}>Delete source and extract</a></div>}
           </CardContent></Card>
         );
       })}
@@ -134,7 +137,7 @@ const field = 'mt-1 bg-background';
   </>}
 
   {source !== null && <>
-    <p><a href={self}>All sources of this game</a> · <a href={`${base}&format=md`}>Download as markdown</a>{onlyPage !== null && <> · <a href={base}>Show all pages</a></>} · <a href={`${self}?delete=${source.id}#delete`}>Delete extract</a></p>
+    <p><a href={self}>All sources of this game</a> · <a href={`${base}&format=md`}>Download as markdown</a>{onlyPage !== null && <> · <a href={base}>Show all pages</a></>} · <a href={`${self}?delete=${source.id}#delete`}>Delete source and extract</a></p>
     <h2 style="margin-bottom:.2rem">{source.title ?? `Source ${source.id}`}</h2>
     <p><small>{source.publisher ?? 'publisher unknown'} · {source.pageCount ?? allPages.length} pages · {source.ocr} · {String(source.contentType ?? '').split(';')[0] || 'unknown type'}</small></p>
     {source.capture && <p><Badge variant="warning">{source.capture}</Badge> <small>Text captured in an admin's browser, not fetched by Rogue.</small></p>}
