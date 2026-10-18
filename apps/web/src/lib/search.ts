@@ -1,4 +1,4 @@
-import { parseBggMatches, type GameMatch, type SearchHit } from '@rogue/core';
+import { bggSearchQueries, parseBggMatches, type BggSearchOutcome, type GameMatch, type SearchHit } from '@rogue/core';
 import { ipv4Fetch } from './services';
 import { setting } from './settings';
 
@@ -30,7 +30,30 @@ export async function webSearch(query: string, limit = 12): Promise<SearchHit[]>
   return hits.slice(0, limit);
 }
 
+/**
+ * BGG game pages for a title, trying each phrase of bggSearchQueries until one gives a match. Counts the raw hits so the
+ * admin can tell "the provider found pages, none on BGG" from "the provider found nothing". A provider error is reported
+ * only when every phrase failed (one flaky engine should not hide matches from the other phrase).
+ */
+export async function searchGameOutcome(title: string): Promise<BggSearchOutcome> {
+  if (!searchEnabled()) return { kind: 'off' };
+  let rawHits = 0; let queries = 0; let lastError: string | null = null; let failed = 0;
+  for (const q of bggSearchQueries(title)) {
+    queries++;
+    let hits: SearchHit[];
+    try { hits = await webSearch(q, 25); } catch (e) { failed++; lastError = e instanceof Error ? e.message : 'unknown error'; continue; }
+    rawHits += hits.length;
+    const matches = parseBggMatches(hits);
+    if (matches.length) return { kind: 'ok', matches, rawHits, queries };
+  }
+  if (failed === queries && lastError) return { kind: 'error', message: lastError };
+  return { kind: 'ok', matches: [], rawHits, queries };
+}
+
 /** The game pick list: BoardGameGeek game pages for a title. Shared by /request-game and the admin title search. */
 export async function searchGameMatches(title: string): Promise<GameMatch[]> {
-  return parseBggMatches(await webSearch(`site:boardgamegeek.com/boardgame ${title}`, 25));
+  const o = await searchGameOutcome(title);
+  if (o.kind === 'off') throw new Error('web search is not configured');
+  if (o.kind === 'error') throw new Error(o.message);
+  return o.matches;
 }

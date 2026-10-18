@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { rankPublisherPages, adminSearchQuery, googleLink, isAggregator, parseBggMatches, parseDetails, parsePick, pickFromSearch } from './index.js';
+import {
+  rankPublisherPages, adminSearchQuery, bggSearchNote, bggSearchQueries, googleLink, isAggregator, isBggGameUrl, parseBggMatches, parseDetails,
+  parseNameRequest, parsePick, pickFromSearch,
+} from './index.js';
 
 describe('intake', () => {
   it('builds a pick list from BGG search hits', () => {
@@ -14,6 +17,54 @@ describe('intake', () => {
       { bggId: 30549, title: 'Pandemic', year: null, url: 'https://boardgamegeek.com/boardgame/30549' },
       { bggId: 207017, title: 'Pandemic: The Cure – Experimental Meds', year: 2016, url: 'https://boardgamegeek.com/boardgame/207017' },
     ]);
+  });
+  // The "terraforming" bug: SearXNG results come back with www./m. hosts, http, query strings, expansions and BGG's
+  // "| Board Game | BoardGameGeek" titles, mixed with non-BGG pages. The old regex took only https://boardgamegeek.com.
+  it('finds Terraforming Mars in realistic search results', () => {
+    const m = parseBggMatches([
+      { url: 'https://www.reddit.com/r/boardgames/comments/abc/terraforming_mars/', title: 'Terraforming Mars : r/boardgames' },
+      { url: 'https://www.boardgamegeek.com/boardgame/167791/terraforming-mars', title: 'Terraforming Mars | Board Game | BoardGameGeek' },
+      { url: 'https://boardgamegeek.com/boardgame/167791/terraforming-mars/files', title: 'Terraforming Mars | Files | BoardGameGeek' },
+      { url: 'http://boardgamegeek.com/boardgameexpansion/247030/terraforming-mars-prelude?utm_source=x#top', title: 'Terraforming Mars: Prelude | Board Game Expansion | BoardGameGeek' },
+      { url: 'https://m.boardgamegeek.com/boardgame/328479/', title: 'Terraforming Mars: Ares Expedition (2021) | Board Game | BoardGameGeek' },
+      { url: 'https://boardgamegeek.com/boardgame/284189', title: 'Terraforming Mars: The Dice Game - BoardGameGeek' },
+      { url: 'https://www.boardgamegeek.com/boardgame/167791/terraforming-mars?fromsearch=1', title: 'dup' },
+      { url: 'https://boardgamegeek.com/geeksearch.php?q=terraforming', title: 'Search | BoardGameGeek' },
+      { url: 'https://notboardgamegeek.com/boardgame/1/x', title: 'fake' },
+      { url: 'https://www.amazon.com/Terraforming-Mars/dp/B01GSYA4K2', title: 'Terraforming Mars - Amazon' },
+    ]);
+    expect(m.map((x) => [x.bggId, x.title, x.year])).toEqual([
+      [167791, 'Terraforming Mars', null],
+      [247030, 'Terraforming Mars: Prelude', null],
+      [328479, 'Terraforming Mars: Ares Expedition', 2021],
+      [284189, 'Terraforming Mars: The Dice Game', null],
+    ]);
+    expect(m[0]!.url).toBe('https://boardgamegeek.com/boardgame/167791');
+    expect(isBggGameUrl('https://www.boardgamegeek.com/boardgame/167791/terraforming-mars')).toBe(true);
+    expect(isBggGameUrl('https://boardgamegeek.com/filepage/1/x')).toBe(false);
+  });
+  it('caps the pick list and keeps BGG titles that contain "Board Game"', () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ url: `https://boardgamegeek.com/boardgame/${i + 1}/g`, title: `Game ${i + 1} | Board Game | BoardGameGeek` }));
+    expect(parseBggMatches(many)).toHaveLength(8);
+    expect(parseBggMatches([{ url: 'https://boardgamegeek.com/boardgame/9/x', title: 'Slay the Spire: The Board Game | Board Game | BoardGameGeek' }])[0]!.title).toBe('Slay the Spire: The Board Game');
+  });
+  it('tries a host-only site filter, then a plain query', () => {
+    expect(bggSearchQueries('  terraforming ')).toEqual(['site:boardgamegeek.com terraforming board game', 'terraforming boardgamegeek']);
+    expect(bggSearchQueries('x').every((q) => !q.includes('boardgamegeek.com/boardgame'))).toBe(true);
+  });
+  it('tells the admin why a search found nothing', () => {
+    expect(bggSearchNote({ kind: 'off' }, 'x')).toMatch(/search is off/i);
+    expect(bggSearchNote({ kind: 'error', message: 'search answered HTTP 502' }, 'x')).toMatch(/failed \(search answered HTTP 502\)/);
+    expect(bggSearchNote({ kind: 'ok', matches: [], rawHits: 0, queries: 2 }, 'terraforming')).toMatch(/no results for “terraforming” \(2 searches/);
+    expect(bggSearchNote({ kind: 'ok', matches: [], rawHits: 17, queries: 2 }, 'terraforming')).toMatch(/17 results .* none was a BoardGameGeek game page/);
+    expect(bggSearchNote({ kind: 'ok', matches: [{ bggId: 1, title: 'A', year: null, url: '' }], rawHits: 3, queries: 1 }, 'a')).toBeNull();
+  });
+  it('validates an add-by-name request', () => {
+    expect(parseNameRequest({ title: '  Terraforming   Mars ', year: '2016' })).toEqual({ title: 'Terraforming Mars', year: 2016 });
+    expect(parseNameRequest({ title: 'Tiny Epic X', year: '' })).toEqual({ title: 'Tiny Epic X', year: null });
+    expect(parseNameRequest({ title: 'a' })).toBeNull();
+    expect(parseNameRequest({ title: 'Ok game', year: '20x' })).toBeNull();
+    expect(parseNameRequest({ title: 'x'.repeat(81) })).toBeNull();
   });
   it('validates picks and details', () => {
     expect(parsePick({ bggId: '30549', title: ' Pandemic ', year: '2008' })?.bggId).toBe(30549);

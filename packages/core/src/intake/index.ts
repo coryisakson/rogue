@@ -7,17 +7,26 @@ import { rankCandidates, type DocCandidate } from '../scout/index.js';
 export interface SearchHit { url: string; title: string; content?: string }
 export interface GameMatch { bggId: number; title: string; year: number | null; url: string }
 
+// A BGG game or expansion page: http or https, bare host or www./m., the id, an optional slug, an optional trailing slash.
+// Query strings and fragments are cut off before matching. Sub-pages (/files, /forums) are left out: their titles name
+// the sub-page, not the game.
+const BGG_GAME_URL = /^https?:\/\/(?:www\.|m\.)?boardgamegeek\.com\/boardgame(?:expansion)?\/(\d+)(?:\/([a-z0-9-]*))?\/?$/i;
+
+/** True when a search hit is a BGG game or expansion page. */
+export const isBggGameUrl = (url: string): boolean => BGG_GAME_URL.test(url.trim().split(/[?#]/)[0] ?? '');
+
 /** Only the id, title and year of a BGG page are kept (BGG notes: no copied descriptions or art). */
 export function parseBggMatches(hits: SearchHit[], limit = 8): GameMatch[] {
   const seen = new Set<number>();
   const out: GameMatch[] = [];
   for (const h of hits) {
-    const m = /^https:\/\/boardgamegeek\.com\/boardgame(?:expansion)?\/(\d+)(?:\/([a-z0-9-]*))?\/?$/i.exec(h.url.split(/[?#]/)[0] ?? '');
+    const m = BGG_GAME_URL.exec(h.url.trim().split(/[?#]/)[0] ?? '');
     if (!m) continue;
     const bggId = Number(m[1]);
-    if (!Number.isSafeInteger(bggId) || seen.has(bggId)) continue;
-    // "Pandemic | Board Game - BoardGameGeek", "Pandemic: The Cure – Experimental Meds (2016) - BoardGameGeek"
-    let title = h.title.replace(/\s*[-–|]\s*BoardGameGeek\s*$/i, '').replace(/\s*\|\s*Board Game\s*$/i, '').replace(/\s*\|\s*Board Game\s*[-–]?\s*$/i, '').trim();
+    if (!Number.isSafeInteger(bggId) || bggId < 1 || seen.has(bggId)) continue;
+    // "Pandemic | Board Game - BoardGameGeek", "Terraforming Mars | Board Game | BoardGameGeek",
+    // "Terraforming Mars: Prelude | Board Game Expansion | BoardGameGeek", "Pandemic: The Cure – Experimental Meds (2016) - BoardGameGeek"
+    let title = h.title.replace(/\s*[-–|]\s*BoardGameGeek\s*$/i, '').replace(/\s*[-–|]\s*Board Game(?: Expansion)?\s*[-–]?\s*$/i, '').trim();
     let year: number | null = null;
     const y = /\s*\((\d{4})\)\s*$/.exec(title);
     if (y) { year = Number(y[1]); title = title.slice(0, y.index).trim(); }
@@ -28,6 +37,41 @@ export function parseBggMatches(hits: SearchHit[], limit = 8): GameMatch[] {
     if (out.length >= limit) break;
   }
   return out;
+}
+
+/**
+ * Search phrases for the BGG pick list, tried in order until one gives a BGG game page. SearXNG engines rarely honour a
+ * site: filter with a path (the old "site:boardgamegeek.com/boardgame terraforming" found nothing), so the first phrase
+ * filters on the host only and the second drops the filter and names the site instead.
+ */
+export function bggSearchQueries(title: string): string[] {
+  const t = title.replace(/\s+/g, ' ').trim();
+  return [`site:boardgamegeek.com ${t} board game`, `${t} boardgamegeek`];
+}
+
+/** What a title search found, for the admin: search off, the provider failed, or results with the raw hit count. */
+export type BggSearchOutcome =
+  | { kind: 'off' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ok'; matches: GameMatch[]; rawHits: number; queries: number };
+
+/** The line shown to the admin when a title search gives no pick list (null when there are matches). */
+export function bggSearchNote(o: BggSearchOutcome, q: string): string | null {
+  if (o.kind === 'off') return 'Title search is off (ROGUE_SEARCH_BASE_URL is not set). Add the game by name below.';
+  if (o.kind === 'error') return `The search provider failed (${o.message.slice(0, 200)}). Try again later, or add the game by name below.`;
+  if (o.matches.length) return null;
+  if (o.rawHits === 0) return `The search provider returned no results for “${q}” (${o.queries} searches tried). Check the spelling, or add the game by name below.`;
+  return `The search provider returned ${o.rawHits} results for “${q}” (${o.queries} searches tried), but none was a BoardGameGeek game page. Add the game by name below.`;
+}
+
+/** Validate the admin's "Add by name" form (no BGG id): the title and an optional year. */
+export function parseNameRequest(f: Record<string, unknown>): { title: string; year: number | null } | null {
+  const title = String(f['title'] ?? '').replace(/\s+/g, ' ').trim();
+  const yearRaw = String(f['year'] ?? '').trim();
+  const year = yearRaw ? Number(yearRaw) : null;
+  if (title.length < 2 || title.length > 80) return null;
+  if (year !== null && (!Number.isInteger(year) || year < 1900 || year > 2100)) return null;
+  return { title, year };
 }
 
 /** Validate a pick posted from the form. */
