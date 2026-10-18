@@ -5,6 +5,7 @@ Product principle: AI tasks -> Nanobot agents over MCP in background; plain code
 
 ## Next (ordered; do the first unfinished one)
 0. QUALITY FOCUS (Cory 2026-10-17): fix Space Base source (store-page text, not rulebook), re-index Brass (52 chunks no embeddings), run Librarian on new top-10 games, list/count retrieval fix (roles questions fail on all models), eval sets for new games. BGG top 10 queued (done); Terraforming Mars rejected (reason unchecked); Grimcoven awaits approval.
+0b. EXTRACTION (Cory 2026-10-18): (a) new Extractor agent separate from Scout (Scout only finds/judges sources); (b) text layers: ROGUE_OCR_ALL_PAGES=1 currently overwrites every PDF text layer with OCR; make it per-page best-of (text layer when clean, OCR when scanned/garbled), measure first; (c) source rule is now prefer-publisher-not-only (AGENTS.md 2b; scout.md and add-game error text still say publisher-only, update); (d) admin 'capture from browser' for bot-walled pages (bookmarklet/paste, source marked manual capture).
 1. BGG: API import needs ROGUE_BGG_TOKEN (RGE-A16 submitted by Cory, awaiting BGG). Until then CSV upload works at /account/collection. Cory to test with his cisakson export.
 2. A6 print/sheet accessibility, A7 manual keyboard/screen-reader pass (SKIPPED: Cory has no screen reader; keep automated checks only), A8 ACR/VPAT + accessibility statement.
 3. MCP OAuth LIVE with audit entries (done). Next: item 2 (accessibility A6-A8) or Cory-blocked items.

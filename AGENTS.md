@@ -11,6 +11,7 @@ EU/GDPR-first, self-hostable, MCP-native, every model and storage provider plugg
 ## Non-negotiable rules (from the design plan)
 1. **No claim without a source.** Anything shown to users (chat, FAQs, sheet lines, images, accessories) carries attribution. Unattributed claims cannot be stored as published.
 2. **Rights first.** Never host or serve full rulebooks. Fetch/cache/quote only within the Jurisdiction Policy; honour opt-outs (robots, TDM reservations, site terms). Enforcement lives in the KB service, never only in a prompt.
+2b. **Source preference (Cory 2026-10-18):** prefer the publisher or rights holder when a usable source exists, but do not restrict to it. Other sources (fan summaries, third-party rules sites, community text) are allowed when the rights gates pass (robots, TDM, site terms, no bot-wall bypass) and are recorded with a lower authority weight and a REVIEW_LOG verdict. Never bypass a bot wall.
 3. **Don't copy publisher art or text.** Themed styling is original; paraphrase facts, quote briefly with citation.
 4. **Pluggable everything.** Models, storage, and source adapters sit behind interfaces. No provider SDK calls outside `packages/providers`/adapters. Local-first model preference.
 5. **Hosting-country neutral.** EU defaults come from the instance profile (`packages/core/src/config.ts`), never hard-coded.
