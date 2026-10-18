@@ -67,3 +67,35 @@ export function extractNote(detail: Record<string, unknown> | null | undefined):
   const ocr = Array.isArray(detail['ocrPages']) ? detail['ocrPages'].length : 0;
   return (ocr > 0 ? `OCR, ${ocr} pages` : 'text layer') + ('ocrErrors' in detail ? ' (OCR errors)' : '');
 }
+
+/** One scored page from page_quality (verdict from scorePage: ok, suspect, garbled, empty). */
+export interface PageScore { page: number; score: number; verdict: string; state?: string }
+
+/** Per-source text quality at the top of /admin/games/<slug>. `avg` is null when the source has no scored pages. */
+export interface SourceQuality { pages: number; avg: number | null; low: number; worst: PageScore[] }
+
+/** A page counts as low when the scorer did not call it ok (suspect, garbled or empty). */
+export const isLowPage = (p: Pick<PageScore, 'verdict'>): boolean => p.verdict !== 'ok';
+
+/** Average score, number of low pages and the `worstN` lowest-scoring low pages (ties by page number). */
+export function summarizeQuality(pages: PageScore[], worstN = 3): SourceQuality {
+  const scored = pages.filter((p) => Number.isFinite(p.score));
+  const avg = scored.length ? Math.round((scored.reduce((s, p) => s + p.score, 0) / scored.length) * 100) / 100 : null;
+  const low = scored.filter(isLowPage);
+  const worst = [...low].sort((a, b) => a.score - b.score || a.page - b.page).slice(0, Math.max(0, worstN));
+  return { pages: scored.length, avg, low: low.length, worst };
+}
+
+/**
+ * Text-layer vs OCR page counts from the latest 'fetched' audit detail. `pageSource` (per page 'text'/'ocr') wins when
+ * present; older entries only have `ocrPages`/`textLayerPages`. Null when the entry says nothing about it.
+ */
+export function pageSourceCounts(detail: Record<string, unknown> | null | undefined): { textLayer: number; ocr: number } | null {
+  if (!detail) return null;
+  const ps = detail['pageSource'];
+  if (Array.isArray(ps)) return { textLayer: ps.filter((s) => s === 'text').length, ocr: ps.filter((s) => s === 'ocr').length };
+  const ocr = Array.isArray(detail['ocrPages']) ? detail['ocrPages'].length : null;
+  const text = Array.isArray(detail['textLayerPages']) ? detail['textLayerPages'].length : null;
+  if (ocr === null && text === null) return null;
+  return { textLayer: text ?? 0, ocr: ocr ?? 0 };
+}

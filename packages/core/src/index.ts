@@ -38,3 +38,4 @@ export * from './bgg/index.js';
 export * from './settings/index.js';
 export * from './source-delete.js';
 export * from './admin-games.js';
+export * from './extract-delete.js';

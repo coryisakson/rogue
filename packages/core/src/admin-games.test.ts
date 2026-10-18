@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { extractNote, gameMatches, lastActivity, mergeTimeline, normalizeGameQuery, recentGames, searchGames, type IngestedGame } from './admin-games.js';
+import {
+  extractNote, gameMatches, isLowPage, lastActivity, mergeTimeline, normalizeGameQuery, pageSourceCounts, recentGames, searchGames, summarizeQuality, type IngestedGame,
+} from './admin-games.js';
 
 const d = (s: string) => new Date(s);
 const game = (slug: string, name: string, createdAt: string | null, lastFetchedAt: string | null = null, lastDecidedAt: string | null = null): IngestedGame => ({
@@ -67,5 +69,37 @@ describe('admin games: extract note', () => {
     expect(extractNote({ ocrPages: [], ocrErrors: ['x'] })).toBe('text layer (OCR errors)');
     expect(extractNote({})).toBe('text layer');
     expect(extractNote(null)).toBe('unknown');
+  });
+});
+
+describe('admin games: text quality summary', () => {
+  const p = (page: number, score: number, verdict = 'ok') => ({ page, score, verdict });
+  it('averages, counts low pages and lists the worst ones', () => {
+    const q = summarizeQuality([p(1, 0.9), p(2, 0.2, 'garbled'), p(3, 0.5, 'suspect'), p(4, 0, 'empty'), p(5, 0.5, 'suspect')], 3);
+    expect(q.pages).toBe(5);
+    expect(q.avg).toBe(0.42);
+    expect(q.low).toBe(4);
+    expect(q.worst.map((x) => x.page)).toEqual([4, 2, 3]);
+  });
+  it('says nothing is known when no page was scored', () => {
+    expect(summarizeQuality([])).toEqual({ pages: 0, avg: null, low: 0, worst: [] });
+  });
+  it('never lists an ok page as worst', () => {
+    expect(summarizeQuality([p(1, 0.6), p(2, 0.7)]).worst).toEqual([]);
+    expect(isLowPage({ verdict: 'ok' })).toBe(false);
+  });
+});
+
+describe('admin games: text layer vs OCR pages', () => {
+  it('prefers the per-page list', () => {
+    expect(pageSourceCounts({ pageSource: ['text', 'ocr', 'ocr'], ocrPages: [9] })).toEqual({ textLayer: 1, ocr: 2 });
+  });
+  it('falls back to the page number lists', () => {
+    expect(pageSourceCounts({ ocrPages: [1, 2] })).toEqual({ textLayer: 0, ocr: 2 });
+    expect(pageSourceCounts({ textLayerPages: [1], ocrPages: [] })).toEqual({ textLayer: 1, ocr: 0 });
+  });
+  it('is unknown without an entry or without page data', () => {
+    expect(pageSourceCounts(null)).toBeNull();
+    expect(pageSourceCounts({ pages: 4 })).toBeNull();
   });
 });
