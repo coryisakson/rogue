@@ -61,7 +61,7 @@ const label: Record<string, string> = { submitted: 'being checked', queued: 'in 
       {error && <p class="mt-0"><Badge variant="danger">note</Badge> {error}</p>}
       {manualLink ? (
         <>
-          <p class="mt-0">Know the <b>publisher's own</b> rulebook link? Paste it. Automatic checks look at robots.txt and opt-out signals, then an admin decides. Nothing is fetched before approval.</p>
+          <p class="mt-0">Know the <b>publisher's own</b> rulebook link (preferred; other rules sources are allowed at lower weight)? Paste it. Automatic checks look at robots.txt and opt-out signals, then an admin decides. Nothing is fetched before approval.</p>
           <form method="post" class="grid gap-2.5">
             <input type="hidden" name="action" value="link" />
             <label class="grid gap-1">Game title <Input name="name" defaultValue={v['name'] ?? ''} required maxLength={80} /></label>

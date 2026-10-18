@@ -40,7 +40,7 @@ export function judgeSourcePick(input: { url: unknown; role: unknown; reason: un
   if (problem) return out('rejected', problem);
   if (!(SOURCE_ROLES as readonly string[]).includes(role)) return out('rejected', `role must be one of ${SOURCE_ROLES.join(', ')}`);
   if (!reason) return out('rejected', 'a reason is required');
-  if (isAggregator(u.hostname)) return out('rejected', 'third-party copy site; only the publisher is a source');
+  if (isAggregator(u.hostname)) return out('rejected', 'document-copy site (re-hosted files); use the publisher or another original source instead');
   const listed = ctx.candidates.includes(url);
   let onPublisherSite = false;
   if (ctx.publisherPage) { try { onPublisherSite = sameSite(new URL(ctx.publisherPage).hostname, u.hostname); } catch { /* bad page url: not same site */ } }

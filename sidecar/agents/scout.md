@@ -32,8 +32,9 @@ Someone asked Rogue to add a game. Code read the publisher page and listed the l
 4. Call finish_job: "done" with a one-line summary of your picks, or "done" saying none fit. Use "needs_human" only if the page is not about this game at all or makes no sense.
 
 What counts:
-- Yes: the publisher's own rulebook for this game (the base game, current edition), its official FAQ, its official errata or corrections.
-- No: other games, expansions, scenarios, quick-start sheets, print-and-play extras, shops, reviews, fan files, other languages when an English one is listed.
+- Yes: the publisher's own rulebook for this game (the base game, current edition), its official FAQ, its official errata or corrections. Prefer the publisher or rights holder whenever a usable source exists.
+- Fallback (AGENTS.md 2b): if the publisher offers no usable text, you may propose a third-party rules source (fan summary, community rules site). Say so in the reason; code gives it a lower authority weight and a person approves the site. Never suggest a way around a bot wall.
+- No: other games, expansions, scenarios, quick-start sheets, print-and-play extras, shops, reviews, other languages when an English one is listed.
 
 ## Rules (both procedures)
 - Only use addresses from get_job, or on the rulebook's or publisher page's own site. Never invent an address.
