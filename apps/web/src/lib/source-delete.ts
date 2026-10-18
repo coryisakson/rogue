@@ -4,7 +4,7 @@ import { ensureMigrated, getPool, storage } from './services';
 import type pg from 'pg';
 
 /**
- * Admin hard delete of one source (/admin/sources, Cory 2026-10-18: some sources are inaccurate and must be removed).
+ * Admin hard delete of one source (/admin/games/<slug>/sources, Cory 2026-10-18: some sources are inaccurate and must be removed).
  * Unlike takedown() (lifecycle.ts), the sources row itself goes, with everything derived from it:
  *   - claims cited ONLY by this source are rejected ('source deleted'); claims with other sources just lose these citations;
  *   - citations, documents, chunks, agent jobs, rights grants, page quality/overrides and text variants of this source;
@@ -19,6 +19,18 @@ export interface SourceDeletePreview { id: number; url: string; title: string | 
 export interface SourceDeleteResult extends SourceDeletePreview { files: number; tombstoned: boolean; answersHidden: number; faqHidden: number }
 
 type Q = Pick<pg.PoolClient, 'query'>;
+
+/**
+ * Stored answers that cite the URL: chat answers lose their text (the FAQ tally only shows rows with text, like answers
+ * with a citation warning), canonical FAQ entries are hidden. Also used by the extract delete (lib/extract-delete.ts);
+ * the caller runs forgetAnswersCiting(url) after its commit.
+ */
+export async function hideAnswersCiting(q: Q, url: string): Promise<{ answersHidden: number; faqHidden: number }> {
+  const cited = JSON.stringify([{ url }]);
+  const answersHidden = (await q.query('UPDATE chat_answers SET answer=NULL, sources=NULL WHERE answer IS NOT NULL AND sources @> $1::jsonb', [cited])).rowCount ?? 0;
+  const faqHidden = (await q.query("UPDATE faq_canonical SET status='hidden' WHERE status='published' AND sources @> $1::jsonb", [cited])).rowCount ?? 0;
+  return { answersHidden, faqHidden };
+}
 
 /** What a delete would do: shown on the confirm form, and recomputed inside the delete transaction. */
 async function plan(q: Q, sourceId: number, lock = false) {
@@ -74,11 +86,7 @@ export async function deleteSource(sourceId: number, actor: string, reason: stri
     // page_quality, page_overrides and text_variants (as the PDF) cascade; runtime_sources.replaces_source_id and
     // text_variants.variant_source_id are set to NULL by their foreign keys.
 
-    // Stored answers that cite the URL: chat answers lose their text (the FAQ tally only shows rows with text, like
-    // answers with a citation warning), canonical FAQ entries are hidden.
-    const cited = JSON.stringify([{ url: s.url }]);
-    const answersHidden = await n('UPDATE chat_answers SET answer=NULL, sources=NULL WHERE answer IS NOT NULL AND sources @> $1::jsonb', [cited]);
-    const faqHidden = await n("UPDATE faq_canonical SET status='hidden' WHERE status='published' AND sources @> $1::jsonb", [cited]);
+    const { answersHidden, faqHidden } = await hideAnswersCiting(c, s.url);
 
     let tombstoned = false;
     if (!allowReingest) {
