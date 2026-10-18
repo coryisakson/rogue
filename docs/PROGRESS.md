@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-18 (Hermes): 0.0.130: admin games restructure: two game pages (Games, Requests); Manage sources/extracts subpages; text quality on top of game page; extract delete (keeps source). Needs Cory click-through.
 - 2026-10-18 (Hermes): 0.0.129: admin game hub: /admin/games (search + recent), per-game history page, compact open-only /admin/requests, sources/extracts use game search. Needs Cory browser click-through.
 - 2026-10-18 (Hermes): 0.0.128: admin hard-delete of a source on /admin/sources (chunks, files, jobs, grants; sole-source claims rejected; answer/FAQ caches cleared; URL tombstoned). Needs Cory browser test.
 - 2026-10-18 (Hermes): 0.0.127: ingest refuses empty extractions (no text layer, OCR nothing): no file, text or rows stored; audit_log extract_empty.
