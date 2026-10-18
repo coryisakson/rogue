@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-18 (Hermes): Proposed Extractor agent design in docs/adr/0005-extractor-agent.md (propose-only page choice/structure, code verifies). Not built; awaits Cory go-ahead and the auto-vs-all eval.
 - 2026-10-18 (Hermes): Measured text layers (STS, Azul, Pandemic): ~95% of pages clean, only covers empty; `auto` would OCR just those. Chart not switched yet; needs auto-vs-all retrieval comparison (docs/OCR.md).
 - 2026-10-18 (Hermes): 0.0.133: source rule 2b applied to Scout prompt, judge message and request page text (prefer publisher, fallback allowed at lower weight). Aggregator-copy sites still rejected.
 - 2026-10-18 (Hermes): 0.0.135: Remove link button for admin-added links without a source; capture now replaces a failed admin-added link for the same URL (was refused as queued, so Ark Nova capture never stored).
