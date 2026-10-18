@@ -20,6 +20,8 @@ describe('security', () => {
     for (const p of ['/mcp/', '/mcp/x', '/mcp/../api/games', '/docs', '/docs/other', '/api/games', '/api/search', '/api/rules/search', '/api/admin/ingest', '/admin/other', '/admin/sources/x', '/admin/source-delete/', '/admin/source-delete/x', '/admin/source-deletes', '/admin/games/a/b', '/admin/games/../../api', '/admin/games/Pandemic', '/admin/gamesx', '/admin/settings/x', '/admin/sources/../../api', '/agent/mcp', '/agent/mcp/a/b', '/agent/other', '/admin/backups/x', '/api/ai-ping', '/readyz', '/games/pandemic/../../api', '/games/a/b/c', '/api/games/pandemic/claims', '/api/ask/x', '/api/asks']) expect(isPublicPath(p)).toBe(false);
     // Game management subpages and the extract delete handler (pages guard themselves).
     for (const p of ['/admin/extract-delete', '/admin/games/pandemic/sources', '/admin/games/pandemic/extracts', '/admin/games/slay-the-spire/extracts/']) expect(isPublicPath(p)).toBe(true);
+    for (const p of ['/admin/capture', '/admin/capture-inbox']) expect(isPublicPath(p)).toBe(true);
+    for (const p of ['/admin/capture/', '/admin/capture/x', '/admin/captures', '/admin/capture-inbox/x', '/admin/capture-inboxes']) expect(isPublicPath(p)).toBe(false);
     for (const p of ['/admin/extract-delete/', '/admin/extract-delete/x', '/admin/extract-deletes', '/admin/games/pandemic/other', '/admin/games/pandemic/sources/x', '/admin/games/Pandemic/sources', '/admin/games/../sources', '/admin/games/pandemic/../../api']) expect(isPublicPath(p)).toBe(false);
     expect(isCostlyPath('/games/pandemic')).toBe(true);
     expect(isCostlyPath('/')).toBe(false);

@@ -121,8 +121,8 @@ export async function searchRules(q: string, opts: { game?: string; limit?: numb
   // Authority ranking: official FAQ/errata and publisher sources lift above product pages and community text; garbled OCR text sinks.
   const cand = [...new Set([...kw, ...vec])];
   const wrows = cand.length ? (await pool.query(
-    `SELECT ch.id::text id, d.kind, s.authority, ch.quality ${base} WHERE ch.id = ANY($1::bigint[])`, [cand])).rows : [];
-  const weights = new Map(wrows.map((r) => [r.id as string, sourceWeight(r.kind, r.authority) * qualityWeight(r.quality as number | null)]));
+    `SELECT ch.id::text id, d.kind, s.authority, s.capture_method, ch.quality ${base} WHERE ch.id = ANY($1::bigint[])`, [cand])).rows : [];
+  const weights = new Map(wrows.map((r) => [r.id as string, sourceWeight(r.kind, r.authority, r.capture_method) * qualityWeight(r.quality as number | null)]));
   let ids = rrf([...kwLists, ...vecLists], 60, (id) => weights.get(id) ?? 1).slice(0, opts.rerank ? Math.max(limit, 10) : limit);
   if (!ids.length) return [];
   const rows = (await pool.query(

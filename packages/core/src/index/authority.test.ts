@@ -13,6 +13,11 @@ describe('authority', () => {
     expect(w('rulebook')).toBeGreaterThan(w('rulebook', 'community'));
     expect(w('rulebook', 'community')).toBeGreaterThan(w('rulebook', 'forum'));
   });
+  it('a manual capture ranks below the same source fetched by Rogue, even as publisher', () => {
+    expect(sourceWeight('rulebook', 'publisher', 'manual_capture')).toBeLessThan(sourceWeight('rulebook', 'publisher'));
+    expect(sourceWeight('rulebook', 'community', 'manual_capture')).toBeLessThan(sourceWeight('rulebook', 'community'));
+    expect(sourceWeight('rulebook', 'publisher', null)).toBe(sourceWeight('rulebook', 'publisher'));
+  });
   it('weight breaks a tie in fusion but does not bury a much better match', () => {
     const far = [['a', ...Array.from({ length: 40 }, (_, i) => `x${i}`), 'b']];
     expect(rrf(far, 60, (id) => (id === 'b' ? 1.3 : 1))[0]).toBe('a'); // far behind: stays behind
