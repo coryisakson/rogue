@@ -8,7 +8,7 @@ entrances:
   name: rogue
   openMethod: default
   port: 4321
-  title: Rogue
+  title: T-AI-bletop Rogue
 metadata:
   appid: rogue
   categories:
@@ -16,8 +16,8 @@ metadata:
   description: Cited, rights-aware tabletop knowledge platform
   icon: https://rogue.cisakson.olares.com/icon-256.png
   name: rogue
-  title: Rogue
-  version: 0.0.124
+  title: T-AI-bletop Rogue
+  version: 0.0.125
 olaresManifest.type: app
 olaresManifest.version: 0.12.0
 options:
@@ -54,7 +54,7 @@ spec:
   supportArch:
   - amd64
   supportClient: {}
-  versionName: "0.0.124"
+  versionName: "0.0.125"
 tailscale: {}
 workloadReplicas:
   rogue: 1

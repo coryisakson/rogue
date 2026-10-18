@@ -12,7 +12,7 @@ export interface InstanceProfile {
 }
 
 export const DEFAULT_PROFILE: InstanceProfile = {
-  name: 'Rogue',
+  name: 'T-AI-bletop Rogue',
   region: 'eu',
   policyPack: 'eu-default',
   localOnly: false,

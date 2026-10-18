@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-18 (Hermes): 0.0.125: site name "T-AI-bletop Rogue" from the instance profile in title, header, footer and Olares title; hex logo is the header logo.
 - 2026-10-18 (Hermes): 0.0.124: theme recoloured to the logo (navy/teal-green; light + dark, a11y-check OK 27 pairs), header shows the hex logo instead of the dice emoji. Needs Cory eyes in both modes.
 - 2026-10-18 (Hermes): 0.0.123: new hex logo (transparent) as favicon, apple-touch icon, Olares icon (icon-256.png), public/ assets. Discord bot icon file ready, upload needs Cory/portal.
 - 2026-10-17 (Hermes): Axe (wcag2a-2.2aa) in dark theme on 7 public pages (home, games, Pandemic, setup, aid, accessibility, Azul): 0 violations (print pages stay light by design). No code change, no deploy. Admin pages and keyboard pass still open (A7, Cory).
