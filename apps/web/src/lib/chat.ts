@@ -1,6 +1,6 @@
 import {
   CHAT_SYSTEM, CHAT_AGGREGATE_ADDENDUM, CHAT_HISTORY_ADDENDUM, DailyCounter, answerLanguageRule, answerMaxTokens, badCitations, buildPrompt, chatRoles,
-  checkChatBudget, historyBlock, isAggregateQuestion, namedSections, normalizeQuestion, rewriteQuestion, t, trimHistory,
+  checkChatBudget, citesUrl, historyBlock, isAggregateQuestion, namedSections, normalizeQuestion, rewriteQuestion, t, trimHistory,
   type ChatBudget, type ChatTurn, type Locale,
 } from '@rogue/core';
 import { searchRules, expandWithNeighbors, gameRuleLangs, type RuleHit, type SearchStats } from './rules-index';
@@ -16,6 +16,13 @@ export interface ChatAnswer {
   warning?: string; ms: number; timings?: ChatTimings; standalone?: string; promptTokens?: number; completionTokens?: number;
 }
 const cache = new Map<string, ChatAnswer>();
+
+/** Drop cached answers that cite this URL (an admin deleted the source), so the next ask is answered fresh. Returns how many. */
+export function forgetAnswersCiting(url: string): number {
+  let n = 0;
+  for (const [k, a] of cache) if (citesUrl(a.sources, url)) { cache.delete(k); n++; }
+  return n;
+}
 
 // Asks per signed-in user per UTC day, shared by /api/ask and the no-JS game page form.
 const daily = new DailyCounter();
