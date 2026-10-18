@@ -61,7 +61,7 @@ describe('pickPagesForOcr', () => {
   it('all OCRs every page but still scores them', () => {
     const r = pickPagesForOcr(pages, { mode: 'all' });
     expect(r.ocrPages).toEqual([1, 2, 3, 4, 5]);
-    expect(r.decisions[0].score).toBeGreaterThan(0.9);
+    expect(r.decisions[0]?.score).toBeGreaterThan(0.9);
   });
   it('off never OCRs', () => { expect(pickPagesForOcr(pages, { mode: 'off' }).ocrPages).toEqual([]); });
   it('honours a custom score threshold', () => { expect(pickPagesForOcr([en], { minScore: 1.01 }).ocrPages).toEqual([1]); });
