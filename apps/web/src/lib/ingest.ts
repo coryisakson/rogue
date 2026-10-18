@@ -1,4 +1,4 @@
-import { RightsGatedFetcher, FetchDenied, htmlAdapter, textAdapter, selectAdapter, qrClaimBody, type SourceAdapter } from '@rogue/core';
+import { RightsGatedFetcher, FetchDenied, htmlAdapter, textAdapter, selectAdapter, qrClaimBody, hasExtractedText, type SourceAdapter } from '@rogue/core';
 import { pdfAdapter } from './pdf-adapter';
 import { ensureMigrated, getPool, storage } from './services';
 import { allSeeds, syncApprovedHosts } from './dynamic-sources';
@@ -71,6 +71,14 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
       'ingest', 'extract_failed', { url: seed.url, contentType: doc.contentType, error: (e as Error).message },
     ]);
     return { url: seed.url, ok: false, detail: (e as Error).message };
+  }
+
+  // Nothing readable came out (no text layer and no OCR result): do not persist the file, text or any rows.
+  if (!hasExtractedText(extracted.text)) {
+    await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [
+      'ingest', 'extract_empty', { url: seed.url, contentType: doc.contentType, pages: extracted.pageCount, ...(extracted.notes ?? {}) },
+    ]);
+    return { url: seed.url, ok: false, detail: 'no text extracted (no text layer, OCR gave nothing); nothing stored' };
   }
 
   const privatePath = `private/sources/${doc.sha256}.${adapter!.extension}`;

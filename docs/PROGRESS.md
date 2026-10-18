@@ -1,5 +1,6 @@
 # Progress log (newest first). One dated line per meaningful change.
 # Keep entries to 1-2 lines (<400 chars). Details belong in commit messages, ADRs or docs/archive/.
+- 2026-10-18 (Hermes): 0.0.127: ingest refuses empty extractions (no text layer, OCR nothing): no file, text or rows stored; audit_log extract_empty.
 - 2026-10-18 (Hermes): 0.0.126: ROGUE_OCR_MODE (auto/all/off) per-page text-layer vs OCR selection, quality scorer + textlayer-report.mjs. Chart still sets ROGUE_OCR_ALL_PAGES; not switched until real PDFs are measured.
 - 2026-10-18 (Hermes): 0.0.125: site name "T-AI-bletop Rogue" from the instance profile in title, header, footer and Olares title; hex logo is the header logo.
 - 2026-10-18 (Hermes): 0.0.124: theme recoloured to the logo (navy/teal-green; light + dark, a11y-check OK 27 pairs), header shows the hex logo instead of the dice emoji. Needs Cory eyes in both modes.
