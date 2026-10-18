@@ -1,14 +1,13 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-import { SOURCE_DELETE_ERRORS, SOURCE_DELETE_REASON_MAX, SOURCE_KINDS, SOURCE_LANGUAGES, parsePick, parseSourceInput, sameOrigin } from '@rogue/core';
-import AdminGameSearch from '../../components/AdminGameSearch.astro';
+import { SOURCE_DELETE_ERRORS, SOURCE_DELETE_REASON_MAX, SOURCE_KINDS, SOURCE_LANGUAGES, normalizeGameQuery, parsePick, parseSourceInput, sameOrigin, searchGames } from '@rogue/core';
+import IngestedGameSearch from '../../components/IngestedGameSearch.astro';
+import { ingestedGames } from '../../lib/admin-games';
 import { isAdmin } from '../../lib/admin';
 import {
-  addGameSource, adminGameSearch, adminRequestGame, factsCount, gameSources, listGames, pendingRuntimeSources, reingestSource, reingestStatus,
-  type AdminMatch,
+  addGameSource, adminRequestGame, factsCount, gameSources, listGames, pendingRuntimeSources, reingestSource, reingestStatus,
 } from '../../lib/game-sources';
 import type { RightsReport } from '../../lib/add-game';
-import { searchEnabled } from '../../lib/search';
 import { sourceDeletePreview, sourceInGame } from '../../lib/source-delete';
 import { ensureMigrated } from '../../lib/services';
 import { Badge } from '../../components/ui/badge';
@@ -55,14 +54,10 @@ if (Astro.request.method === 'POST') {
     msg = r.ok ? `Re-ingesting source #${id} (force re-fetch, then index). Reload to see progress.` : (r.error ?? 'Could not re-ingest.');
   } else msg = 'Unknown action.';
 }
-// Title search (GET ?q=): same pick list and rate limit as /request-game.
-const q = (Astro.url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
-const searchOn = searchEnabled();
-let matches: AdminMatch[] | null = null; let searchError: string | null = null;
-if (Astro.request.method === 'GET' && q.length >= 2 && searchOn) {
-  const r = await adminGameSearch(me, q);
-  if ('error' in r) { searchError = r.error; matches = []; } else matches = r.matches;
-}
+// Game search (GET ?q=): games already in Rogue only. New games are searched and added on /admin/requests, whose
+// BoardGameGeek results still POST action=request-game here.
+const q = normalizeGameQuery(Astro.url.searchParams.get('q'));
+const matches = Astro.request.method === 'GET' && q ? searchGames(await ingestedGames(), q) : null;
 const game = games.find((g) => g.slug === slug) ?? null;
 const sources = game ? await gameSources(game.slug) : [];
 const facts = game ? await factsCount(game.slug) : 0;
@@ -87,7 +82,7 @@ const field = 'mt-1 bg-background';
 ---
 <Admin title="Game sources">
   <p>Add a rules link (rulebook, FAQ, errata) to a game already in Rogue, replace a source that points at the wrong site, or re-fetch one. A new link goes through the same gates as a new game: you confirm you read the publisher's terms when the host is not approved yet, then the Rights Officer checks robots.txt, TDM reservation, opt-out headers and the content type. Nothing is fetched before both pass. A replaced source is marked unavailable, never deleted, so facts that cite it stay attributable. Delete removes an inaccurate source for good, with its chunks, files and the facts that cite only it.</p>
-  <AdminGameSearch action="/admin/sources" q={q} matches={matches} error={searchError} searchOn={searchOn} />
+  <IngestedGameSearch action="/admin/sources" q={q} results={matches} hrefFor={(s) => `/admin/sources?game=${encodeURIComponent(s)}`} />
   {msg && <p role="status"><Badge variant="secondary" className="h-auto whitespace-normal">{msg}</Badge></p>}
   {report && (
     <Card className="mb-3 text-base"><CardContent>
@@ -95,19 +90,12 @@ const field = 'mt-1 bg-background';
       <ul class="mb-0">{report.findings.map((x) => <li>{x.level === 'ok' ? '✅' : x.level === 'warn' ? '⚠️' : '⛔'} {x.text}</li>)}</ul>
     </CardContent></Card>
   )}
-  <form method="get" class="mb-3 flex flex-wrap items-end gap-2">
-    <label class="grid gap-1">Game
-      <NativeSelect name="game" defaultValue={slug} required>
-        <NativeSelectOption value="">Choose a game</NativeSelectOption>
-        {games.map((g) => <NativeSelectOption value={g.slug}>{g.name}</NativeSelectOption>)}
-      </NativeSelect></label>
-    <Button type="submit" variant="secondary">Show sources</Button>
-  </form>
+  {!game && <p>Search for a game above, or pick one on <a href="/admin/games">Games</a>.</p>}
   {game && (
     <>
       <Card className="mb-3 text-base"><CardContent>
         <Table>
-          <TableCaption className="mt-0 mb-2 caption-top text-left">{game.name}: {sources.length} sources, {facts} published facts · <a href={`/games/${game.slug}`}>game page</a></TableCaption>
+          <TableCaption className="mt-0 mb-2 caption-top text-left">{game.name}: {sources.length} sources, {facts} published facts · <a href={`/games/${game.slug}`}>game page</a> · <a href={`/admin/games/${encodeURIComponent(game.slug)}`}>history</a></TableCaption>
           <TableHeader><TableRow>
             <TableHead scope="col">Source</TableHead><TableHead scope="col">Lang</TableHead><TableHead scope="col">Kind</TableHead><TableHead scope="col">Availability</TableHead>
             <TableHead scope="col">Fetched</TableHead><TableHead scope="col">Pages (indexed / total)</TableHead><TableHead scope="col">Actions</TableHead>

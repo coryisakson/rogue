@@ -1,6 +1,7 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-import { renderMarkdown, scorePage } from '@rogue/core';
+import { gameMatches, normalizeGameQuery, renderMarkdown, scorePage } from '@rogue/core';
+import IngestedGameSearch from '../../components/IngestedGameSearch.astro';
 import { isAdmin } from '../../lib/admin';
 import { getPool, ensureMigrated } from '../../lib/services';
 import { loadSourcePages, loadOverrideMethods, pagesToMarkdown, summarizePages } from '../../lib/page-text';
@@ -31,6 +32,9 @@ let source: Source | null = null;
 let view: { n: number; text: string; verdict: string; score: number; override?: string; leftOut: boolean }[] = [];
 let allPages: number[] = [];
 const groups = new Map<string, (Source & { summary: ReturnType<typeof summarizePages> | null })[]>();
+// Game search (GET ?q=) narrows the list to games already in Rogue whose name or slug matches.
+const gq = normalizeGameQuery(params.get('q'));
+const found = new Map<string, { slug: string; name: string }>();
 
 if (sourceId !== null) {
   source = (await q(`SELECT s.id, s.title, s.publisher, s.page_count, s.content_type, ${OCR_SQL} ocr, NULL game, NULL slug FROM sources s WHERE s.id=$1`, [sourceId]))[0] ?? null;
@@ -58,6 +62,10 @@ if (sourceId !== null) {
     WHERE s.text_path IS NOT NULL ORDER BY s.id, g.name`);
   rows.sort((a, b) => String(a.game ?? '~').localeCompare(String(b.game ?? '~')) || a.id - b.id);
   for (const r of rows) {
+    if (gq) {
+      if (!r.slug || !r.game || !gameMatches({ name: r.game, slug: r.slug }, gq)) continue;
+      found.set(r.slug, { slug: r.slug, name: r.game });
+    }
     const sp = await loadSourcePages(r.id);
     const key = r.game ?? 'No game linked';
     groups.set(key, [...(groups.get(key) ?? []), { ...r, summary: sp ? summarizePages(sp) : null }]);
@@ -78,10 +86,12 @@ const base = `/admin/extracts?source=${sourceId}`;
 
   {source === null && <>
     <p>Review what the extractor (text layer, OCR, agent repairs) produced for each source. Read-only; quality is scored live by code and nothing is stored.</p>
-    {groups.size === 0 && <Card className="text-base"><CardContent>No sources with stored text yet.</CardContent></Card>}
+    <IngestedGameSearch action="/admin/extracts" q={gq} results={gq ? [...found.values()] : null} />
+    {gq && <p><a href="/admin/extracts">Show all sources</a></p>}
+    {groups.size === 0 && !gq && <Card className="text-base"><CardContent>No sources with stored text yet.</CardContent></Card>}
     {[...groups].map(([game, list]) => (
       <section>
-        <h2 class="text-lg">{game}</h2>
+        <h2 class="text-lg">{game}{list[0]?.slug && <> <small><a href={`/admin/games/${encodeURIComponent(list[0].slug)}`}>history</a></small></>}</h2>
         <div class="grid gap-2">
           {list.map((s) => (
             <Card className="text-base"><CardContent>

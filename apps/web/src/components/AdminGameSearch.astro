@@ -1,6 +1,6 @@
 ---
 // Admin title search (same pick list as /request-game, via adminGameSearch in lib/game-sources.ts). A result already in Rogue
-// links to its sources page; any other result can start an admin-approved request (POST handled by /admin/sources).
+// links to its game page (/admin/games/<slug>); any other result can start an admin-approved request (POST handled by /admin/sources).
 import type { AdminMatch } from '../lib/game-sources';
 import { Button, buttonVariants } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -22,7 +22,7 @@ const { action, q, matches, error, searchOn } = Astro.props;
             <li class="flex flex-wrap items-center gap-2.5 border-t border-border py-1.5">
               <span class="flex-1"><b>{m.title}</b>{m.year && <> ({m.year})</>} · <a href={m.url} rel="noopener nofollow" target="_blank">BoardGameGeek</a></span>
               {m.inRogue ? (
-                <a data-slot="button" class={buttonVariants({ variant: 'secondary' })} href={`/admin/sources?game=${encodeURIComponent(m.inRogue)}`}>In Rogue: open sources</a>
+                <a data-slot="button" class={buttonVariants({ variant: 'secondary' })} href={`/admin/games/${encodeURIComponent(m.inRogue)}`}>In Rogue: open game</a>
               ) : (
                 <form method="post" action="/admin/sources">
                   <input type="hidden" name="action" value="request-game" /><input type="hidden" name="bggId" value={m.bggId} /><input type="hidden" name="title" value={m.title} /><input type="hidden" name="year" value={m.year ?? ''} />
