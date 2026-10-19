@@ -28,7 +28,7 @@ spec:
         - name: ROGUE_AGENT_SHARE_DIR
           value: /app/agent-share
         - name: ROGUE_AGENTS_URL
-          value: http://127.0.0.1   # agent ports 8901/8902 are a convention in app code
+          value: http://127.0.0.1   # agent ports 8901-8906 are a convention in app code (AGENT_PORTS)
         - name: ROGUE_BACKUP_DIR
           value: /app/backups
         - name: ROGUE_DATA_DIR

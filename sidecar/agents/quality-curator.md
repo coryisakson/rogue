@@ -1,6 +1,6 @@
 ---
 name: quality-curator
-port: 8901
+port: 8906
 tools: [get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job]
 maxToolIterations: 60
 ---

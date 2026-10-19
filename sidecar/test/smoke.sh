@@ -16,7 +16,7 @@ export ROGUE_AI_BASE_URL="${ROGUE_AI_BASE_URL:-http://3a77b15d.shared.olares.com
 trap 'kill $SUP $STUB 2>/dev/null || true; wait 2>/dev/null || true' EXIT
 KEY="$(python3 - <<P
 import hashlib,hmac
-print(hmac.new(open("$S/agent-key").read().strip().encode(),b"api:quality-curator",hashlib.sha256).hexdigest())
+print(hmac.new(open("$S/agent-key").read().strip().encode(),b"api:reviewer",hashlib.sha256).hexdigest())
 P
 )"
 for i in $(seq 60); do curl -sf http://127.0.0.1:8901/health >/dev/null 2>&1 && break; sleep 1; done

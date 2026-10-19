@@ -43,8 +43,8 @@ def _scalar(v: str):
     return v.strip("'\"")
 
 
-def parse_spec(text: str) -> dict:
-    """Tiny frontmatter parser: `key: value` and `key: [a, b]` only (no PyYAML needed)."""
+def _frontmatter(text: str) -> dict:
+    """Tiny frontmatter parser: `key: value` and `key: [a, b]` only (no PyYAML needed). The rest goes to meta["body"]."""
     lines = text.split("\n")
     if not lines or lines[0].strip() != "---":
         raise ValueError("spec must start with '---' frontmatter")
@@ -61,15 +61,39 @@ def parse_spec(text: str) -> dict:
             meta[k.strip()] = [_scalar(x) for x in v[1:-1].split(",") if x.strip()]
         else:
             meta[k.strip()] = _scalar(v)
-    for req in ("name", "port", "tools"):
-        if req not in meta:
-            raise ValueError(f"spec missing '{req}'")
     meta["body"] = "\n".join(lines[end + 1:]).strip() + "\n"
     return meta
 
 
+def parse_spec(text: str) -> dict:
+    meta = _frontmatter(text)
+    for req in ("name", "port", "tools"):
+        if req not in meta:
+            raise ValueError(f"spec missing '{req}'")
+    return meta
+
+
+def add_skills(spec: dict, skills_dir: Path) -> dict:
+    """An agent with skills (ADR 0007): agents/<name>/<skill>.md, frontmatter {skill, tools}.
+
+    Nanobot reads one instruction file per agent process and cannot swap it per request, so every skill becomes a section
+    "## Skill: <skill>" after the shared header, and the web app's task text names the one section to follow. The agent's
+    enabled tools are the union of its own and its skills' tools; the web app still refuses a tool outside the job kind's subset.
+    """
+    files = sorted(skills_dir.glob("*.md")) if skills_dir.is_dir() else []
+    spec["skills"] = []
+    for f in files:
+        sk = _frontmatter(f.read_text(encoding="utf-8"))
+        if "skill" not in sk or "tools" not in sk:
+            raise ValueError(f"skill {f.name} needs 'skill' and 'tools'")
+        spec["skills"].append(sk["skill"])
+        spec["tools"] = list(dict.fromkeys(list(spec["tools"]) + list(sk["tools"])))
+        spec["body"] = spec["body"].rstrip("\n") + f"\n\n## Skill: {sk['skill']}\n\n" + sk["body"]
+    return spec
+
+
 def load_specs(agents_dir: Path) -> list[dict]:
-    return [parse_spec(p.read_text(encoding="utf-8")) for p in sorted(agents_dir.glob("*.md"))]
+    return [add_skills(parse_spec(p.read_text(encoding="utf-8")), agents_dir / p.stem) for p in sorted(agents_dir.glob("*.md"))]
 
 
 def _mcp_cidrs(url: str) -> list[str]:

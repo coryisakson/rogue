@@ -4,13 +4,18 @@ Container `cisakson/rogue-agents` (python:3.12-slim + pinned `nanobot-ai[api]==0
 (ADR 0002) next to `web` and `db` in the Olares pod. One `nanobot serve` per spec in `agents/*.md`, bound to 127.0.0.1.
 
 ## Layout
-- `agents/<name>.md`: frontmatter `{name, port, tools, maxToolIterations, apiTimeout?, toolTimeout?}` (seconds; defaults 1500 and 60); body = agent instructions (written to the agent workspace `AGENTS.md`, which Nanobot injects into the system prompt; verified).
+- `agents/<name>.md` (+ optional skill files `agents/<name>/<skill>.md`): frontmatter `{name, port, tools, maxToolIterations, apiTimeout?, toolTimeout?}` (seconds; defaults 1500 and 60); body = agent instructions (written to the agent workspace `AGENTS.md`, which Nanobot injects into the system prompt; verified).
 - `gen_config.py`: spec -> `/work/<name>/{config.json,workspace/AGENTS.md}` (idempotent). `run.py`: waits for the key file, generates, supervises (backoff restart, exit 1 if all give up, SIGTERM forwarded).
 - `VERSION` -> image tag; CI `.github/workflows/build-agents-image.yml`; chart value `agentsImageTag` must match.
 
 ## Tool contract
 Agents see only the MCP server `rogue` at `${ROGUE_MCP_URL}/<agent>` (stateless streamable HTTP: POST JSON-RPC, 405 on GET) with header `x-rogue-agent: <name>:<token>`; `enabledTools` is the spec's `tools` list.
-- quality-curator (8901): get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job
+- reviewer (8901, ADR 0007): one agent, one skill per short review job kind. `agents/reviewer.md` is the shared header; each
+  `agents/reviewer/<skill>.md` (frontmatter `{skill, tools}`) becomes a section `## Skill: <skill>` of the instructions and adds its
+  tools. Nanobot loads instructions per process, so the web app's task text names the one skill to follow; the web app also refuses
+  any tool outside the job kind's subset (`JOB_TOOLS` in core). Skills: `extract_review` (get_job, get_page, propose_page_choice,
+  finish_job): choose text layer, OCR or a merge for unsure PDF pages; `acceptPageChoice` (core) rejects invented words or numbers.
+- quality-curator (8906 until `quality_curate` moves to the reviewer): get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job
 - scout (8902): get_job, preview_url, propose_text_variant, propose_source, finish_job. Two job kinds: `scout_variants` (one PDF source:
   propose a text version; overlap and host gates in code) and `scout_judge` (one game request, `agent_jobs.request_id`: propose which
   publisher-page links are the official rulebook/faq/errata). `judgeSourcePick` decides each proposal (listed or same publisher site,

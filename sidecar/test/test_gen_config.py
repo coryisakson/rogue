@@ -21,7 +21,8 @@ def test_derivation():
 
 def test_specs_and_tools():
     specs = {s["name"]: s for s in g.load_specs(AGENTS)}
-    assert specs["quality-curator"]["port"] == 8901
+    assert specs["reviewer"]["port"] == 8901
+    assert specs["quality-curator"]["port"] == 8906  # until quality_curate moves to the reviewer (ADR 0007)
     assert specs["quality-curator"]["tools"] == ["get_job", "get_page_text", "reocr_page",
         "propose_page_repair", "mark_page_unusable", "finish_job"]
     assert specs["scout"]["port"] == 8902
@@ -33,6 +34,18 @@ def test_specs_and_tools():
     assert specs["faq-curator"]["port"] == 8905
     assert specs["faq-curator"]["tools"] == ["get_job", "list_faq_candidates", "propose_canonical", "finish_job"]
     assert len({s["port"] for s in specs.values()}) == len(specs)
+
+
+def test_reviewer_skills():
+    """Skills are sections of one instruction file; tools are the union of the skills' tools (ADR 0007)."""
+    spec = next(s for s in g.load_specs(AGENTS) if s["name"] == "reviewer")
+    assert spec["skills"] == ["extract_review"]
+    assert spec["tools"] == ["get_job", "finish_job", "get_page", "propose_page_choice"]
+    body = spec["body"]
+    assert body.startswith("# Reviewer") and "## Skill: extract_review" in body and "follow only the section" in body
+    assert "skill: extract_review" not in body  # skill frontmatter is not part of the instructions
+    other = next(s for s in g.load_specs(AGENTS) if s["name"] == "scout")
+    assert other["skills"] == []
 
 
 def test_librarian_budget():

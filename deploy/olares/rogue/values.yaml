@@ -1,5 +1,5 @@
 # Tag of the agents sidecar image (cisakson/rogue-agents); version lives in sidecar/VERSION.
-agentsImageTag: "0.6.0"
+agentsImageTag: "0.7.0"
 workloads:
   rogue:
     replicaCount: 1
