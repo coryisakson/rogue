@@ -15,7 +15,8 @@ Agents see only the MCP server `rogue` at `${ROGUE_MCP_URL}/<agent>` (stateless 
   tools. Nanobot loads instructions per process, so the web app's task text names the one skill to follow; the web app also refuses
   any tool outside the job kind's subset (`JOB_TOOLS` in core). Skills: `extract_review` (get_job, get_page, propose_page_choice,
   finish_job): choose text layer, OCR or a merge for unsure PDF pages; `acceptPageChoice` (core) rejects invented words or numbers.
-- quality-curator (8906 until `quality_curate` moves to the reviewer): get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job
+  `quality_curate` (get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job): repair OCR damage on weak
+  pages; `acceptRepair` (core) rejects changed numbers or drifting wording. Moved from the retired quality-curator agent (ADR 0007 step 2).
 - scout (8902): get_job, preview_url, propose_text_variant, propose_source, finish_job. Two job kinds: `scout_variants` (one PDF source:
   propose a text version; overlap and host gates in code) and `scout_judge` (one game request, `agent_jobs.request_id`: propose which
   publisher-page links are the official rulebook/faq/errata). `judgeSourcePick` decides each proposal (listed or same publisher site,

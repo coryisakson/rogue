@@ -22,9 +22,7 @@ def test_derivation():
 def test_specs_and_tools():
     specs = {s["name"]: s for s in g.load_specs(AGENTS)}
     assert specs["reviewer"]["port"] == 8901
-    assert specs["quality-curator"]["port"] == 8906  # until quality_curate moves to the reviewer (ADR 0007)
-    assert specs["quality-curator"]["tools"] == ["get_job", "get_page_text", "reocr_page",
-        "propose_page_repair", "mark_page_unusable", "finish_job"]
+    assert "quality-curator" not in specs  # retired; quality_curate is a reviewer skill (ADR 0007 step 2)
     assert specs["scout"]["port"] == 8902
     assert specs["scout"]["tools"] == ["get_job", "preview_url", "propose_text_variant", "propose_source", "finish_job"]
     assert specs["librarian"]["port"] == 8903
@@ -39,11 +37,15 @@ def test_specs_and_tools():
 def test_reviewer_skills():
     """Skills are sections of one instruction file; tools are the union of the skills' tools (ADR 0007)."""
     spec = next(s for s in g.load_specs(AGENTS) if s["name"] == "reviewer")
-    assert spec["skills"] == ["extract_review"]
-    assert spec["tools"] == ["get_job", "finish_job", "get_page", "propose_page_choice"]
+    assert spec["skills"] == ["extract_review", "quality_curate"]
+    assert spec["tools"] == ["get_job", "finish_job", "get_page", "propose_page_choice",
+        "get_page_text", "reocr_page", "propose_page_repair", "mark_page_unusable"]
     body = spec["body"]
-    assert body.startswith("# Reviewer") and "## Skill: extract_review" in body and "follow only the section" in body
-    assert "skill: extract_review" not in body  # skill frontmatter is not part of the instructions
+    assert body.startswith("# Reviewer") and "follow only the section" in body
+    assert "## Skill: extract_review" in body and "## Skill: quality_curate" in body
+    assert body.index("## Skill: extract_review") < body.index("## Skill: quality_curate")
+    assert "propose_page_repair" in body.split("## Skill: quality_curate")[1]
+    assert "skill: extract_review" not in body and "skill: quality_curate" not in body  # skill frontmatter is not part of the instructions
     other = next(s for s in g.load_specs(AGENTS) if s["name"] == "scout")
     assert other["skills"] == []
 
