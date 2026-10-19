@@ -1,6 +1,6 @@
 import {
   CHAT_SYSTEM, CHAT_AGGREGATE_ADDENDUM, CHAT_HISTORY_ADDENDUM, DailyCounter, answerLanguageRule, answerMaxTokens, badCitations, buildPrompt, chatRoles,
-  checkChatBudget, citesUrl, historyBlock, isAggregateQuestion, namedSections, normalizeQuestion, retrievalPlan, rewriteQuestion, t, trimHistory,
+  checkChatBudget, citesUrl, historyBlock, isAggregateQuestion, namedSections, normalizeQuestion, retrievalPlan, preferLang, questionLang, rewriteQuestion, t, trimHistory,
   type ChatBudget, type ChatTurn, type Locale,
 } from '@rogue/core';
 import { searchRules, expandWithNeighbors, gameRuleLangs, type RuleHit, type SearchStats } from './rules-index';
@@ -61,8 +61,10 @@ export async function askRules(game: string, question: string, history: ChatTurn
   const plan = retrievalPlan(wide);
   const stats: SearchStats = { embedMs: 0, searchMs: 0, rerankMs: 0, promptTokens: 0, completionTokens: 0 };
   const alt = Object.values(rw.translations);
-  const hits: RuleHit[] = await searchRules(standalone, { game, limit: plan.limit, snippet: 600, rerank: true, stats, alt });
+  const found: RuleHit[] = await searchRules(standalone, { game, limit: plan.limit, snippet: 600, rerank: true, stats, alt });
   Object.assign(timings, { embed: stats.embedMs, search: stats.searchMs, rerank: stats.rerankMs });
+  // Answer from the edition in the answer language, so e.g. German role names do not leak into an English answer.
+  const hits = preferLang(found, userLang ?? questionLang(q));
   if (!hits.length) return { answer: t(userLang ?? 'en', 'chat.notFound'), sources: [], ms: Date.now() - t0, timings: { ...timings, total: Date.now() - t0 } };
   const ai = getAi(roles.answer);
   if (!ai) throw new Error('AI is not configured');
