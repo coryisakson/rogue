@@ -17,16 +17,22 @@ export async function sourceGameSlug(sourceId: number): Promise<string | null> {
 
 const date = (v: unknown): Date | null => (v instanceof Date ? v : v == null ? null : new Date(String(v)));
 
-/** Games in the games table with at least one source (what "ingested" means for admin search). */
-export async function ingestedGames(): Promise<IngestedGame[]> {
+/**
+ * Every game in the games table, also games without any source (LEFT JOINs; sourceCount 0, lastFetchedAt null), so admin
+ * search covers the same games as the public list.
+ */
+export async function allGames(): Promise<IngestedGame[]> {
   const pool = getPool(); if (!pool) return [];
   await ensureMigrated();
   const rows = (await pool.query(
-    `SELECT g.slug, g.name, g.created_at, max(s.fetched_at) last_fetched,
+    `SELECT g.slug, g.name, g.created_at, count(DISTINCT s.id)::int source_count, max(s.fetched_at) last_fetched,
        (SELECT max(r.decided_at) FROM game_requests r WHERE r.slug=g.slug) last_decided
-     FROM games g JOIN editions e ON e.game_id=g.id JOIN documents d ON d.edition_id=e.id JOIN sources s ON s.id=d.source_id
+     FROM games g LEFT JOIN editions e ON e.game_id=g.id LEFT JOIN documents d ON d.edition_id=e.id LEFT JOIN sources s ON s.id=d.source_id
      GROUP BY g.id ORDER BY g.name`)).rows;
-  return rows.map((r) => ({ slug: r.slug, name: r.name, createdAt: date(r.created_at), lastFetchedAt: date(r.last_fetched), lastDecidedAt: date(r.last_decided) }));
+  return rows.map((r) => ({
+    slug: r.slug, name: r.name, createdAt: date(r.created_at), sourceCount: Number(r.source_count ?? 0),
+    lastFetchedAt: date(r.last_fetched), lastDecidedAt: date(r.last_decided),
+  }));
 }
 
 export interface HubGame { slug: string; name: string; publisher: string | null; year: number | null; bggId: number | null; createdAt: Date | null }

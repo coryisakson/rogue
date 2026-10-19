@@ -1,0 +1,37 @@
+---
+// "Delete game" on /admin/games/<slug>/sources, shown only for a game without sources (lib/game-delete.ts). POST goes to
+// /admin/game-delete, which redirects to /admin/games, or back here with ?gamedel_err=<code> when it refuses.
+import { GAME_DELETE_ERRORS } from '@rogue/core';
+import { gameDeleteCheck } from '../lib/game-delete';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Input } from './ui/input';
+interface Props { slug: string; name: string }
+const { slug, name } = Astro.props;
+const check = await gameDeleteCheck(slug);
+const err = Astro.url.searchParams.get('gamedel_err');
+const errMsg = err && err in GAME_DELETE_ERRORS ? GAME_DELETE_ERRORS[err as keyof typeof GAME_DELETE_ERRORS] : null;
+// The page shows this card only without sources; the check repeats it so a stale page never offers the button.
+const show = !!check && check.counts.sources === 0 && check.counts.documents === 0;
+---
+{show && check && (
+  <Card className="mt-3 text-base" id="delete-game">
+    <CardHeader><CardTitle><h2 class="m-0 text-lg">Delete game</h2></CardTitle></CardHeader>
+    <CardContent>
+      {errMsg && <p class="mt-0" role="status"><Badge variant="danger" className="h-auto whitespace-normal">{errMsg}</Badge></p>}
+      {check.block && <p class="m-0">{GAME_DELETE_ERRORS[check.block]}</p>}
+      {!check.block && (
+        <>
+          <p class="mt-0">{name} has no sources and no published facts. Deleting removes the game, its editions and draft facts, its admin-added links and its FAQ and chat history. Game requests stay in the request list. This cannot be undone.</p>
+          <form method="post" action="/admin/game-delete" class="grid max-w-[36rem] gap-1.5">
+            <input type="hidden" name="game" value={slug} />
+            <label>Type the slug (<code>{slug}</code>) to confirm <Input name="confirm" required autoComplete="off" pattern="[a-z0-9\-]{1,80}" className="mt-1 bg-background" /></label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="really" value="yes" required class="size-4 accent-primary" /> I understand this deletes the game for good</label>
+            <Button type="submit" variant="destructive" className="justify-self-start">Delete game {slug}</Button>
+          </form>
+        </>
+      )}
+    </CardContent>
+  </Card>
+)}

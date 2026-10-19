@@ -1,28 +1,49 @@
 ---
 import Admin from '../../../layouts/Admin.astro';
-import { lastActivity, normalizeGameQuery, recentGames, searchGames } from '@rogue/core';
+import { GAME_DELETE_ERRORS, lastActivity, normalizeGameQuery, recentGames, searchGames, sourcelessGames } from '@rogue/core';
 import IngestedGameSearch from '../../../components/IngestedGameSearch.astro';
 import { isAdmin } from '../../../lib/admin';
-import { ingestedGames } from '../../../lib/admin-games';
+import { allGames } from '../../../lib/admin-games';
+import { Badge } from '../../../components/ui/badge';
 import { Card, CardContent } from '../../../components/ui/card';
 import { buttonVariants } from '../../../components/ui/button';
 // Read-only overview. Middleware already limits /admin to signed-in admins; repeated here like the other admin pages.
 if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
-const games = await ingestedGames();
+const games = await allGames();
 const q = normalizeGameQuery(Astro.url.searchParams.get('q'));
 const results = q ? searchGames(games, q) : null;
 const recent = recentGames(games, 8);
+const empty = sourcelessGames(games);
 const when = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : 'no date');
+// After "Delete game" (/admin/game-delete redirects here with a status code only, never the typed text).
+const sp = Astro.url.searchParams;
+const deleteErr = sp.get('err');
+const status = sp.get('deleted') === '1' ? 'Game deleted.' : deleteErr && deleteErr in GAME_DELETE_ERRORS ? GAME_DELETE_ERRORS[deleteErr as keyof typeof GAME_DELETE_ERRORS] : null;
 ---
 <Admin title="Games">
-  <p>One place per game: the request, its sources, the extracted text and what the audit log says about them. Search covers games already in Rogue (at least one source). Pending requests stay on <a href="/admin/requests">Game requests</a> until they are accepted.</p>
+  <p>One place per game: the request, its sources, the extracted text and what the audit log says about them. Search covers every game in Rogue, also games without sources yet. Pending requests stay on <a href="/admin/requests">Game requests</a> until they are accepted.</p>
+  {status && <p role="status"><Badge variant="secondary" className="h-auto whitespace-normal">{status}</Badge></p>}
   <IngestedGameSearch action="/admin/games" q={q} results={results} />
   <h2 class="text-lg">Recently added or updated</h2>
-  {recent.length === 0 && <Card className="text-base"><CardContent>No game has a source yet.</CardContent></Card>}
+  {recent.length === 0 && <Card className="text-base"><CardContent>No game in Rogue yet.</CardContent></Card>}
   <ul class="m-0 flex list-none flex-wrap gap-2 p-0">
     {recent.map((g) => (
-      <li><a data-slot="button" class={buttonVariants({ variant: 'outline' })} href={`/admin/games/${encodeURIComponent(g.slug)}`}>{g.name} <small>{when(lastActivity(g))}</small></a></li>
+      <li><a data-slot="button" class={buttonVariants({ variant: 'outline' })} href={`/admin/games/${encodeURIComponent(g.slug)}`}>{g.name} <small>{when(lastActivity(g))}</small>{g.sourceCount === 0 && <Badge variant="secondary">no sources</Badge>}</a></li>
     ))}
   </ul>
-  <p><small>{games.length} games in Rogue.</small></p>
+  <h2 class="text-lg">Games without sources</h2>
+  <Card className="text-base"><CardContent>
+    {empty.length === 0 && <p class="m-0">Every game has at least one source.</p>}
+    {empty.length > 0 && (
+      <ul class="m-0 list-none p-0">
+        {empty.map((g) => (
+          <li class="border-t border-border py-1.5">
+            <a href={`/admin/games/${encodeURIComponent(g.slug)}`}><b>{g.name}</b></a> <small><code>{g.slug}</code> · added {when(g.createdAt)} · <a href={`/admin/games/${encodeURIComponent(g.slug)}/sources`}>Manage sources</a></small>
+          </li>
+        ))}
+      </ul>
+    )}
+    <p class="mb-0"><small>Add a rules link or a browser capture on the game's Manage sources page; a game without sources and published facts can be deleted there.</small></p>
+  </CardContent></Card>
+  <p><small>{games.length} games in Rogue, {empty.length} without sources.</small></p>
 </Admin>

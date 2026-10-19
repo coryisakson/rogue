@@ -3,6 +3,7 @@ import Admin from '../../../../layouts/Admin.astro';
 import { CAPTURE_ERRORS, SOURCE_DELETE_ERRORS, captureBookmarklet, SOURCE_DELETE_REASON_MAX, SOURCE_KINDS, SOURCE_LANGUAGES, parseSourceInput, sameOrigin } from '@rogue/core';
 import CaptureForm from '../../../../components/CaptureForm.astro';
 import GameManageBar from '../../../../components/GameManageBar.astro';
+import GameDeleteCard from '../../../../components/GameDeleteCard.astro';
 import { isAdmin } from '../../../../lib/admin';
 import { baseUrl } from '../../../../lib/auth';
 import { addGameSource, factsCount, gameSources, listGames, pendingRuntimeSources, reingestSource, reingestStatus } from '../../../../lib/game-sources';
@@ -184,4 +185,5 @@ const field = 'mt-1 bg-background';
       <CaptureForm from="sources" game={slug} hostError={captureErr === 'host'} newError={['newgame', 'bggid', 'year'].includes(captureErr ?? '')} />
     </CardContent>
   </Card>
+  {sources.length === 0 && <GameDeleteCard slug={slug} name={game.name} />}
 </Admin>

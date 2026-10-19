@@ -3,14 +3,15 @@ import Admin from '../../layouts/Admin.astro';
 import { CAPTURE_ERRORS, CAPTURE_MAX_CHARS } from '@rogue/core';
 import CaptureForm from '../../components/CaptureForm.astro';
 import { isAdmin } from '../../lib/admin';
-import { ingestedGames } from '../../lib/admin-games';
+import { allGames } from '../../lib/admin-games';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent } from '../../components/ui/card';
 // Window the bookmarklet opens (docs/CAPTURE.md). The admin's own session cookie signs it in (no token in the bookmarklet);
 // the page text arrives by postMessage from the page that opened it and is checked in the script below. Submitting posts
 // the normal capture form to /admin/capture. Middleware already limits /admin to admins; repeated like the other pages.
 if (!isAdmin(Astro.locals.user)) return new Response('Not found', { status: 404 });
-const games = (await ingestedGames()).map((g) => ({ slug: g.slug, name: g.name }));
+// Every game, also those without sources yet (a capture is often how such a game gets its first source).
+const games = (await allGames()).map((g) => ({ slug: g.slug, name: g.name }));
 const err = Astro.url.searchParams.get('capture_err');
 const errMsg = err && err in CAPTURE_ERRORS ? CAPTURE_ERRORS[err as keyof typeof CAPTURE_ERRORS] : null;
 ---
