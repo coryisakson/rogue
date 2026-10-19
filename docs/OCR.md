@@ -19,6 +19,16 @@ production to `auto` is a later decision after measuring. Measure a PDF with `no
 
 **Measured 2026-10-18** (`textlayer-report.mjs`, public rulebook PDFs): Slay the Spire 24 pp: 23 clean text layers, 1 empty (cover) -> OCR 1. Azul EN 6 pp: 5 clean, 1 empty cover. Pandemic sample 1 pp clean. So `auto` would skip OCR on ~95% of pages for these text-born PDFs. Open question before switching the chart: does text-layer order and heading structure retrieve as well as MinerU output (compare Ask evals with `ROGUE_OCR_MODE=auto` vs `all` on one game). Scanned PDFs untested (none in the set).
 
+## Extract review (unsure pages, ADR 0005/0007)
+After a PDF ingest, code (`pagesNeedingExtractReview`, core) flags pages it is unsure about: garbled but not empty, text layer and OCR
+disagree (word overlap < 0.5), table-like, or very short. With the agents on, the Reviewer agent (skill `extract_review`) compares
+both readings per page and proposes `text_layer`, `ocr` or a `merge`; `acceptPageChoice` rejects any merge with words or numbers absent
+from both readings, a dropped number both agree on, or a length outside +/-30% of the longer reading. Accepted choices are page
+overrides (method `extract`, provenance in `page_extract`), so the index is rebuilt from them. Both readings are rebuilt on demand
+(text layer re-read from the private PDF; OCR run per page when ingest kept the text layer, at most 8 per job); nothing extra is
+stored or served. Admin button: "Review unsure pages with the Extractor" on `/admin/games/<slug>/extracts?source=<id>`. Agents off:
+nothing runs and the page says so. OCR defaults are unchanged.
+
 ## Behaviour
 - **No provider configured** (`ROGUE_OCR_COMMAND` unset): text layers are used as they are; the audit detail still records the scores and `pagesWithoutText`.
 - **Provider configured**: each picked page is OCR'd and its text replaces the text layer when OCR returns text. A failing page keeps its text layer and never fails ingestion.

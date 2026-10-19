@@ -1,4 +1,4 @@
-# 0005. Extractor agent, separate from Scout (proposal)
+# 0005. Extractor agent, separate from Scout
 
 Status: accepted 2026-10-19 (Cory). Built as a skill of the Reviewer agent, see ADR 0007, not as a separate process.
 
@@ -14,3 +14,8 @@ Scout only finds and judges sources. Extraction (PDF text layer, OCR, markdown, 
 ## Consequences
 - Needs the auto-vs-all Ask eval comparison first, to know whether the agent is worth its cost.
 - One new job kind, one new agent port, one migration for per-page provenance. No change to the public site.
+
+## As built (2026-10-19)
+- Runs as the Reviewer's skill `extract_review` (ADR 0007), not as its own port. Tools: `get_job`, `get_page`, `propose_page_choice`, `finish_job`; `propose_structure` is not built (structure fixes stay with the Quality Curator for now).
+- Code: `pagesNeedingExtractReview` and `acceptPageChoice` in `packages/core/src/quality/extract.ts`; `apps/web/src/lib/extractor-run.ts`; migration 0044 (`page_extract`, page_overrides method `extract`). Provenance string `extractor:<reason>`.
+- Triggers: after a PDF ingest (agents on) and the admin button on the extract viewer. Details in docs/OCR.md.
