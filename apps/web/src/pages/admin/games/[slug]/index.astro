@@ -1,6 +1,6 @@
 ---
 import Admin from '../../../../layouts/Admin.astro';
-import { mergeTimeline, pageSourceCounts, summarizeQuality, type TimelineEvent } from '@rogue/core';
+import { authorityLabel, mergeTimeline, pageSourceCounts, summarizeQuality, type TimelineEvent } from '@rogue/core';
 import GameManageBar from '../../../../components/GameManageBar.astro';
 import { isAdmin } from '../../../../lib/admin';
 import { HUB_AUDIT_ACTIONS, hubAudit, hubGame, hubPageScores, hubRequests, hubSources, type HubAudit } from '../../../../lib/admin-games';
@@ -124,7 +124,7 @@ const anyQuality = quality.some((x) => x.q.pages > 0 || x.problems.length > 0 ||
           {sources.map((s) => (
             <TableRow>
               <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.kind} · {s.edition}{s.runtime && ' · admin-added'}</small>{s.capture && <><br /><Badge variant="warning">{s.capture}</Badge></>}</TableCell>
-              <TableCell>{s.authority}</TableCell>
+              <TableCell><Badge variant={s.authority === 'publisher' ? 'success' : 'secondary'}>{authorityLabel(s.authority, s.kind === 'wiki')}</Badge></TableCell>
               <TableCell>{s.language ?? '?'}</TableCell>
               <TableCell><Badge variant={availBadge[s.availability] ?? 'secondary'}>{s.availability}</Badge></TableCell>
               <TableCell>{s.fetchedAt ?? 'never'}</TableCell>

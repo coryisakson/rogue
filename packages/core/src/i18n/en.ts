@@ -87,7 +87,7 @@ export const en = {
   'game.noSourcesTitle': 'No sources yet.',
   'game.noSourcesBody': 'We have not ingested an official source for this game. If you are the publisher, you can',
   'game.contactUs': 'contact us', 'game.noSourcesEnd': 'to authorise one.',
-  'game.wikiPages': 'Wiki ({n} pages)',
+  'game.publisherWikiPages': 'Publisher wiki ({n} pages)', 'game.communityWikiPages': 'Community wiki ({n} pages)',
   'game.sourcesTitle': 'Sources', 'game.unavailable': 'no longer available',
   'game.rightsNote': "We link to the publisher's file and quote only short passages. We do not host rulebooks. Rules chat needs a free sign-in (GitHub, Google or Discord).",
   'game.factBase': 'Browse the fact base',

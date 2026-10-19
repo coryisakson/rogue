@@ -1,4 +1,6 @@
 /** Curated, publisher-linked starting sources per game. The Scout agent will propose more; this list is the human-approved seed. */
+import type { SourceAuthority } from '@rogue/core';
+
 export interface SourceSeed {
   gameSlug: string;
   url: string;
@@ -9,6 +11,8 @@ export interface SourceSeed {
   editionLabel: string;
   /** Page on the publisher site where the document was found (provenance). */
   foundOn: string;
+  /** sources.authority chosen by an admin (runtime_sources.authority, migration 0043); unset: 'publisher' (ingest default). */
+  authority?: SourceAuthority;
 }
 
 export const ALLOWED_HOSTS = ['cdn.svc.asmodee.net', 'www.zmangames.com', 'contentiongames.com', 'gesellschaftsspiele.spielen.de', 'asmodee-resources.azureedge.net'];

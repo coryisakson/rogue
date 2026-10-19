@@ -81,7 +81,7 @@ export const de: Record<keyof typeof en, string> = {
   'game.noSourcesTitle': 'Noch keine Quellen.',
   'game.noSourcesBody': 'Wir haben noch keine offizielle Quelle für dieses Spiel erfasst. Wenn du der Verlag bist, kannst du',
   'game.contactUs': 'uns kontaktieren', 'game.noSourcesEnd': 'und eine Quelle freigeben.',
-  'game.wikiPages': 'Wiki ({n} Seiten)',
+  'game.publisherWikiPages': 'Verlags-Wiki ({n} Seiten)', 'game.communityWikiPages': 'Community-Wiki ({n} Seiten)',
   'game.sourcesTitle': 'Quellen', 'game.unavailable': 'nicht mehr verfügbar',
   'game.rightsNote': 'Wir verlinken die Datei des Verlags und zitieren nur kurze Stellen. Wir hosten keine Regelhefte. Der Regel-Chat braucht eine kostenlose Anmeldung (GitHub, Google oder Discord).',
   'game.factBase': 'Faktenbasis durchsuchen',

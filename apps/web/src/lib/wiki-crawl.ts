@@ -1,7 +1,7 @@
 import {
-  FetchDenied, FetchHttpError, addCrawlLinks, extractWikiLinks, isCrawlPlan, isJunkWikiUrl, isWikiIndexUrl, isWikiStopStatus, looksLikeBotWall,
+  FetchDenied, FetchHttpError, addCrawlLinks, authorityLabel, extractWikiLinks, isAuthorityAttested, isCrawlPlan, isJunkWikiUrl, isWikiIndexUrl, isWikiStopStatus, looksLikeBotWall,
   nextCrawlItem, planCrawl, sourceProbeGate, termsGate, wikiEditionLabel, wikiExtractedSource, wikiProgressText,
-  type CrawlPlan, type WikiCrawlCounts, type WikiImportInput,
+  type CrawlPlan, type WikiAuthority, type WikiCrawlCounts, type WikiImportInput,
 } from '@rogue/core';
 import { probeRulebook, type RightsReport } from './add-game';
 import { syncApprovedHosts } from './dynamic-sources';
@@ -15,7 +15,8 @@ import { ALLOWED_HOSTS } from './source-seeds';
  * linked pages). Same gates as "Add rules link" (game-sources.ts addGameSource): the admin confirms the site's terms for a
  * new host, the Rights Officer probes the start URL, and only then is the host approved. Every page is then fetched by the
  * rights-gated fetcher (robots, 2 s per host, size cap, RogueBot UA) and stored as its own source: document kind 'wiki',
- * authority 'community' (ranks below publisher text, AGENTS.md 2b), rights_status link_only, title = wiki breadcrumb.
+ * authority 'community' (ranks below publisher text, AGENTS.md 2b) unless the admin attested that the wiki is the publisher's
+ * official documentation (authority 'publisher', wiki_crawls.authority), rights_status link_only, title = wiki breadcrumb.
  * The crawl runs in the background, one per game, and stores its plan after every page so it resumes after a restart.
  * A 403, 429 or captcha page stops it: Rogue never tries to get past a bot wall.
  */
@@ -25,6 +26,7 @@ const audit = (actor: string, action: string, detail: unknown) => getPool()?.que
 export interface WikiCrawlRow {
   id: number; startUrl: string; mode: 'pages' | 'site'; status: 'running' | 'done' | 'stopped' | 'failed'; progress: string | null;
   counts: Partial<WikiCrawlCounts>; createdAt: string; updatedAt: string;
+  authority: WikiAuthority; authorityLabel: string;
 }
 export interface DiscoveredPage { url: string; index: boolean }
 
@@ -105,14 +107,16 @@ export async function crawlWiki(o: { gameSlug: string; input: WikiImportInput; a
   let id: number;
   try {
     id = Number((await pool.query(
-      `INSERT INTO wiki_crawls(game_slug, start_url, mode, publisher, language, force, plan, counts, progress, request_id, started_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'queued',$9,$10) RETURNING id`,
-      [slug, v.startUrl, v.mode, v.publisher, v.language, v.force, plan, emptyCounts(), o.requestId ?? null, o.adminId])).rows[0].id);
+      `INSERT INTO wiki_crawls(game_slug, start_url, mode, publisher, language, force, plan, counts, progress, request_id, started_by, authority)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'queued',$9,$10,$11) RETURNING id`,
+      [slug, v.startUrl, v.mode, v.publisher, v.language, v.force, plan, emptyCounts(), o.requestId ?? null, o.adminId, v.authority])).rows[0].id);
   } catch (e) {
     if ((e as { code?: string }).code === '23505') return { ok: false, error: 'A wiki import is already running for this game.' };
     throw e;
   }
-  await audit(actor, 'wiki_crawl_started', { slug, crawlId: id, startUrl: v.startUrl, mode: v.mode, pages: v.urls.length || null, maxPages: plan.maxPages, host: gate.report.host, verdict: gate.report.verdict, termsChecked: o.termsChecked });
+  await audit(actor, 'wiki_crawl_started', { slug, crawlId: id, startUrl: v.startUrl, mode: v.mode, pages: v.urls.length || null, maxPages: plan.maxPages, host: gate.report.host, verdict: gate.report.verdict, termsChecked: o.termsChecked,
+    // 'publisher' only when the admin ticked "This wiki is the publisher's official documentation" (their attestation).
+    authority: v.authority, attested: isAuthorityAttested(v.authority, true) });
   void runCrawl(id);
   return { ok: true, id, report: gate.report };
 }
@@ -124,11 +128,12 @@ export async function wikiCrawlStatus(slug: string): Promise<WikiCrawlRow | null
   const pool = getPool(); if (!pool) return null;
   await ensureMigrated();
   const r = (await pool.query(
-    `SELECT id, start_url, mode, status, progress, counts, to_char(created_at,'YYYY-MM-DD HH24:MI') created, to_char(updated_at,'YYYY-MM-DD HH24:MI') updated
+    `SELECT id, start_url, mode, status, progress, counts, authority, to_char(created_at,'YYYY-MM-DD HH24:MI') created, to_char(updated_at,'YYYY-MM-DD HH24:MI') updated
      FROM wiki_crawls WHERE game_slug=$1 ORDER BY id DESC LIMIT 1`, [slug])).rows[0];
   if (!r) return null;
   if (r.status === 'running' && !active.has(Number(r.id))) void runCrawl(Number(r.id));
-  return { id: Number(r.id), startUrl: r.start_url, mode: r.mode, status: r.status, progress: r.progress, counts: r.counts ?? {}, createdAt: r.created, updatedAt: r.updated };
+  return { id: Number(r.id), startUrl: r.start_url, mode: r.mode, status: r.status, progress: r.progress, counts: r.counts ?? {}, createdAt: r.created, updatedAt: r.updated,
+    authority: r.authority, authorityLabel: authorityLabel(r.authority, true) };
 }
 
 /** Wait for one import to end (wiki-only game requests run the Librarian after it), reporting its progress. */
@@ -166,9 +171,12 @@ export function startWikiCrawlResume(): void {
   setTimeout(() => void resumeWikiCrawls().catch(() => {}), 15_000);
 }
 
-/** The ingest options for one wiki page: wiki text cleanup with breadcrumb title, community authority, bytes kept for links. */
-const wikiIngest: IngestOptions = {
-  authority: 'community',
+/**
+ * The ingest options for one wiki page: wiki text cleanup with breadcrumb title, the crawl's authority (community unless the
+ * admin attested publisher), bytes kept for links.
+ */
+const wikiIngest = (authority: WikiAuthority): IngestOptions => ({
+  authority,
   keepBody: true,
   extract: (bytes, contentType, finalUrl) => {
     if (!/html/i.test(contentType)) throw new Error(`not a wiki page (${contentType})`);
@@ -179,7 +187,7 @@ const wikiIngest: IngestOptions = {
     if (isJunkWikiUrl(finalUrl)) throw new Error(`redirected to ${new URL(finalUrl).pathname} (login or wiki tool page)`);
     return wikiExtractedSource(html, finalUrl);
   },
-};
+});
 
 function wikiSeed(slug: string, url: string, row: { publisher: string; language: string; start_url: string }): IngestSeed {
   const host = new URL(url).host;
@@ -190,14 +198,14 @@ function wikiSeed(slug: string, url: string, row: { publisher: string; language:
     publisher: row.publisher, language: row.language, kind: 'wiki', editionLabel: wikiEditionLabel(host), foundOn: row.start_url };
 }
 
-/** Re-fetch one wiki page (Re-ingest now on the sources page): same wiki options, forced, then re-index. */
+/** Re-fetch one wiki page (Re-ingest now on the sources page): same wiki options and stored authority, forced, then re-index. */
 export async function reingestWikiPage(slug: string, sourceId: number): Promise<{ ok: boolean; detail: string; chunks?: number }> {
   const pool = getPool(); if (!pool) return { ok: false, detail: 'The database is not available.' };
   const s = (await pool.query(
-    `SELECT s.url, s.publisher, s.language, e.label FROM sources s JOIN documents d ON d.source_id=s.id JOIN editions e ON e.id=d.edition_id
+    `SELECT s.url, s.publisher, s.language, s.authority, e.label FROM sources s JOIN documents d ON d.source_id=s.id JOIN editions e ON e.id=d.edition_id
      JOIN games g ON g.id=e.game_id WHERE s.id=$1 AND g.slug=$2 AND d.kind='wiki' LIMIT 1`, [sourceId, slug])).rows[0];
   if (!s) return { ok: false, detail: 'Not a wiki page of this game.' };
-  const res = await ingestSeed(wikiSeed(slug, s.url, { publisher: s.publisher ?? '', language: s.language ?? 'en', start_url: s.url }), true, wikiIngest);
+  const res = await ingestSeed(wikiSeed(slug, s.url, { publisher: s.publisher ?? '', language: s.language ?? 'en', start_url: s.url }), true, wikiIngest(s.authority === 'publisher' ? 'publisher' : 'community'));
   if (!res.ok || !res.sourceId) return { ok: false, detail: res.detail };
   const idx = await indexSource(res.sourceId);
   return { ok: true, detail: 'done', chunks: idx.chunks };
@@ -217,10 +225,11 @@ async function runCrawl(id: number): Promise<void> {
   let final: { status: 'done' | 'stopped' | 'failed'; reason?: string; url?: string } = { status: 'done' };
   try {
     if (!pool) return;
-    const row = (await pool.query("SELECT game_slug, start_url, mode, publisher, language, force, plan, counts FROM wiki_crawls WHERE id=$1 AND status='running'", [id])).rows[0];
+    const row = (await pool.query("SELECT game_slug, start_url, mode, publisher, language, force, plan, counts, authority FROM wiki_crawls WHERE id=$1 AND status='running'", [id])).rows[0];
     if (!row) return;
     if (!isCrawlPlan(row.plan)) { final = { status: 'failed', reason: 'stored crawl plan is unreadable' }; return; }
     const plan: CrawlPlan = row.plan;
+    const ingestOpts = wikiIngest(row.authority === 'publisher' ? 'publisher' : 'community');
     const counts: WikiCrawlCounts = { ...emptyCounts(), ...(row.counts ?? {}) };
     const save = async (progress: string) => {
       const r = await pool.query("UPDATE wiki_crawls SET plan=$2, counts=$3, progress=$4, updated_at=now() WHERE id=$1 AND status='running' RETURNING id", [id, plan, counts, progress.slice(0, 300)]);
@@ -242,7 +251,7 @@ async function runCrawl(id: number): Promise<void> {
           counts.failed++;
         }
       } else {
-        const res = await ingestSeed(wikiSeed(row.game_slug, url, row), !!row.force, wikiIngest);
+        const res = await ingestSeed(wikiSeed(row.game_slug, url, row), !!row.force, ingestOpts);
         if (isWikiStopStatus(res.httpStatus) || res.detail.startsWith('bot wall')) { final = { status: 'stopped', reason: res.httpStatus ? `HTTP ${res.httpStatus}` : res.detail, url }; break; }
         if (res.tombstoned) counts.tombstoned++;
         else if (!res.ok || !res.sourceId) counts.failed++;

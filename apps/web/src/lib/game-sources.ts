@@ -1,5 +1,5 @@
 import {
-  CAPTURE_METHOD, RateLimiter, bggSearchNote, captureLabel, libraryMatch, runtimeEditionLabel, runtimeSeed, slugify, sourceProbeGate, termsGate,
+  CAPTURE_METHOD, RateLimiter, authorityLabel, bggSearchNote, captureLabel, isAuthorityAttested, libraryMatch, runtimeEditionLabel, runtimeSeed, slugify, sourceProbeGate, termsGate,
   type GameMatch, type SourceInput,
 } from '@rogue/core';
 import { probeRulebook, type RightsReport } from './add-game';
@@ -28,6 +28,8 @@ export interface SourceRow {
   fetchedAt: string | null; pageCount: number | null; indexedPages: number; runtime: boolean;
   /** "Manual capture by <admin> on <date>" when an admin captured the text in their browser (source-capture.ts), else null. */
   capture: string | null;
+  /** sources.authority and its badge wording ("Publisher wiki" / "Community wiki" for wiki pages). */
+  authority: string; authorityLabel: string;
 }
 
 export async function listGames(): Promise<GameRow[]> {
@@ -40,7 +42,7 @@ export async function listGames(): Promise<GameRow[]> {
 export async function gameSources(slug: string): Promise<SourceRow[]> {
   const pool = getPool(); if (!pool) return [];
   const rows = (await pool.query(
-    `SELECT DISTINCT ON (s.id) s.id, s.url, s.title, s.language, d.kind, e.label edition, s.availability, to_char(s.fetched_at, 'YYYY-MM-DD HH24:MI') fetched_at, s.page_count,
+    `SELECT DISTINCT ON (s.id) s.id, s.url, s.title, s.language, s.authority, d.kind, e.label edition, s.availability, to_char(s.fetched_at, 'YYYY-MM-DD HH24:MI') fetched_at, s.page_count,
        (SELECT count(DISTINCT ch.page)::int FROM chunks ch WHERE ch.source_id=s.id) indexed_pages,
        EXISTS (SELECT 1 FROM runtime_sources rs WHERE rs.url=s.url) runtime,
        s.capture_method, s.captured_at, (SELECT u.display_name FROM users u WHERE u.id=s.captured_by) captured_by_name
@@ -50,6 +52,7 @@ export async function gameSources(slug: string): Promise<SourceRow[]> {
     id: Number(r.id), url: r.url, title: r.title, language: r.language, kind: r.kind, edition: r.edition, availability: r.availability,
     fetchedAt: r.fetched_at, pageCount: r.page_count == null ? null : Number(r.page_count), indexedPages: Number(r.indexed_pages), runtime: r.runtime,
     capture: captureLabel(r.capture_method, r.captured_by_name, r.captured_at),
+    authority: r.authority, authorityLabel: authorityLabel(r.authority, r.kind === 'wiki'),
   }));
 }
 
@@ -98,15 +101,17 @@ export async function addGameSource(slug: string, v: SourceInput, adminId: numbe
     await c.query('BEGIN');
     await c.query('INSERT INTO approved_hosts(host, approved_by) VALUES ($1,$2) ON CONFLICT (host) DO NOTHING', [report.host, adminId]);
     id = Number((await c.query(
-      `INSERT INTO runtime_sources(game_slug, url, title, publisher, language, kind, edition_label, found_on, replaces_source_id, report, progress, added_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'queued',$11) RETURNING id`,
-      [slug, v.url, v.title, v.publisher, v.language, v.kind, label, v.foundOn, replacesSourceId, report, adminId])).rows[0].id);
+      `INSERT INTO runtime_sources(game_slug, url, title, publisher, language, kind, edition_label, found_on, replaces_source_id, report, progress, added_by, authority)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'queued',$11,$12) RETURNING id`,
+      [slug, v.url, v.title, v.publisher, v.language, v.kind, label, v.foundOn, replacesSourceId, report, adminId, v.authority])).rows[0].id);
     if (replacesSourceId !== null) {
       // Keep the row, its documents and citations: published facts stay attributable (lifecycle rule, migration 0005).
       await c.query("UPDATE sources SET availability='unavailable', retired_at=now(), unavailable_since=COALESCE(unavailable_since, now()) WHERE id=$1", [replacesSourceId]);
     }
     await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [`admin:${adminId}`, replacesSourceId === null ? 'game_source_added' : 'game_source_replaced',
-      { slug, runtimeSourceId: id, url: v.url, kind: v.kind, language: v.language, host: report.host, verdict: report.verdict, termsChecked, replacesSourceId }]);
+      { slug, runtimeSourceId: id, url: v.url, kind: v.kind, language: v.language, host: report.host, verdict: report.verdict, termsChecked, replacesSourceId,
+        // The admin's Authority choice; 'attested' when it differs from the default (they vouch for it).
+        authority: v.authority, attested: isAuthorityAttested(v.authority, false) }]);
     await c.query('COMMIT');
   } catch (e) {
     await c.query('ROLLBACK');
@@ -127,7 +132,7 @@ const setProgress = (id: number, text: string) => getPool()?.query('UPDATE runti
 /** Fetch through the rights-gated ingest, index for search, then queue the Librarian for this source (rulebooks only). */
 async function runSourcePipeline(id: number): Promise<void> {
   try {
-    const row = (await getPool()!.query('SELECT game_slug, url, title, publisher, language, kind, edition_label, found_on FROM runtime_sources WHERE id=$1', [id])).rows[0];
+    const row = (await getPool()!.query('SELECT game_slug, url, title, publisher, language, kind, edition_label, found_on, authority FROM runtime_sources WHERE id=$1', [id])).rows[0];
     if (!row) return;
     const seed = runtimeSeed(row);
     await setProgress(id, 'fetching');

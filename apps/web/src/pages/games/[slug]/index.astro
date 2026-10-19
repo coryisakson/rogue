@@ -18,6 +18,11 @@ const links = await getClaims(slug!, { topic: 'companion' });
 const sources = await gameSources(slug!);
 // A wiki import adds one source per page: they show as one collapsed "Wiki (N pages)" entry.
 const { other: mainSources, wiki: wikiSources } = splitWikiSources(sources);
+// A wiki an admin attested as the publisher's official documentation is listed as "Publisher wiki", others as "Community wiki".
+const wikiGroups = [
+  { key: 'game.publisherWikiPages', pages: wikiSources.filter((s) => s.authority === 'publisher') },
+  { key: 'game.communityWikiPages', pages: wikiSources.filter((s) => s.authority !== 'publisher') },
+] as const;
 // Without JavaScript the ask box is a plain GET form: ?q= renders that one answer here.
 const q = (Astro.url.searchParams.get('q') ?? '').trim();
 const voted = Astro.url.searchParams.get('voted');
@@ -142,9 +147,9 @@ const linkButton = (variant: 'default' | 'secondary' = 'default') => buttonVaria
     {sources.length > 0 && <>
       <h2>{t(L, 'game.sourcesTitle')}</h2>
       <ul>{mainSources.map((s) => <li><a href={s.url}>{s.title ?? s.url}</a>{s.publisher && ` · ${s.publisher}`} · {t(L, 'common.edition', { edition: s.edition })}{s.language && ` · ${langTag(s.language)}`}{s.availability !== 'available' && ` · ${t(L, 'game.unavailable')}`}</li>)}
-        {wikiSources.length > 0 && <li><details><summary>{t(L, 'game.wikiPages', { n: wikiSources.length })}{wikiSources[0]!.publisher && ` · ${wikiSources[0]!.publisher}`}</summary>
-          <ul>{wikiSources.map((s) => <li><a href={s.url}>{s.title ?? s.url}</a>{s.availability !== 'available' && ` · ${t(L, 'game.unavailable')}`}</li>)}</ul>
-        </details></li>}
+        {wikiGroups.filter((w) => w.pages.length > 0).map((w) => <li><details><summary>{t(L, w.key, { n: w.pages.length })}{w.pages[0]!.publisher && ` · ${w.pages[0]!.publisher}`}</summary>
+          <ul>{w.pages.map((s) => <li><a href={s.url}>{s.title ?? s.url}</a>{s.availability !== 'available' && ` · ${t(L, 'game.unavailable')}`}</li>)}</ul>
+        </details></li>)}
       </ul>
     </>}
     <p class="text-muted-foreground"><small>{t(L, 'game.rightsNote')}</small></p>

@@ -81,7 +81,7 @@ export const it: Record<keyof typeof en, string> = {
   'game.noSourcesTitle': 'Ancora nessuna fonte.',
   'game.noSourcesBody': 'Non abbiamo ancora acquisito una fonte ufficiale per questo gioco. Se sei l’editore, puoi',
   'game.contactUs': 'contattarci', 'game.noSourcesEnd': 'per autorizzarne una.',
-  'game.wikiPages': 'Wiki ({n} pagine)',
+  'game.publisherWikiPages': 'Wiki dell’editore ({n} pagine)', 'game.communityWikiPages': 'Wiki della community ({n} pagine)',
   'game.sourcesTitle': 'Fonti', 'game.unavailable': 'non più disponibile',
   'game.rightsNote': 'Rimandiamo al file dell’editore e citiamo solo brevi passaggi. Non ospitiamo regolamenti. La chat sulle regole richiede un accesso gratuito (GitHub, Google o Discord).',
   'game.factBase': 'Sfoglia la base dei fatti',

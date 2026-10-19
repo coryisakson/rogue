@@ -1,6 +1,6 @@
 ---
 import Admin from '../../layouts/Admin.astro';
-import { sameOrigin, parseGameRequest, parseNameRequest, parsePick, googleLink, adminSearchQuery, BGG_TOP10_DATE, CAPTURE_ERRORS } from '@rogue/core';
+import { sameOrigin, parseGameRequest, parseNameRequest, parsePick, googleLink, adminSearchQuery, BGG_TOP10_DATE, CAPTURE_ERRORS, PUBLISHER_WIKI_FIELD } from '@rogue/core';
 import CaptureForm from '../../components/CaptureForm.astro';
 import { approveGame, completeManual, editSource, queueTopGames, resumeQueue } from '../../lib/intake';
 import { approveRequest, rejectRequest, runChecks } from '../../lib/add-game';
@@ -41,7 +41,7 @@ if (Astro.request.method === 'POST') {
     msg = 'error' in r ? r.error : `BGG top 10: queued ${r.queued.length}${r.queued.length ? ` (${r.queued.join(', ')})` : ''}; skipped ${r.skipped.length}${r.skipped.length ? ` (${r.skipped.map((s) => `${s.title}: ${s.reason}`).join(', ')})` : ''}.`;
   }
   else if (!Number.isInteger(id) || id < 1) msg = 'Bad request id.';
-  else if (action === 'approve') { const r = await approveRequest(id, me, f.get('terms') === 'yes'); msg = r.ok ? `Request #${id} approved. Fetching, indexing and drafting facts in the background.` : (r.error ?? 'Could not approve.'); }
+  else if (action === 'approve') { const r = await approveRequest(id, me, f.get('terms') === 'yes', `admin:${me}`, f.get(PUBLISHER_WIKI_FIELD) === 'yes' ? 'publisher' : 'community'); msg = r.ok ? `Request #${id} approved. Fetching, indexing and drafting facts in the background.` : (r.error ?? 'Could not approve.'); }
   else if (action === 'reject') msg = (await rejectRequest(id, me, String(f.get('reason') ?? 'not accepted'))) ? `Request #${id} rejected.` : 'Request was not waiting.';
   else if (action === 'recheck') { await runChecks(id); msg = `Checks re-run for #${id}.`; }
   else if (action === 'approve-game') { const r = await approveGame(id, me); msg = r.ok ? `Game #${id} approved. It is in the queue; the Scout will look for the publisher's rules.` : (r.error ?? 'Could not approve.'); }
@@ -116,6 +116,7 @@ const rejectForm = 'flex flex-wrap items-center gap-2';
                 {canAcceptSource && (
                   <form method="post" class={rejectForm}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="approve" />
                     <label class="flex items-center gap-1"><input type="checkbox" name="terms" value="yes" required class="size-4 accent-primary" /> <small>I read the publisher's terms{r.terms_check?.site ? ` (${r.terms_check.site})` : ` (${r.report?.host})`}</small></label>
+                    {!r.rulebook_url && r.wiki_url && <label class="flex items-center gap-1" title="Default off: a community wiki. Tick only when the publisher publishes the rules as this wiki; your attestation is audited."><input type="checkbox" name={PUBLISHER_WIKI_FIELD} value="yes" class="size-4 accent-primary" /> <small>This wiki is the publisher's official documentation (your attestation, audited)</small></label>}
                     <Button type="submit" size="sm">Accept</Button></form>
                 )}
                 {canReject && <form method="post" class={rejectForm}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="action" value="reject" /><Input name="reason" aria-label={`Reject reason for request ${r.id}`} placeholder="reason" required maxLength={200} className="h-8 w-36 bg-background" /> <Button type="submit" size="sm" variant="destructive">Reject</Button></form>}

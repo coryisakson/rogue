@@ -1,3 +1,4 @@
+import type { SourceAuthority } from '@rogue/core';
 import { RightsGatedFetcher, FetchDenied, FetchHttpError, htmlAdapter, textAdapter, selectAdapter, qrClaimBody, hasExtractedText, type ExtractedSource, type SourceAdapter } from '@rogue/core';
 import { pdfAdapter } from './pdf-adapter';
 import { ensureMigrated, getPool, storage } from './services';
@@ -31,8 +32,11 @@ export type IngestSeed = Omit<SourceSeed, 'kind'> & { kind: SourceSeed['kind'] |
 export interface IngestOptions {
   /** Extract with this instead of the content-type adapters (wiki pages). A returned title replaces the seed's title. */
   extract?: (bytes: Uint8Array, contentType: string, finalUrl: string) => ExtractedSource & { title?: string };
-  /** sources.authority of the row; default 'publisher'. Community text (wikis) ranks lower (AGENTS.md 2b). */
-  authority?: 'publisher' | 'community';
+  /**
+   * sources.authority of the row. Order: this option (wiki pages: the crawl's choice), the seed's authority (an admin-added
+   * link, runtime_sources.authority), else 'publisher' (static and request seeds). Community text ranks lower (AGENTS.md 2b).
+   */
+  authority?: SourceAuthority;
   /** Return the fetched bytes (the wiki crawl reads the page's links from them). */
   keepBody?: boolean;
 }
@@ -132,10 +136,12 @@ async function ingestSeedInner(seed: IngestSeed, force: boolean, opts: IngestOpt
      VALUES ($1,$2,$3,$4,$11,'link_only',$5,now(),$6,$7,$8,$9,$10)
      ON CONFLICT (url) DO UPDATE SET content_hash=EXCLUDED.content_hash, fetched_at=now(), policy_version=EXCLUDED.policy_version,
        private_path=EXCLUDED.private_path, text_path=EXCLUDED.text_path, page_count=EXCLUDED.page_count, content_type=EXCLUDED.content_type,
-       title=CASE WHEN $12 THEN EXCLUDED.title ELSE sources.title END
+       title=CASE WHEN $12 THEN EXCLUDED.title ELSE sources.title END,
+       -- An admin may change a source's authority (re-import a wiki as publisher, replace a link): the latest choice wins.
+       authority=EXCLUDED.authority
      RETURNING id`,
     [seed.url, title, seed.publisher, seed.language, doc.sha256, doc.decision.policyVersion, privatePath, text ? textPath : null, pages || null, doc.contentType,
-      opts.authority ?? 'publisher', !!extracted.title],
+      opts.authority ?? seed.authority ?? 'publisher', !!extracted.title],
   );
   const sourceId = src.rows[0].id as number;
 

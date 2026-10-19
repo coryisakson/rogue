@@ -1,7 +1,7 @@
 import { lookup } from 'node:dns/promises';
 import {
-  RightsGatedFetcher, POLICY_VERSION, USER_AGENT, assessRights, findOptOut, isPrivateAddress, parseWikiImport, slugify, tdmReserved,
-  type GameRequestInput, type ProbeFacts, type RightsAssessment,
+  RightsGatedFetcher, POLICY_VERSION, USER_AGENT, assessRights, findOptOut, isAuthorityAttested, isPrivateAddress, parseWikiImport, slugify, tdmReserved,
+  type GameRequestInput, type ProbeFacts, type RightsAssessment, type WikiAuthority,
 } from '@rogue/core';
 import { allSeeds } from './dynamic-sources';
 import { ingestGame } from './ingest';
@@ -136,7 +136,11 @@ export async function rejectRequest(id: number, adminId: number, reason: string)
 /** Auto-approval by the Terms Agent can be switched off with ROGUE_AUTO_APPROVE_SOURCES=0 (kill switch). */
 const autoApproveEnabled = () => process.env.ROGUE_AUTO_APPROVE_SOURCES !== '0';
 
-export async function approveRequest(id: number, adminId: number | null, termsChecked: boolean, actor = `admin:${adminId}`): Promise<{ ok: boolean; error?: string }> {
+/**
+ * `wikiAuthority`: for a wiki-only request, 'publisher' when the approving admin attested "This wiki is the publisher's
+ * official documentation"; community otherwise (and always for the Terms Agent's auto-approval, which attests nothing).
+ */
+export async function approveRequest(id: number, adminId: number | null, termsChecked: boolean, actor = `admin:${adminId}`, wikiAuthority: WikiAuthority = 'community'): Promise<{ ok: boolean; error?: string }> {
   const pool = getPool(); if (!pool) return { ok: false, error: 'no database' };
   if (!termsChecked) return { ok: false, error: 'Confirm that you read the site terms first.' };
   const c = await pool.connect();
@@ -150,10 +154,11 @@ export async function approveRequest(id: number, adminId: number | null, termsCh
     await c.query('INSERT INTO games(slug, name, publisher, year, bgg_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (slug) DO NOTHING', [r.slug, r.name, r.publisher, r.year, r.bgg_id ?? null]);
     await c.query('INSERT INTO approved_hosts(host, request_id, approved_by) VALUES ($1,$2,$3) ON CONFLICT (host) DO NOTHING', [r.report.host, id, adminId]);
     await c.query("UPDATE game_requests SET status='approved', decided_by=$2, decided_at=now(), progress='queued' WHERE id=$1", [id, adminId]);
-    await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [actor, 'game_request_approved', { id, slug: r.slug, host: r.report.host, url: checkedUrl(r), wiki: !r.rulebook_url, termsChecked, termsVerdict: r.terms_check?.verdict ?? null, termsSite: r.terms_check?.site ?? null }]);
+    await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [actor, 'game_request_approved', { id, slug: r.slug, host: r.report.host, url: checkedUrl(r), wiki: !r.rulebook_url, termsChecked, termsVerdict: r.terms_check?.verdict ?? null, termsSite: r.terms_check?.site ?? null,
+      ...(r.rulebook_url ? {} : { authority: wikiAuthority, attested: isAuthorityAttested(wikiAuthority, true) }) }]);
     await c.query('COMMIT');
   } catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
-  void (r.rulebook_url ? runPipeline(id, r.slug) : runWikiPipeline(id, r.slug, r));
+  void (r.rulebook_url ? runPipeline(id, r.slug) : runWikiPipeline(id, r.slug, r, wikiAuthority));
   return { ok: true };
 }
 
@@ -178,10 +183,10 @@ export async function runPipeline(id: number, slug: string): Promise<void> {
  * Wiki-only game (no rulebook link, ADR 0006): after approval the host is approved, so the wiki import of the sources page
  * runs on the whole wiki (scope: start URL host and path prefix, default page cap). The Librarian drafts when it ends.
  */
-async function runWikiPipeline(id: number, slug: string, r: { wiki_url: string; publisher: string; language: string }): Promise<void> {
+async function runWikiPipeline(id: number, slug: string, r: { wiki_url: string; publisher: string; language: string }, authority: WikiAuthority): Promise<void> {
   try {
     const { crawlWiki, waitForWikiCrawl } = await import('./wiki-crawl');
-    const input = parseWikiImport({ startUrl: r.wiki_url, mode: 'site', publisher: r.publisher, language: r.language });
+    const input = parseWikiImport({ startUrl: r.wiki_url, mode: 'site', publisher: r.publisher, language: r.language, authority });
     if (!input.ok) { await setProgress(id, `wiki import failed: ${input.error}`); return; }
     await setProgress(id, 'importing wiki pages');
     const start = await crawlWiki({ gameSlug: slug, input: input.value, adminId: null, termsChecked: true, requestId: id });
