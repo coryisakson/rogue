@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-19 (Hermes): 0.0.139: admin BGG title search fix (www host, query variants, clear errors, add-by-name fallback) and capture can add a new game (inbox + Capture new game form). Needs Cory browser test.
 - 2026-10-19 (Hermes): 0.0.138: list/count prompt now forbids items not named in excerpts (fixes "which roles" invention, unverified). Next: live Pandemic eval, then StS eval.
 - 2026-10-19 (Hermes): 0.0.137: "List roles" answer was correct (7 roles, other order); eval pattern made order-independent. "Which roles" still hallucinates Crisis Manager/Logistics Expert (model issue). Cure-count + voluntary-discard fails remain.
 - 2026-10-19 (Hermes): 0.0.136 live eval Pandemic 7/11: "how many roles" now passes; "list roles" and "which roles" still fail (pattern). Cure-card count also fails. Next: look at list answers.
