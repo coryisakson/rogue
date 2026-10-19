@@ -63,7 +63,7 @@
     },
     {
       "q": "List all the roles in Pandemic.",
-      "must": "Contingency Planner[\\s\\S]*Dispatcher[\\s\\S]*Medic[\\s\\S]*Operations Expert[\\s\\S]*Quarantine Specialist[\\s\\S]*Researcher[\\s\\S]*Scientist|Scientist[\\s\\S]*Researcher[\\s\\S]*Quarantine",
+      "must": "^(?=[\\s\\S]*Contingency Planner)(?=[\\s\\S]*Dispatcher)(?=[\\s\\S]*Medic)(?=[\\s\\S]*Operations Expert)(?=[\\s\\S]*Quarantine Specialist)(?=[\\s\\S]*Researcher)(?=[\\s\\S]*Scientist)",
       "expected": "Contingency Planner, Dispatcher, Medic, Operations Expert, Quarantine Specialist, Researcher, Scientist.",
       "kind": "list",
       "source": "packages/core/eval",
