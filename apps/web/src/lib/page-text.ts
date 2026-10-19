@@ -76,8 +76,8 @@ export function summarizePages(sp: SourcePages): Omit<QualitySummary, 'open'> & 
   return { pages: sp.raw.size, ok: count('ok'), suspect: count('suspect'), garbled: count('garbled'), empty: count('empty'), leftOut: sp.unusable.size };
 }
 
-/** Which pages of a source carry replacement text, and how it was made (agent repair or re-OCR). Same file hash only. */
-export async function loadOverrideMethods(sourceId: number, contentHash: string | null): Promise<Map<number, 'ocr' | 'agent'>> {
+/** Which pages of a source carry replacement text, and how it was made (agent repair, re-OCR or extract review). Same file hash only. */
+export async function loadOverrideMethods(sourceId: number, contentHash: string | null): Promise<Map<number, 'ocr' | 'agent' | 'extract'>> {
   const pool = getPool(); if (!pool) return new Map();
   const rows = (await pool.query('SELECT page, method FROM page_overrides WHERE source_id=$1 AND content_hash=$2', [sourceId, contentHash])).rows;
   return new Map(rows.map((r) => [Number(r.page), r.method]));
@@ -87,8 +87,8 @@ export async function loadOverrideMethods(sourceId: number, contentHash: string 
 export const pagesToMarkdown = (title: string, pages: Map<number, string>): string =>
   `# ${title}\n` + [...pages].sort((a, b) => a[0] - b[0]).map(([n, t]) => `\n## Page ${n}\n\n${t.trim()}\n`).join('');
 
-/** Store better text for a page (re-OCR or an accepted agent repair). The caller has already run the safety gate. */
-export async function saveOverride(sourceId: number, page: number, text: string, method: 'ocr' | 'agent', actor: string, before: number, after: number): Promise<void> {
+/** Store better text for a page (re-OCR, an accepted agent repair or extract choice). The caller has already run the safety gate. */
+export async function saveOverride(sourceId: number, page: number, text: string, method: 'ocr' | 'agent' | 'extract', actor: string, before: number, after: number): Promise<void> {
   const pool = getPool(); if (!pool) return;
   const hash = (await pool.query('SELECT content_hash FROM sources WHERE id=$1', [sourceId])).rows[0]?.content_hash;
   await pool.query(

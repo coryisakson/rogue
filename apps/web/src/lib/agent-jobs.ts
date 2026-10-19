@@ -1,4 +1,4 @@
-import { AGENT_NAMES, AGENT_PORTS, JOB_AGENT, JOB_MINUTES, agentApiKey, agentMayActOn, type AgentName, type JobKind } from '@rogue/core';
+import { AGENT_NAMES, AGENT_PORTS, JOB_AGENT, JOB_MINUTES, agentApiKey, agentMayActOn, jobSkill, type AgentName, type JobKind } from '@rogue/core';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -62,11 +62,11 @@ export async function enqueueGameJob(kind: JobKind, gameSlug: string): Promise<n
 /** source_id is 0 for jobs on a game request or a game; request_id and game_slug are null unless the job is on one. */
 export interface JobRow { id: number; kind: JobKind; source_id: number; request_id: number | null; game_slug: string | null; status: string; attempts: number }
 
-/** Jobs a tool call may act on: this agent's kind, currently running. */
-export async function runningJob(agent: AgentName, jobId: number): Promise<JobRow | null> {
+/** Jobs a tool call may act on: this agent's kind, currently running, and (when named) a tool in that kind's subset. */
+export async function runningJob(agent: AgentName, jobId: number, tool?: string): Promise<JobRow | null> {
   const pool = getPool(); if (!pool) return null;
   const r = (await pool.query("SELECT id, kind, source_id, request_id, game_slug, status, attempts FROM agent_jobs WHERE id=$1 AND status='running'", [jobId])).rows[0];
-  if (!agentMayActOn(agent, r)) return null;
+  if (!agentMayActOn(agent, r, tool)) return null;
   return { id: Number(r.id), kind: r.kind, source_id: Number(r.source_id ?? 0), request_id: r.request_id === null ? null : Number(r.request_id), game_slug: r.game_slug ?? null, status: r.status, attempts: r.attempts };
 }
 
@@ -107,6 +107,16 @@ export async function finishJob(jobId: number, status: 'done' | 'needs_human', s
   await getPool()?.query("UPDATE agent_jobs SET status=$2, summary=$3, result=result || $4::jsonb, finished_at=now() WHERE id=$1 AND status='running'", [jobId, status, summary.slice(0, 1500), JSON.stringify(result)]);
 }
 
+/**
+ * The task text for one job. An agent with skills (the Reviewer, ADR 0007) has every skill section in its instructions; the
+ * task names the one section to follow, because Nanobot loads instructions per agent process, not per request.
+ */
+export function jobTask(jobId: number, kind: JobKind): string {
+  const skill = jobSkill(kind);
+  const lead = skill ? `Skill: ${skill}. Follow only the section "Skill: ${skill}" of your instructions and ignore the other skills. ` : '';
+  return `${lead}Job ${jobId} (${kind}). Start by calling get_job with job_id ${jobId}, follow your instructions, and end with finish_job.`;
+}
+
 /** Call one agent as a chat model. The agent's own tool calls happen inside this request; the answer text is only a log line. */
 async function callAgent(agent: AgentName, jobId: number, kind: JobKind): Promise<string> {
   const key = agentKey(); if (!key) throw new Error('agent key file not available');
@@ -114,7 +124,7 @@ async function callAgent(agent: AgentName, jobId: number, kind: JobKind): Promis
   const res = await ipv4Fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${agentApiKey(key, agent)}` },
-    body: JSON.stringify({ session_id: `job-${jobId}-${Date.now()}`, messages: [{ role: 'user', content: `Job ${jobId} (${kind}). Start by calling get_job with job_id ${jobId}, follow your instructions, and end with finish_job.` }] }),
+    body: JSON.stringify({ session_id: `job-${jobId}-${Date.now()}`, messages: [{ role: 'user', content: jobTask(jobId, kind) }] }),
     signal: AbortSignal.timeout(JOB_MINUTES[kind] * 60_000),
   });
   const text = await res.text();
@@ -171,6 +181,7 @@ export async function runNextJob(): Promise<boolean> {
  * After a terms job, code turns the agent's labels into the verdict and settles the game request.
  * After a scout judgement job, the gated picks are written into the request's scout report.
  * After an FAQ curation job, its canonical entries replace the game's older ones.
+ * After an extract review, accepted page choices are already page overrides; re-score and re-index like a quality job.
  */
 async function afterJob(kind: JobKind, jobId: number): Promise<void> {
   const pool = getPool(); if (!pool) return;
@@ -193,9 +204,10 @@ async function afterJob(kind: JobKind, jobId: number): Promise<void> {
     await replaceCanonicalFaq(jobId);
     return;
   }
-  if (kind !== 'quality_curate') return;
+  if (kind !== 'quality_curate' && kind !== 'extract_review') return;
   const j = (await pool.query('SELECT source_id, result FROM agent_jobs WHERE id=$1', [jobId])).rows[0];
   if (!j || !(Number(j.result?.changedPages) > 0)) return;
+  if (kind === 'extract_review') await scoreSource(Number(j.source_id)).catch(() => null);
   const { indexSource } = await import('./rules-index');
   await indexSource(Number(j.source_id));
 }

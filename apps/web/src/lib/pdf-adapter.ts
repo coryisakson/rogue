@@ -4,6 +4,12 @@ import { settingsEnv } from './settings';
 import { scanPdfForQr } from './qr-scan';
 import { applyOcr, needsOcr, ocrModeFromEnv, ocrProviderFromEnv, pickPagesForOcr, type SourceAdapter } from '@rogue/core';
 
+/** The PDF's own text layer, one string per page (no OCR). Used by the extract review to compare against stored OCR text. */
+export async function pdfTextLayer(bytes: Uint8Array): Promise<string[]> {
+  const pdf = await getDocumentProxy(new Uint8Array(bytes));
+  return (await extractText(pdf, { mergePages: false })).text;
+}
+
 /** PDF implementation of SourceAdapter. Lives in apps/web because the PDF parser dependency does (core stays lean). */
 export const pdfAdapter: SourceAdapter = {
   name: 'pdf',

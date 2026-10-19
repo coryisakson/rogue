@@ -6,6 +6,8 @@ import { isAdmin } from '../../../../lib/admin';
 import { hubGame, hubSources, viewerSource, type ViewerSource } from '../../../../lib/admin-games';
 import { extractDeletePreview } from '../../../../lib/extract-delete';
 import { loadSourcePages, loadOverrideMethods, pagesToMarkdown, summarizePages } from '../../../../lib/page-text';
+import { agentsEnabled } from '../../../../lib/agent-jobs';
+import { extractReviewSummary, type ExtractReviewSummary } from '../../../../lib/extractor-run';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
@@ -31,6 +33,7 @@ let source: ViewerSource | null = null;
 let view: { n: number; text: string; verdict: string; score: number; override?: string; leftOut: boolean }[] = [];
 let allPages: number[] = [];
 let summaries = new Map<number, ReturnType<typeof summarizePages> | null>();
+let review: ExtractReviewSummary | null = null;
 
 if (sourceId !== null) {
   // Only this game's sources: the viewer is reached from the game page, and a source id from another game is refused.
@@ -46,6 +49,7 @@ if (sourceId !== null) {
     });
   }
   const overrides = await loadOverrideMethods(sourceId, sp.contentHash);
+  if (/pdf/i.test(String(source.contentType ?? ''))) review = await extractReviewSummary(sourceId);
   allPages = [...sp.raw.keys()].sort((a, b) => a - b);
   view = allPages.filter((n) => onlyPage === null || n === onlyPage).map((n) => {
     const leftOut = sp.unusable.has(n);
@@ -76,6 +80,16 @@ if (!msg && num('removed') > 0) {
     : `Extract of source #${num('deleted')} deleted: ${num('chunks')} chunks, ${num('quality')} page scores, ${num('overrides')} page repairs, ${num('variants')} text versions. The source is kept; Re-ingest now on Manage sources extracts it again.`;
 }
 const base = `${self}?source=${sourceId}`;
+// Result of the "Review unsure pages" button (/admin/extract-review redirects back with a fixed code).
+const REVIEW_MSG: Record<string, string> = {
+  queued: `Extract review queued (job #${num('job')}). The Reviewer compares text layer and OCR on unsure pages; changed pages are re-indexed when it ends.`,
+  off: 'The agents are off on this instance (ROGUE_AGENTS_URL unset or ROGUE_AGENTS=0), so nothing was reviewed. The extract stays as ingest made it.',
+  nothing: 'No unsure pages: code found nothing for the Reviewer to compare.',
+  error: 'Could not prepare the review (not a PDF, or the private copy or stored text is missing).',
+  missing: 'That source does not belong to this game.',
+};
+const reviewMsg = REVIEW_MSG[params.get('review') ?? ''] ?? null;
+const agentsOn = agentsEnabled();
 const field = 'mt-1 bg-background';
 ---
 <Admin title={`${game.name}: extracts`}>
@@ -146,6 +160,21 @@ const field = 'mt-1 bg-background';
       <input type="hidden" name="source" value={source.id} />
       <label class="flex items-center gap-2">Only page <Input type="number" name="page" min={1} defaultValue={onlyPage ?? ''} className="w-20 bg-background" /></label> <Button type="submit">Show</Button>
     </form>
+
+    {review && (
+      <Card className="mb-2 text-base" id="review"><CardContent>
+        <b>Extract review</b> <small>(Reviewer agent, skill extract_review: text layer vs OCR on pages code is unsure about)</small>
+        {reviewMsg && <p role="status" class="my-1"><Badge variant="secondary" className="h-auto whitespace-normal">{reviewMsg}</Badge></p>}
+        <div><small>{review.unsure} unsure pages · {review.reviewed} reviewed · {review.changed} changed · {review.open} open
+          {review.job && <> · last job #{review.job.id}: {review.job.status}{review.job.summary ? ` (${review.job.summary.slice(0, 160)})` : ''}</>}</small></div>
+        {agentsOn
+          ? <form method="post" action="/admin/extract-review" class="mt-1.5">
+              <input type="hidden" name="game" value={slug} /><input type="hidden" name="source" value={source.id} />
+              <Button type="submit">Review unsure pages with the Extractor</Button>
+            </form>
+          : <p class="my-1"><small>The agents are off on this instance, so pages are not reviewed; the extract stays as ingest made it.</small></p>}
+      </CardContent></Card>
+    )}
 
     <input type="radio" name="mode" id="mode-rendered" checked /> <label for="mode-rendered">Rendered</label>
     <input type="radio" name="mode" id="mode-raw" /> <label for="mode-raw">Raw</label>

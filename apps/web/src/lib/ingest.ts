@@ -4,6 +4,7 @@ import { pdfAdapter } from './pdf-adapter';
 import { ensureMigrated, getPool, storage } from './services';
 import { allSeeds, syncApprovedHosts } from './dynamic-sources';
 import { ALLOWED_HOSTS, type SourceSeed } from './source-seeds';
+import { reviewAfterIngest } from './extractor-run';
 
 export interface IngestResult {
   url: string;
@@ -159,6 +160,8 @@ async function ingestSeedInner(seed: IngestSeed, force: boolean, opts: IngestOpt
     'ingest', 'fetched',
     { url: seed.url, foundOn: seed.foundOn, sha256: doc.sha256, bytes: doc.bytes.byteLength, pages, policyVersion: doc.decision.policyVersion, etag: doc.etag, lastModified: doc.lastModified, qrFacts: qrCount, ...ocrDetail },
   ]);
+  // Unsure PDF pages (text layer vs OCR) go to the Reviewer's extract_review skill in the background; agents off: nothing.
+  if (/pdf/i.test(doc.contentType)) reviewAfterIngest(sourceId);
   return { url: seed.url, ok: true, detail: 'fetched, stored privately', sourceId, pages, chars: text.length, sha256: doc.sha256, title,
     ...(opts.keepBody ? { body: doc.bytes, finalUrl: doc.finalUrl } : {}) };
 }
