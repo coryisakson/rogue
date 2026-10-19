@@ -25,6 +25,10 @@ export function decodeEntities(s: string): string {
   });
 }
 
+/** The class and id attribute values of a tag, matched by HtmlExtractOptions.skip. */
+const classAndId = (attrs: string): string =>
+  [...attrs.matchAll(/\b(?:class|id)=(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)].map((m) => m[1] ?? m[2] ?? m[3] ?? '').join(' ');
+
 const clean = (s: string) => decodeEntities(s).replace(/\s+/g, ' ').trim();
 
 /** Read charset from the Content-Type header or a <meta>; default UTF-8. */
@@ -50,9 +54,19 @@ function mainRegion(html: string): string {
 
 interface Section { heading: string; parts: string[] }
 
-export function extractHtmlSections(html: string): { title: string; sections: { heading: string; body: string }[] } {
+/** Options for callers that know the page layout (wiki import, packages/core/src/wiki). Defaults keep the publisher-page behaviour. */
+export interface HtmlExtractOptions {
+  /** The part of the page to read (already cut out by the caller); default: the page's <main>, else <article>, else all. */
+  region?: string;
+  /** Skip any element whose class or id matches (table of contents, edit links, comments). */
+  skip?: RegExp;
+  /** Tables as markdown rows ("| a | b |", a separator under a header row) instead of "a | b |". */
+  markdownTables?: boolean;
+}
+
+export function extractHtmlSections(html: string, opts: HtmlExtractOptions = {}): { title: string; sections: { heading: string; body: string }[] } {
   const title = clean(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? '');
-  const region = mainRegion(html.replace(/<!--[\s\S]*?-->/g, ''));
+  const region = opts.region !== undefined ? opts.region.replace(/<!--[\s\S]*?-->/g, '') : mainRegion(html.replace(/<!--[\s\S]*?-->/g, ''));
   const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
 
   const first: Section = { heading: '', parts: [] };
@@ -63,13 +77,18 @@ export function extractHtmlSections(html: string): { title: string; sections: { 
   let headingBuf: string[] | null = null;
   let headingTag = '';
   let last = 0;
+  // Markdown tables: cells in the current row, whether it had header cells, and whether the table has its separator yet.
+  let rowCells = 0;
+  let rowHasHeader = false;
+  let tableHasSeparator = false;
+  let cellDepth = 0; // inside a markdown table cell, block breaks become spaces so the row stays on one line
 
   const addText = (raw: string) => {
     if (skipDepth > 0 || !raw) return;
     if (headingBuf) headingBuf.push(raw);
     else current().parts.push(raw);
   };
-  const addBreak = () => { if (skipDepth === 0 && !headingBuf) current().parts.push('\n'); };
+  const addBreak = () => { if (skipDepth === 0 && !headingBuf) current().parts.push(cellDepth > 0 ? ' ' : '\n'); };
 
   for (let m = tagRe.exec(region); m; m = tagRe.exec(region)) {
     addText(region.slice(last, m.index));
@@ -84,7 +103,8 @@ export function extractHtmlSections(html: string): { title: string; sections: { 
     }
     const role = /\brole=["']?(\w+)/i.exec(attrs)?.[1]?.toLowerCase() ?? '';
     const hidden = /\saria-hidden=["']?true/i.test(attrs) || /\shidden(\s|=|$)/i.test(attrs);
-    if (!closing && !VOID_TAGS.has(name) && (SKIP_TAGS.has(name) || SKIP_ROLES.has(role) || hidden)) {
+    const skipByOption = !!opts.skip && opts.skip.test(classAndId(attrs));
+    if (!closing && !VOID_TAGS.has(name) && (SKIP_TAGS.has(name) || SKIP_ROLES.has(role) || hidden || skipByOption)) {
       skipTag = name;
       skipDepth = 1;
       continue;
@@ -100,6 +120,14 @@ export function extractHtmlSections(html: string): { title: string; sections: { 
       continue;
     }
     if (name === 'li' && !closing) { addBreak(); addText('- '); continue; }
+    if (opts.markdownTables && ['table', 'tr', 'td', 'th'].includes(name)) {
+      if (name === 'table') { addBreak(); if (!closing) tableHasSeparator = false; }
+      else if (name === 'tr' && !closing) { addBreak(); addText('| '); rowCells = 0; rowHasHeader = false; }
+      else if (name === 'tr' && rowHasHeader && !tableHasSeparator && rowCells > 0) { addBreak(); addText(`|${' --- |'.repeat(rowCells)}`); tableHasSeparator = true; }
+      else if (name !== 'tr' && !closing) { cellDepth++; if (name === 'th') rowHasHeader = true; }
+      else if (name !== 'tr' && closing) { cellDepth = Math.max(0, cellDepth - 1); addText(' | '); rowCells++; }
+      continue;
+    }
     if (name === 'td' || name === 'th') { if (closing) addText(' | '); continue; }
     if (BLOCK_TAGS.has(name)) addBreak();
   }

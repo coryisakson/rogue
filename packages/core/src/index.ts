@@ -41,3 +41,4 @@ export * from './capture.js';
 export * from './admin-games.js';
 export * from './extract-delete.js';
 export * from './game-delete.js';
+export * from './wiki/index.js';
