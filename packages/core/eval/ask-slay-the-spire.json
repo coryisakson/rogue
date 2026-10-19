@@ -86,6 +86,24 @@
       "kind": "fact",
       "source": "(rulebook FAQ)",
       "rulebookRef": "FAQs & Random Rules"
+    },
+    {
+      "q": "Which characters are in Slay the Spire?",
+      "must": "^(?=[\\s\\S]*Ironclad)(?=[\\s\\S]*Silent)(?=[\\s\\S]*Defect)(?=[\\s\\S]*Watcher)",
+      "expected": "4 characters, any order: Ironclad, Silent, Defect, Watcher (derived by listing).",
+      "kind": "list",
+      "source": "packages/core/eval (list-count-retrieval)",
+      "rulebookRef": "Characters",
+      "mustNot": "at least [4-9]"
+    },
+    {
+      "q": "How many characters are there in Slay the Spire?",
+      "must": "\\b(4|four)\\b",
+      "expected": "4 (Ironclad, Silent, Defect, Watcher; derived by counting the listed characters).",
+      "kind": "count",
+      "source": "packages/core/eval (list-count-retrieval)",
+      "rulebookRef": "Characters",
+      "mustNot": "at least|\\b(3|5|6|three|five|six) (playable )?characters"
     }
   ]
 }

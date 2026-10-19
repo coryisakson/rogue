@@ -85,6 +85,15 @@
       "kind": "fact",
       "source": "https://boardgames.stackexchange.com/questions/22964/making-the-contingency-planner-more-useful",
       "rulebookRef": "Contingency Planner"
+    },
+    {
+      "q": "Which roles can I play in Pandemic?",
+      "must": "^(?=[\\s\\S]*Contingency Planner)(?=[\\s\\S]*Dispatcher)(?=[\\s\\S]*Medic)(?=[\\s\\S]*Operations Expert)(?=[\\s\\S]*Quarantine Specialist)(?=[\\s\\S]*Researcher)(?=[\\s\\S]*Scientist)",
+      "expected": "7 roles, any order: Contingency Planner, Dispatcher, Medic, Operations Expert, Quarantine Specialist, Researcher, Scientist (derived by listing; cite the role pages).",
+      "kind": "list",
+      "source": "packages/core/eval (list-count-retrieval)",
+      "rulebookRef": "Contents + Roles",
+      "mustNot": "CONTINGENCY PLANNER DISPATCHER|at least [89]|\\b(8|9|eight|nine) roles"
     }
   ]
 }
