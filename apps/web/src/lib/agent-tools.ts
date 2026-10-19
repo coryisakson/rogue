@@ -62,7 +62,8 @@ const finishTool = (agent: AgentName): McpTool => ({
   },
 });
 
-// ---------------------------------------------------------------------------------------------------------------- quality-curator
+// ---------------------------------------------------------------------------------------------------------------- reviewer skill quality_curate
+// Repair OCR damage on weak pages (ADR 0007 step 2: moved here from the retired Quality Curator agent).
 
 const sourceInfo = async (id: number) => (await getPool()!.query(
   `SELECT s.id, s.title, s.url, s.content_type, s.page_count, g.name game FROM sources s LEFT JOIN documents d ON d.source_id=s.id LEFT JOIN editions e ON e.id=d.edition_id LEFT JOIN games g ON g.id=e.game_id WHERE s.id=$1 LIMIT 1`, [id])).rows[0];
@@ -75,27 +76,24 @@ async function openPages(sourceId: number): Promise<{ page: number; score: numbe
 
 const ocrCalls = new Map<number, number>();
 
-const qualityTools: McpTool[] = [
-  {
-    name: 'get_job',
-    description: 'Start here. Returns the rulebook to curate and the pages whose extracted text looks damaged (worst first), with what the scorer saw. Pages not listed are fine; leave them alone.',
-    inputSchema: { type: 'object', properties: { job_id: jobIdSchema }, required: ['job_id'] },
-    handler: async (a) => {
-      const job = await jobFor('quality-curator', a, 'get_job');
-      const src = await sourceInfo(job.source_id);
-      const pages = await openPages(job.source_id);
-      return {
-        job: { id: job.id, kind: job.kind }, source: { title: src?.title, game: src?.game, pages: src?.page_count }, pagesToReview: pages,
-        rules: ['For each listed page: call get_page_text, then either propose_page_repair (fix spelling/spacing/OCR slips ONLY; never change, add or remove rules or numbers) or reocr_page, or mark_page_unusable if it is unreadable noise.', 'Do the worst pages first. Skip pages you cannot improve; finish_job covers them.'],
-      };
-    },
-  },
+/** get_job for skill quality_curate: the rulebook and its damaged pages. Called by the Reviewer's get_job. */
+async function qualityJob(job: JobRow) {
+  const src = await sourceInfo(job.source_id);
+  const pages = await openPages(job.source_id);
+  return {
+    job: { id: job.id, kind: job.kind, skill: job.kind }, source: { title: src?.title, game: src?.game, pages: src?.page_count }, pagesToReview: pages,
+    rules: ['For each listed page: call get_page_text, then either propose_page_repair (fix spelling/spacing/OCR slips ONLY; never change, add or remove rules or numbers) or reocr_page, or mark_page_unusable if it is unreadable noise.', 'Do the worst pages first. Skip pages you cannot improve; finish_job covers them.'],
+  };
+}
+
+/** The page tools of skill quality_curate; the Reviewer's get_job and finish_job cover the start and end of the job. */
+const qualityPageTools: McpTool[] = [
   {
     name: 'get_page_text',
     description: 'The current extracted text of one page (up to 6000 characters) with the scorer\'s findings.',
     inputSchema: { type: 'object', properties: { job_id: jobIdSchema, page: { type: 'number' } }, required: ['job_id', 'page'] },
     handler: async (a) => {
-      const job = await jobFor('quality-curator', a, 'get_page_text');
+      const job = await jobFor('reviewer', a, 'get_page_text');
       const sp = await loadSourcePages(job.source_id); if (!sp) throw new Error('source text is not available');
       const page = num(a['page']);
       const text = sp.pages.get(page); if (text === undefined) throw new Error(`page ${page} has no text (unusable or missing)`);
@@ -108,7 +106,7 @@ const qualityTools: McpTool[] = [
     description: 'Run the OCR engine again on one page of the original PDF (useful when the text layer or earlier OCR is bad). The new text is used only if it reads clearly better; the result says what happened. Slow: at most 5 per job.',
     inputSchema: { type: 'object', properties: { job_id: jobIdSchema, page: { type: 'number' } }, required: ['job_id', 'page'] },
     handler: async (a) => {
-      const job = await jobFor('quality-curator', a, 'reocr_page');
+      const job = await jobFor('reviewer', a, 'reocr_page');
       const page = num(a['page']);
       const n = (ocrCalls.get(job.id) ?? 0) + 1; ocrCalls.set(job.id, n);
       if (n > 5) throw new Error('re-OCR limit for this job reached; use propose_page_repair or skip the page');
@@ -123,8 +121,8 @@ const qualityTools: McpTool[] = [
       const text = await provider.recognizePage({ pdf: new Uint8Array(pdf), pageNumber: page });
       const after = scorePage(text);
       const better = after.score >= 0.6 && after.score >= before.score + 0.15;
-      if (better) { await bumpChanged(job.id); await saveOverride(job.source_id, page, text, 'ocr', 'agent:quality-curator', before.score, after.score); await pool.query("UPDATE page_quality SET state='repaired', score=$3, verdict=$4, note='re-OCR' WHERE source_id=$1 AND page=$2", [job.source_id, page, after.score, after.verdict]); }
-      await audit('quality-curator', 'reocr_page', { job: job.id, page, before: before.score, after: after.score, used: better });
+      if (better) { await bumpChanged(job.id); await saveOverride(job.source_id, page, text, 'ocr', 'agent:reviewer', before.score, after.score); await pool.query("UPDATE page_quality SET state='repaired', score=$3, verdict=$4, note='re-OCR' WHERE source_id=$1 AND page=$2", [job.source_id, page, after.score, after.verdict]); }
+      await audit('reviewer', 'reocr_page', { job: job.id, page, before: before.score, after: after.score, used: better });
       return { used: better, scoreBefore: before.score, scoreAfter: after.score, note: better ? 'New OCR text saved for this page.' : 'The new OCR text is not clearly better; the old text stays. Try propose_page_repair.' };
     },
   },
@@ -133,16 +131,16 @@ const qualityTools: McpTool[] = [
     description: 'Propose cleaned text for one page: fix OCR damage only (broken words, wrong letters, stray symbols, spacing, line breaks). Keep every number, rule, name and sentence; add nothing. Rejected automatically if numbers change, length changes a lot, wording drifts, or it does not read better.',
     inputSchema: { type: 'object', properties: { job_id: jobIdSchema, page: { type: 'number' }, repaired_text: { type: 'string' } }, required: ['job_id', 'page', 'repaired_text'] },
     handler: async (a) => {
-      const job = await jobFor('quality-curator', a, 'propose_page_repair');
+      const job = await jobFor('reviewer', a, 'propose_page_repair');
       const page = num(a['page']);
       const sp = await loadSourcePages(job.source_id); const original = sp?.pages.get(page);
       if (original === undefined) throw new Error(`page ${page} has no text to repair`);
       const repaired = str(a['repaired_text']);
       const d = acceptRepair(original, repaired);
-      await audit('quality-curator', 'propose_page_repair', { job: job.id, page, accepted: d.accepted, reason: d.reason, before: d.before, after: d.after });
+      await audit('reviewer', 'propose_page_repair', { job: job.id, page, accepted: d.accepted, reason: d.reason, before: d.before, after: d.after });
       if (!d.accepted) return { accepted: false, reason: d.reason, hint: 'Make a smaller, more literal fix, or skip the page.' };
       await bumpChanged(job.id);
-      await saveOverride(job.source_id, page, repaired, 'agent', 'agent:quality-curator', d.before, d.after);
+      await saveOverride(job.source_id, page, repaired, 'agent', 'agent:reviewer', d.before, d.after);
       await getPool()!.query("UPDATE page_quality SET state='repaired', score=$3, verdict=$4, note='agent repair' WHERE source_id=$1 AND page=$2", [job.source_id, page, d.after, scorePage(repaired).verdict]);
       return { accepted: true, scoreBefore: d.before, scoreAfter: d.after };
     },
@@ -152,7 +150,7 @@ const qualityTools: McpTool[] = [
     description: 'Leave a page out of the search index because it is unreadable noise (score below 0.4) and cannot be repaired. Refused for pages that read acceptably, and when it would remove more than half of the book (then call finish_job with needs_human).',
     inputSchema: { type: 'object', properties: { job_id: jobIdSchema, page: { type: 'number' }, reason: { type: 'string' } }, required: ['job_id', 'page', 'reason'] },
     handler: async (a) => {
-      const job = await jobFor('quality-curator', a, 'mark_page_unusable');
+      const job = await jobFor('reviewer', a, 'mark_page_unusable');
       const page = num(a['page']);
       const pool = getPool()!;
       const sp = await loadSourcePages(job.source_id); const text = sp?.pages.get(page);
@@ -164,11 +162,10 @@ const qualityTools: McpTool[] = [
       if (gone + 1 > total / 2) return { ok: false, reason: 'More than half of the book would be unusable. Stop and call finish_job with needs_human so a person can supply better text.' };
       await bumpChanged(job.id);
       await pool.query("UPDATE page_quality SET state='unusable', note=$3 WHERE source_id=$1 AND page=$2", [job.source_id, page, str(a['reason']).slice(0, 200)]);
-      await audit('quality-curator', 'mark_page_unusable', { job: job.id, page, reason: str(a['reason']).slice(0, 200) });
+      await audit('reviewer', 'mark_page_unusable', { job: job.id, page, reason: str(a['reason']).slice(0, 200) });
       return { ok: true };
     },
   },
-  finishTool('quality-curator'),
 ];
 
 // ---------------------------------------------------------------------------------------------------------------- scout
@@ -577,15 +574,16 @@ const faqTools: McpTool[] = [
 
 // ---------------------------------------------------------------------------------------------------------------- reviewer
 // One agent, one skill per job kind (ADR 0007). Each tool is listed in JOB_TOOLS for the kinds that may use it; jobFor refuses
-// the rest. Skill extract_review: choose between a PDF page's text layer and its OCR text.
+// the rest. Skill extract_review: choose between a PDF page's text layer and its OCR text. Skill quality_curate: qualityPageTools.
 
 const reviewerTools: McpTool[] = [
   {
     name: 'get_job',
-    description: 'Start here. Returns the rulebook and the pages whose extracted text code is unsure about (most unsure first), with why: garbled, disagree (text layer and OCR read different text), table, short.',
+    description: 'Start here. Says the job kind (skill) and returns the rulebook with the pages to work on. extract_review: pages whose extracted text code is unsure about (most unsure first), with why: garbled, disagree (text layer and OCR read different text), table, short. quality_curate: pages whose text looks damaged (worst first), with what the scorer saw; pages not listed are fine.',
     inputSchema: { type: 'object', properties: { job_id: jobIdSchema }, required: ['job_id'] },
     handler: async (a) => {
       const job = await jobFor('reviewer', a, 'get_job');
+      if (job.kind === 'quality_curate') return qualityJob(job);
       const src = await sourceInfo(job.source_id);
       const pages = await openExtractPages(job.source_id);
       await bumpCounts(job.id, {}, { pages: pages.length });
@@ -633,7 +631,8 @@ const reviewerTools: McpTool[] = [
       return { accepted: true, changed, note: changed ? 'Saved; the page is re-indexed when the job ends.' : 'The index already uses this text; nothing to change.' };
     },
   },
+  ...qualityPageTools,
   finishTool('reviewer'),
 ];
 
-export const AGENT_TOOLS: Record<AgentName, McpTool[]> = { reviewer: reviewerTools, 'quality-curator': qualityTools, scout: scoutTools, librarian: librarianTools, 'terms-agent': termsTools, 'faq-curator': faqTools };
+export const AGENT_TOOLS: Record<AgentName, McpTool[]> = { reviewer: reviewerTools, scout: scoutTools, librarian: librarianTools, 'terms-agent': termsTools, 'faq-curator': faqTools };
