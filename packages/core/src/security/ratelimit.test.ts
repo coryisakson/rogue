@@ -25,6 +25,8 @@ describe('security', () => {
     // Game management subpages and the extract delete handler (pages guard themselves).
     for (const p of ['/admin/extract-delete', '/admin/games/pandemic/sources', '/admin/games/pandemic/extracts', '/admin/games/slay-the-spire/extracts/']) expect(isPublicPath(p)).toBe(true);
     for (const p of ['/admin/capture', '/admin/capture-inbox']) expect(isPublicPath(p)).toBe(true);
+    expect(isPublicPath('/admin/extract-review')).toBe(true);
+    for (const p of ['/admin/extract-review/', '/admin/extract-review/x', '/admin/extract-reviews', '/admin/extract-review/../../api']) expect(isPublicPath(p)).toBe(false);
     for (const p of ['/admin/capture/', '/admin/capture/x', '/admin/captures', '/admin/capture-inbox/x', '/admin/capture-inboxes']) expect(isPublicPath(p)).toBe(false);
     for (const p of ['/admin/extract-delete/', '/admin/extract-delete/x', '/admin/extract-deletes', '/admin/games/pandemic/other', '/admin/games/pandemic/sources/x', '/admin/games/Pandemic/sources', '/admin/games/../sources', '/admin/games/pandemic/../../api']) expect(isPublicPath(p)).toBe(false);
     expect(isCostlyPath('/games/pandemic')).toBe(true);

@@ -1,5 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { AGENT_NAMES, AGENT_PORTS, JOB_AGENT, JOB_KINDS, JOB_MINUTES, agentApiKey, agentMayActOn, agentToken, verifyAgentHeader } from './index.js';
+import { AGENT_NAMES, AGENT_PORTS, JOB_AGENT, JOB_KINDS, JOB_MINUTES, JOB_TOOLS, agentApiKey, agentMayActOn, agentToken, jobSkill, verifyAgentHeader } from './index.js';
+
+describe('reviewer skills (ADR 0007)', () => {
+  it('runs extract_review on the reviewer at port 8901 and keeps the quality curator on its own port', () => {
+    expect(JOB_AGENT.extract_review).toBe('reviewer');
+    expect(AGENT_PORTS.reviewer).toBe(8901);
+    expect(AGENT_PORTS['quality-curator']).not.toBe(8901);
+    expect(JOB_AGENT.quality_curate).toBe('quality-curator');
+    expect(jobSkill('extract_review')).toBe('extract_review');
+    expect(jobSkill('quality_curate')).toBeNull();
+  });
+  it('lists a tool subset for every kind, always with get_job and finish_job', () => {
+    for (const k of JOB_KINDS) { expect(JOB_TOOLS[k]).toContain('get_job'); expect(JOB_TOOLS[k]).toContain('finish_job'); }
+  });
+  it('refuses a tool outside the job kind subset', () => {
+    const job = { kind: 'extract_review', status: 'running' };
+    expect(agentMayActOn('reviewer', job, 'get_page')).toBe(true);
+    expect(agentMayActOn('reviewer', job, 'propose_page_choice')).toBe(true);
+    expect(agentMayActOn('reviewer', job, 'propose_page_repair')).toBe(false);
+    expect(agentMayActOn('reviewer', { ...job, status: 'queued' }, 'get_page')).toBe(false);
+    expect(agentMayActOn('quality-curator', job, 'get_job')).toBe(false);
+    expect(agentMayActOn('reviewer', { kind: 'quality_curate', status: 'running' }, 'get_job')).toBe(false);
+    expect(agentMayActOn('quality-curator', { kind: 'quality_curate', status: 'running' }, 'propose_page_repair')).toBe(true);
+    expect(agentMayActOn('quality-curator', { kind: 'quality_curate', status: 'running' }, 'get_page')).toBe(false);
+  });
+});
 
 describe('agent identity', () => {
   it('derives distinct, stable secrets per agent', () => {

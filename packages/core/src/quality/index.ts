@@ -174,3 +174,5 @@ export function variantOverlap(basePages: Map<number, string>, candidate: string
   // The variant should be about book-sized: a stub page or a 10x larger site dump is not "the same document".
   return { coverage: Number(coverage.toFixed(3)), sizeRatio: Number(sizeRatio.toFixed(2)), sameDocument: coverage >= 0.55 && sizeRatio > 0.4 && sizeRatio < 3, basis };
 }
+
+export * from './extract.js';
