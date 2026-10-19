@@ -1,6 +1,6 @@
 # 0005. Extractor agent, separate from Scout (proposal)
 
-Status: proposed (Hermes, 2026-10-18; awaiting Cory's go-ahead before code)
+Status: accepted 2026-10-19 (Cory). Built as a skill of the Reviewer agent, see ADR 0007, not as a separate process.
 
 ## Context
 Scout only finds and judges sources. Extraction (PDF text layer, OCR, markdown, chunking) is plain code in `packages/core` (ocr/, markdown/, ingest). Per-page text-layer/OCR selection (`ROGUE_OCR_MODE=auto`) shipped in 0.0.126; measured ~95% of pages in text-born PDFs have clean text layers. Plain code cannot judge things like: reading order across columns, rules split into sidebars, tables, icon-only text, wrong-language pages, or a page that is an ad.
