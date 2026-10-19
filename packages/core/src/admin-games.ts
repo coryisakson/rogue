@@ -1,14 +1,16 @@
 /**
- * Admin game hub (/admin/games, Cory 2026-10-18: one place per game). Pure helpers: the search box over ingested games,
+ * Admin game hub (/admin/games, Cory 2026-10-18: one place per game). Pure helpers: the search box over every game,
  * the "recently added/updated" ordering and the per-game history timeline. The SQL lives in apps/web/src/lib/admin-games.ts.
  */
 
-/** A game that is in Rogue with at least one source, plus the dates that count as "something happened". */
+/** A game in the games table (with or without sources), plus the dates that count as "something happened". */
 export interface IngestedGame {
   slug: string;
   name: string;
   createdAt: Date | null;
-  /** Latest fetched_at over the game's sources. */
+  /** Number of the game's sources; 0 for a game that was added but has nothing fetched or captured yet. */
+  sourceCount: number;
+  /** Latest fetched_at over the game's sources (null without sources). */
   lastFetchedAt: Date | null;
   /** Latest decided_at over the game's requests. */
   lastDecidedAt: Date | null;
@@ -47,6 +49,12 @@ export function lastActivity(g: Pick<IngestedGame, 'createdAt' | 'lastFetchedAt'
 export function recentGames<T extends IngestedGame>(games: T[], n = 8): T[] {
   const t = (g: T) => lastActivity(g)?.getTime() ?? -Infinity;
   return [...games].sort((a, b) => t(b) - t(a) || a.name.localeCompare(b.name)).slice(0, n);
+}
+
+/** The "Games without sources" list on /admin/games: games with sourceCount 0, newest first, undated last, ties by name. */
+export function sourcelessGames<T extends IngestedGame>(games: T[]): T[] {
+  const t = (g: T) => (g.createdAt && !Number.isNaN(g.createdAt.getTime()) ? g.createdAt.getTime() : -Infinity);
+  return games.filter((g) => g.sourceCount === 0).sort((a, b) => t(b) - t(a) || a.name.localeCompare(b.name));
 }
 
 /** One line of a game's history. `key` keeps the order stable when two events share a timestamp. */

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  extractNote, gameMatches, isLowPage, lastActivity, mergeTimeline, normalizeGameQuery, pageSourceCounts, recentGames, searchGames, summarizeQuality, type IngestedGame,
+  extractNote, gameMatches, isLowPage, lastActivity, mergeTimeline, normalizeGameQuery, pageSourceCounts, recentGames, searchGames, sourcelessGames, summarizeQuality, type IngestedGame,
 } from './admin-games.js';
 
 const d = (s: string) => new Date(s);
-const game = (slug: string, name: string, createdAt: string | null, lastFetchedAt: string | null = null, lastDecidedAt: string | null = null): IngestedGame => ({
-  slug, name, createdAt: createdAt ? d(createdAt) : null, lastFetchedAt: lastFetchedAt ? d(lastFetchedAt) : null, lastDecidedAt: lastDecidedAt ? d(lastDecidedAt) : null,
+const game = (slug: string, name: string, createdAt: string | null, lastFetchedAt: string | null = null, lastDecidedAt: string | null = null, sourceCount = 1): IngestedGame => ({
+  slug, name, createdAt: createdAt ? d(createdAt) : null, sourceCount, lastFetchedAt: lastFetchedAt ? d(lastFetchedAt) : null, lastDecidedAt: lastDecidedAt ? d(lastDecidedAt) : null,
 });
 
 describe('admin games: search', () => {
@@ -45,6 +45,23 @@ describe('admin games: recency', () => {
     ];
     expect(recentGames(list).map((g) => g.slug)).toEqual(['decided', 'fetched', 'a', 'b', 'old', 'none']);
     expect(recentGames(list, 2).map((g) => g.slug)).toEqual(['decided', 'fetched']);
+  });
+});
+
+describe('admin games: games without sources', () => {
+  const empty = game('brass', 'Brass', '2026-10-18', null, null, 0);
+  const list = [game('pandemic', 'Pandemic', '2026-01-01', '2026-02-01'), empty, game('azul', 'Azul', '2026-05-01', null, null, 0), game('none', 'None', null, null, null, 0)];
+  it('are found by search like any other game', () => {
+    expect(searchGames(list, 'bra')).toEqual([empty]);
+  });
+  it('appear in the recent strip by their created date (no fetch date)', () => {
+    expect(lastActivity(empty)).toEqual(d('2026-10-18'));
+    expect(recentGames(list, 2).map((g) => g.slug)).toEqual(['brass', 'azul']);
+    expect(recentGames(list).at(-1)?.slug).toBe('none');
+  });
+  it('are listed on their own, newest first, undated last', () => {
+    expect(sourcelessGames(list).map((g) => g.slug)).toEqual(['brass', 'azul', 'none']);
+    expect(sourcelessGames([game('p', 'P', null)])).toEqual([]);
   });
 });
 
