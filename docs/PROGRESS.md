@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-19 (Hermes): Live eval on 0.0.140: Pandemic 8/11 (was 7), StS 9/12. Pandemic "which roles" now mixes in DE-edition role names (Krisenmanager, Logistiker); cure-count answer is right but pattern misses. Next: filter Ask excerpts by question language/edition, then Space Base source.
 - 2026-10-19 (Hermes): 0.0.140: stricter Ask system prompt (every sentence must be supported by an excerpt; no names/numbers not written there; partial answers say what is uncovered). Effect unmeasured; run Ask evals next.
 - 2026-10-19 (Hermes): 0.0.139: admin BGG title search fix (www host, query variants, clear errors, add-by-name fallback) and capture can add a new game (inbox + Capture new game form). Needs Cory browser test.
 - 2026-10-19 (Hermes): 0.0.138: list/count prompt now forbids items not named in excerpts (fixes "which roles" invention, unverified). Next: live Pandemic eval, then StS eval.
