@@ -13,6 +13,7 @@ The agent proposes; deterministic code decides (see `packages/core/src/fetch`). 
 7. **Hand off to the Librarian.** Claims in our own words, each with a citation (page + short quote within policy limits). Drafts need human review; the database refuses to publish a claim without a citation.
 8. **Re-check on a schedule.** Compare ETag/Last-Modified/hash; a changed file creates a new edition candidate and marks old claims for re-verification, never silently overwrites.
 9. **Report what couldn't be done.** No source found = say so on the game page and offer the publisher-contact flow.
+10. **Rules only in a wiki?** Propose the wiki start URL (request `wikiUrl`, or "Import from wiki" on the sources page); do not hunt for a PDF that does not exist. Rogue reads the rendered page text (BookStack `.page-content`, MediaWiki `#mw-content-text`, else `main`/`article`), never the wiki API (BookStack's needs auth). Wiki pages rank below publisher text. See `docs/WIKI_IMPORT.md`.
 
 ## Tools the Scout gets (least privilege)
 `search_web`, `check_rights(url)`, `fetch_source(url)` (the gated fetcher), `list_links(page)`, `record_source(...)`, `propose_review_item(...)`. No database writes outside these, no shell, no raw HTTP.
