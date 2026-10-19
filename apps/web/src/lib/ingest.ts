@@ -1,4 +1,4 @@
-import { RightsGatedFetcher, FetchDenied, htmlAdapter, textAdapter, selectAdapter, qrClaimBody, hasExtractedText, type SourceAdapter } from '@rogue/core';
+import { RightsGatedFetcher, FetchDenied, FetchHttpError, htmlAdapter, textAdapter, selectAdapter, qrClaimBody, hasExtractedText, type ExtractedSource, type SourceAdapter } from '@rogue/core';
 import { pdfAdapter } from './pdf-adapter';
 import { ensureMigrated, getPool, storage } from './services';
 import { allSeeds, syncApprovedHosts } from './dynamic-sources';
@@ -12,6 +12,29 @@ export interface IngestResult {
   pages?: number;
   chars?: number;
   sha256?: string;
+  /** Title stored on the source row (wiki pages: the breadcrumb found while extracting). */
+  title?: string;
+  /** HTTP status when the site answered with an error (the wiki crawl stops on 403/429). */
+  httpStatus?: number;
+  /** True when the URL was fetched in the last 24h and nothing was fetched now. */
+  skipped?: boolean;
+  /** True when the URL is tombstoned (taken down). */
+  tombstoned?: boolean;
+  /** The fetched bytes and their final URL, when IngestOptions.keepBody asked for them. */
+  body?: Uint8Array;
+  finalUrl?: string;
+}
+
+/** A seed, or a wiki page (document kind 'wiki', apps/web/src/lib/wiki-crawl.ts). */
+export type IngestSeed = Omit<SourceSeed, 'kind'> & { kind: SourceSeed['kind'] | 'wiki' };
+
+export interface IngestOptions {
+  /** Extract with this instead of the content-type adapters (wiki pages). A returned title replaces the seed's title. */
+  extract?: (bytes: Uint8Array, contentType: string, finalUrl: string) => ExtractedSource & { title?: string };
+  /** sources.authority of the row; default 'publisher'. Community text (wikis) ranks lower (AGENTS.md 2b). */
+  authority?: 'publisher' | 'community';
+  /** Return the fetched bytes (the wiki crawl reads the page's links from them). */
+  keepBody?: boolean;
 }
 
 // Adapters are chosen by the response content-type; add new formats here.
@@ -21,18 +44,27 @@ const inflight = new Set<string>();
 const fetcher = new RightsGatedFetcher({ allowedHosts: ALLOWED_HOSTS, minDelayMs: 2000 });
 
 /**
+ * Fetch a page through the same rights-gated fetcher (allowlist, robots, 2 s per host, size cap, RogueBot UA) without
+ * storing anything. The wiki crawl reads listing pages (book and chapter indexes) this way, for their links only.
+ */
+export async function gatedFetch(url: string) {
+  await syncApprovedHosts();
+  return fetcher.fetch(url);
+}
+
+/**
  * Fetch one seed through the rights gate, keep a PRIVATE copy (never served), extract text for the Librarian,
  * record the source (rights_status stays link_only until a grant exists) and audit the decision.
  */
-export async function ingestSeed(seed: SourceSeed, force = false): Promise<IngestResult> {
+export async function ingestSeed(seed: IngestSeed, force = false, opts: IngestOptions = {}): Promise<IngestResult> {
   try {
-    return await ingestSeedInner(seed, force);
+    return await ingestSeedInner(seed, force, opts);
   } finally {
     inflight.delete(seed.url);
   }
 }
 
-async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<IngestResult> {
+async function ingestSeedInner(seed: IngestSeed, force: boolean, opts: IngestOptions): Promise<IngestResult> {
   const pool = getPool();
   if (!pool) return { url: seed.url, ok: false, detail: 'database not configured' };
   if (inflight.has(seed.url)) return { url: seed.url, ok: false, detail: 'already being fetched' };
@@ -40,12 +72,12 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
   await syncApprovedHosts(); // hosts a human approved through the add-game flow
 
   const tomb = await pool.query('SELECT 1 FROM tombstones WHERE url = $1', [seed.url]);
-  if (tomb.rowCount) return { url: seed.url, ok: false, detail: 'tombstoned (takedown); not fetching' };
+  if (tomb.rowCount) return { url: seed.url, ok: false, detail: 'tombstoned (takedown); not fetching', tombstoned: true };
 
   // Politeness: never re-download a publisher file within 24h (guards against retries / double clicks) unless forced.
   if (!force) {
     const recent = await pool.query("SELECT id, content_hash FROM sources WHERE url = $1 AND fetched_at > now() - interval '24 hours'", [seed.url]);
-    if (recent.rowCount) return { url: seed.url, ok: true, detail: 'fetched within the last 24h; skipped', sourceId: recent.rows[0].id, sha256: recent.rows[0].content_hash };
+    if (recent.rowCount) return { url: seed.url, ok: true, detail: 'fetched within the last 24h; skipped', sourceId: recent.rows[0].id, sha256: recent.rows[0].content_hash, skipped: true };
   }
   inflight.add(seed.url);
 
@@ -57,15 +89,16 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
     await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [
       'ingest', denied ? 'fetch_denied' : 'fetch_failed', { url: seed.url, error: (e as Error).message },
     ]);
-    return { url: seed.url, ok: false, detail: (e as Error).message };
+    return { url: seed.url, ok: false, detail: (e as Error).message, ...(e instanceof FetchHttpError ? { httpStatus: e.status } : {}) };
   }
 
   // Extract first: an unsupported or unreadable body is refused before anything is stored.
-  const adapter = selectAdapter(ADAPTERS, doc.contentType);
-  let extracted;
+  const adapter = opts.extract ? null : selectAdapter(ADAPTERS, doc.contentType);
+  let extracted: ExtractedSource & { title?: string };
   try {
-    if (!adapter) throw new Error(`unsupported content-type ${doc.contentType}`);
-    extracted = await adapter.extract(doc.bytes, doc.contentType);
+    if (opts.extract) extracted = opts.extract(doc.bytes, doc.contentType, doc.finalUrl);
+    else if (!adapter) throw new Error(`unsupported content-type ${doc.contentType}`);
+    else extracted = await adapter.extract(doc.bytes, doc.contentType);
   } catch (e) {
     await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [
       'ingest', 'extract_failed', { url: seed.url, contentType: doc.contentType, error: (e as Error).message },
@@ -81,7 +114,7 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
     return { url: seed.url, ok: false, detail: 'no text extracted (no text layer, OCR gave nothing); nothing stored' };
   }
 
-  const privatePath = `private/sources/${doc.sha256}.${adapter!.extension}`;
+  const privatePath = `private/sources/${doc.sha256}.${adapter?.extension ?? 'html'}`;
   const textPath = `private/sources/${doc.sha256}.txt`;
   await storage.put(privatePath, doc.bytes);
   const pages = extracted.pageCount;
@@ -92,13 +125,17 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
   const game = await pool.query('SELECT id FROM games WHERE slug = $1', [seed.gameSlug]);
   if (!game.rowCount) return { url: seed.url, ok: false, detail: `unknown game ${seed.gameSlug}` };
 
+  // A title found while extracting (wiki breadcrumb) also refreshes the row on re-fetch: the page may have moved in the wiki.
+  const title = extracted.title || seed.title;
   const src = await pool.query(
     `INSERT INTO sources (url, title, publisher, language, authority, rights_status, content_hash, fetched_at, policy_version, private_path, text_path, page_count, content_type)
-     VALUES ($1,$2,$3,$4,'publisher','link_only',$5,now(),$6,$7,$8,$9,$10)
+     VALUES ($1,$2,$3,$4,$11,'link_only',$5,now(),$6,$7,$8,$9,$10)
      ON CONFLICT (url) DO UPDATE SET content_hash=EXCLUDED.content_hash, fetched_at=now(), policy_version=EXCLUDED.policy_version,
-       private_path=EXCLUDED.private_path, text_path=EXCLUDED.text_path, page_count=EXCLUDED.page_count, content_type=EXCLUDED.content_type
+       private_path=EXCLUDED.private_path, text_path=EXCLUDED.text_path, page_count=EXCLUDED.page_count, content_type=EXCLUDED.content_type,
+       title=CASE WHEN $12 THEN EXCLUDED.title ELSE sources.title END
      RETURNING id`,
-    [seed.url, seed.title, seed.publisher, seed.language, doc.sha256, doc.decision.policyVersion, privatePath, text ? textPath : null, pages || null, doc.contentType],
+    [seed.url, title, seed.publisher, seed.language, doc.sha256, doc.decision.policyVersion, privatePath, text ? textPath : null, pages || null, doc.contentType,
+      opts.authority ?? 'publisher', !!extracted.title],
   );
   const sourceId = src.rows[0].id as number;
 
@@ -116,7 +153,8 @@ async function ingestSeedInner(seed: SourceSeed, force: boolean): Promise<Ingest
     'ingest', 'fetched',
     { url: seed.url, foundOn: seed.foundOn, sha256: doc.sha256, bytes: doc.bytes.byteLength, pages, policyVersion: doc.decision.policyVersion, etag: doc.etag, lastModified: doc.lastModified, qrFacts: qrCount, ...ocrDetail },
   ]);
-  return { url: seed.url, ok: true, detail: 'fetched, stored privately', sourceId, pages, chars: text.length, sha256: doc.sha256 };
+  return { url: seed.url, ok: true, detail: 'fetched, stored privately', sourceId, pages, chars: text.length, sha256: doc.sha256, title,
+    ...(opts.keepBody ? { body: doc.bytes, finalUrl: doc.finalUrl } : {}) };
 }
 
 export async function ingestGame(slug: string, force = false): Promise<IngestResult[]> {

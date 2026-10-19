@@ -108,6 +108,19 @@ export function extractWikiLinks(html: string, baseUrl: string, startUrl: string
 }
 
 /**
+ * A listing page (wiki root, BookStack shelves/books/chapters, MediaWiki categories): read for its links, not imported,
+ * because its text is only a list of page names.
+ */
+export function isWikiIndexUrl(url: string): boolean {
+  let u: URL;
+  try { u = new URL(url); } catch { return false; }
+  const path = safeDecode(u.pathname).replace(/\/+$/, '');
+  if (path === '' || path === '/wiki/Main_Page') return true;
+  if (/^\/(books|shelves)(\/[^/]+)?$/.test(path) || /^\/books\/[^/]+\/chapter\/[^/]+$/.test(path)) return true;
+  return /\/wiki\/Category:/i.test(path) || /^Category:/i.test(u.searchParams.get('title') ?? '');
+}
+
+/**
  * Validate an admin's pasted page list (mode 'pages'): one URL per line, all on the start URL's host, no wiki tool links.
  * Returns the clean, deduplicated list or the first problem.
  */

@@ -11,6 +11,7 @@ import { indexSource } from './rules-index';
 import { searchGameOutcome } from './search';
 import { ensureMigrated, getPool } from './services';
 import { ALLOWED_HOSTS } from './source-seeds';
+import { isWikiSource, reingestWikiPage } from './wiki-crawl';
 
 /**
  * Game sources (admin, /admin/sources): add a rules link to a game that is already in Rogue, replace a wrong source, re-ingest.
@@ -155,6 +156,15 @@ export async function reingestSource(slug: string, sourceId: number, adminId: nu
   const src = (await pool.query('SELECT url, capture_method FROM sources WHERE id=$1', [sourceId])).rows[0];
   if (src?.capture_method === CAPTURE_METHOD) return { ok: false, error: 'This source is a manual capture: Rogue cannot fetch it. Capture it again in your browser to replace its text.' };
   const url = src?.url as string | undefined;
+  // Wiki pages are not seeds: they re-fetch with the wiki cleanup (wiki-crawl.ts), through the same rights gate.
+  if (await isWikiSource(sourceId)) {
+    await audit(`admin:${adminId}`, 'game_source_reingest', { slug, sourceId, url, wiki: true });
+    reingestProgress.set(sourceId, 'fetching wiki page');
+    void reingestWikiPage(slug, sourceId)
+      .then((r) => reingestProgress.set(sourceId, r.ok ? `done: ${r.chunks ?? 0} chunks indexed` : `ingest failed: ${r.detail}`))
+      .catch((e) => reingestProgress.set(sourceId, `error: ${e instanceof Error ? e.message : 'unknown'}`));
+    return { ok: true };
+  }
   const seed = (await allSeeds()).find((s) => s.url === url);
   if (!seed) return { ok: false, error: 'No seed for this source (it is not in the static seeds, an approved request or runtime_sources).' };
   await audit(`admin:${adminId}`, 'game_source_reingest', { slug, sourceId, url });

@@ -107,14 +107,14 @@ export async function askRules(game: string, question: string, history: ChatTurn
   return out;
 }
 
-export interface GameSource { url: string; title: string | null; publisher: string | null; edition: string; availability: string; language: string | null }
+export interface GameSource { url: string; title: string | null; publisher: string | null; edition: string; availability: string; language: string | null; kind: string }
 
 /** The documents we hold for a game (one row per source), for the game page's compact Sources list. No claims are loaded. */
 export async function gameSources(game: string): Promise<GameSource[]> {
   const pool = getPool(); if (!pool) return [];
   await ensureMigrated();
   return (await pool.query(
-    `SELECT DISTINCT ON (s.id) s.url, s.title, s.publisher, s.availability, s.language, e.label edition
+    `SELECT DISTINCT ON (s.id) s.url, s.title, s.publisher, s.availability, s.language, e.label edition, d.kind
      FROM sources s JOIN documents d ON d.source_id=s.id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id
      WHERE g.slug=$1 ORDER BY s.id`, [game])).rows;
 }

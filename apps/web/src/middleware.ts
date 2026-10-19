@@ -3,6 +3,7 @@ import { LANG_COOKIE, isChatPath, isCostlyPath, isPublicPath, RateLimiter, resol
 import { startBackupScheduler } from './lib/backup-runner';
 import { startRecheckScheduler } from './lib/recheck-scheduler';
 import { startAgentWorker } from './lib/agent-jobs';
+import { startWikiCrawlResume } from './lib/wiki-crawl';
 import { adminToken } from './lib/admin-token';
 import { cookieValue, userFromRequest } from './lib/auth';
 import { isAdmin } from './lib/admin';
@@ -20,6 +21,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   startBackupScheduler();
   startRecheckScheduler();
   startAgentWorker();
+  startWikiCrawlResume();
   const { pathname } = new URL(ctx.request.url);
 
   if (!isPublicPath(pathname)) {

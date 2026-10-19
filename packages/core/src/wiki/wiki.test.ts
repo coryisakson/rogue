@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   WIKI_DEFAULT_MAX_PAGES, WIKI_HARD_MAX_PAGES, addCrawlLinks, clampMaxPages, detectWiki, extractWikiLinks, extractWikiPage, inWikiScope,
-  isCrawlPlan, isJunkWikiUrl, isWikiStopStatus, looksLikeBotWall, nextCrawlItem, normaliseWikiUrl, parseWikiImport, parseWikiPageList, planCrawl,
+  isCrawlPlan, isJunkWikiUrl, isWikiIndexUrl, isWikiStopStatus, looksLikeBotWall, nextCrawlItem, normaliseWikiUrl, parseWikiImport, parseWikiPageList, planCrawl,
   splitWikiSources, wikiExtractedSource, wikiScope,
 } from './index.js';
 
@@ -64,6 +64,11 @@ describe('wiki links', () => {
   it('extracts MediaWiki article links and skips namespaces, edit and old-revision links', () => {
     const links = extractWikiLinks(fixture('mediawiki-page.html'), `${MW}/wiki/Setup/Two_players`, `${MW}/wiki/Main_Page`);
     expect(links).toEqual([`${MW}/wiki/Neutral_faction`, `${MW}/wiki/Rules`, `${MW}/wiki/Category:Setup`, `${MW}/wiki/Main_Page`]);
+  });
+
+  it('marks listing pages (root, books, chapters, categories) as index pages', () => {
+    for (const u of [`${BS}/`, `${BS}/books`, `${BS}/books/core-rules`, `${BS}/shelves/allies`, `${BS}/books/core-rules/chapter/turns`, `${MW}/wiki/Category:Setup`, `${MW}/wiki/Main_Page`]) expect(isWikiIndexUrl(u), u).toBe(true);
+    for (const u of [`${BS}/books/core-rules/page/combat`, `${MW}/wiki/Rules`, 'https://x.example.com/rules/intro.html']) expect(isWikiIndexUrl(u), u).toBe(false);
   });
 
   it('validates a pasted page list: same host, no tools, deduplicated, capped', () => {

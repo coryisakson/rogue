@@ -1,6 +1,6 @@
 ---
 import Admin from '../../../../layouts/Admin.astro';
-import { CAPTURE_ERRORS, SOURCE_DELETE_ERRORS, captureBookmarklet, SOURCE_DELETE_REASON_MAX, SOURCE_KINDS, SOURCE_LANGUAGES, parseSourceInput, sameOrigin } from '@rogue/core';
+import { CAPTURE_ERRORS, SOURCE_DELETE_ERRORS, WIKI_DEFAULT_MAX_PAGES, WIKI_HARD_MAX_PAGES, captureBookmarklet, SOURCE_DELETE_REASON_MAX, SOURCE_KINDS, SOURCE_LANGUAGES, parseSourceInput, parseWikiImport, sameOrigin, splitWikiSources } from '@rogue/core';
 import CaptureForm from '../../../../components/CaptureForm.astro';
 import GameManageBar from '../../../../components/GameManageBar.astro';
 import GameDeleteCard from '../../../../components/GameDeleteCard.astro';
@@ -11,6 +11,7 @@ import type { RightsReport } from '../../../../lib/add-game';
 import { sourceDeletePreview, sourceInGame } from '../../../../lib/source-delete';
 import { ensureMigrated } from '../../../../lib/services';
 import { captureStatus } from '../../../../lib/source-capture';
+import { crawlWiki, discoverWikiPages, stopWikiCrawl, wikiCrawlStatus, type DiscoveredPage } from '../../../../lib/wiki-crawl';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
@@ -30,10 +31,14 @@ const self = `/admin/games/${encodeURIComponent(slug)}/sources`;
 let msg: string | null = null;
 let report: RightsReport | null = null;
 const v: Record<string, string> = {};
+let discovered: DiscoveredPage[] | null = null;
 if (Astro.request.method === 'POST') {
   const h = Astro.request.headers;
   if (!sameOrigin(h.get('origin'), h.get('referer'), h.get('x-forwarded-host') ?? h.get('host'))) return new Response('Bad origin', { status: 403 });
-  const form = Object.fromEntries((await Astro.request.formData()).entries());
+  const fd = await Astro.request.formData();
+  const form: Record<string, unknown> = Object.fromEntries(fd.entries());
+  // "Import selected pages" after a discovery sends one checkbox per page; the import reads them as the page list.
+  if (fd.getAll('pick').length) form['pages'] = fd.getAll('pick').map(String).join('\n');
   for (const k of Object.keys(form)) v[k] = String(form[k]);
   const action = v['action'];
   if (action === 'add') {
@@ -51,11 +56,30 @@ if (Astro.request.method === 'POST') {
     const id = Number(v['source']);
     const r = Number.isInteger(id) && id > 0 ? await reingestSource(slug, id, me) : { ok: false, error: 'Bad source id.' };
     msg = r.ok ? `Re-ingesting source #${id} (force re-fetch, then index). Reload to see progress.` : (r.error ?? 'Could not re-ingest.');
+  } else if (action === 'wiki-discover' || action === 'wiki-import') {
+    // Discovery reads the start page only, whatever the mode radio says.
+    const p = parseWikiImport(action === 'wiki-discover' ? { ...form, mode: 'site' } : form);
+    if (!p.ok) msg = p.error;
+    else if (action === 'wiki-discover') {
+      const r = await discoverWikiPages(slug, p.value, me, v['terms'] === 'yes');
+      report = r.report ?? null;
+      if (r.ok) { discovered = r.pages; msg = `Found ${r.pages.length} pages on the start page (nothing imported yet). Untick what you do not want, then import.`; }
+      else msg = r.error;
+    } else {
+      const r = await crawlWiki({ gameSlug: slug, input: p.value, adminId: me, termsChecked: v['terms'] === 'yes' });
+      report = r.report ?? null;
+      msg = r.ok ? `Wiki import #${r.id} started (${p.value.mode === 'pages' ? `${p.value.urls.length} pages` : `whole wiki under the start URL, up to ${p.value.maxPages} pages`}). It runs in the background, one page every 2 seconds or more; progress below.` : r.error;
+    }
+  } else if (action === 'wiki-stop') {
+    msg = (await stopWikiCrawl(slug, me)) ? 'Wiki import stopped (after the page it was on).' : 'No wiki import is running.';
   } else msg = 'Unknown action.';
 }
 const sources = await gameSources(slug);
 const facts = await factsCount(slug);
 const pending = await pendingRuntimeSources(slug);
+const crawl = await wikiCrawlStatus(slug);
+// Many small wiki pages would swamp the table: they get one collapsed "Wiki (N pages)" row.
+const { other: mainSources, wiki: wikiSources } = splitWikiSources(sources);
 // Delete (POST goes to /admin/source-delete, which redirects back here with numbers or an error code only).
 const sp = Astro.url.searchParams;
 const num = (k: string) => { const x = Number(sp.get(k)); return Number.isInteger(x) && x >= 0 ? x : 0; };
@@ -102,7 +126,7 @@ const field = 'mt-1 bg-background';
         <TableHead scope="col">Fetched</TableHead><TableHead scope="col">Pages (indexed / total)</TableHead><TableHead scope="col">Actions</TableHead>
       </TableRow></TableHeader>
       <TableBody>
-        {sources.map((s) => (
+        {mainSources.map((s) => (
           <TableRow>
             <TableCell className="whitespace-normal">#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a><br /><small>{s.edition}{s.runtime && ' · admin-added'}</small>{s.capture && <><br /><Badge variant="warning">{s.capture}</Badge></>}</TableCell>
             <TableCell>{s.language ?? '?'}</TableCell>
@@ -120,6 +144,20 @@ const field = 'mt-1 bg-background';
             </TableCell>
           </TableRow>
         ))}
+        {wikiSources.length > 0 && (
+          <TableRow><TableCell colSpan={7} className="whitespace-normal">
+            <details>
+              <summary>Wiki ({wikiSources.length} pages) · {wikiSources[0]!.edition} · {wikiSources.reduce((n, s) => n + s.indexedPages, 0)} sections indexed</summary>
+              <ul class="mb-0">{wikiSources.map((s) => (
+                <li>#{s.id} <a href={s.url} rel="noopener nofollow">{s.title ?? s.url}</a> · <small>{s.fetchedAt ?? 'never'} · {s.indexedPages} / {s.pageCount ?? '?'} sections · {s.availability}</small>
+                  {' '}<form method="post" action={self} class="inline"><input type="hidden" name="action" value="reingest" /><input type="hidden" name="source" value={s.id} /><Button type="submit" size="sm" variant="secondary">Re-ingest now</Button></form>
+                  {' '}<a href={`${self}?delete=${s.id}#delete`}>Delete</a>
+                  {reingestStatus(s.id) && <small> · Re-ingest: {reingestStatus(s.id)}</small>}
+                </li>
+              ))}</ul>
+            </details>
+          </TableCell></TableRow>
+        )}
       </TableBody>
     </Table>
     {pending.length > 0 && (
@@ -173,6 +211,53 @@ const field = 'mt-1 bg-background';
         <label class="flex items-center gap-2"><input type="checkbox" name="terms" value="yes" class="size-4 accent-primary" /> I read the publisher's terms (required when the host is not approved yet)</label>
         <Button type="submit" className="justify-self-start">Run rights checks and add</Button>
         <small>The rights checks run while you wait (headers only). If they pass, the host is approved, the document is fetched, indexed and (for rulebooks) the Librarian drafts cited facts. A replaced source keeps its row and citations and is marked unavailable.</small>
+      </form>
+    </CardContent>
+  </Card>
+  <Card className="mt-3 text-base" id="wiki">
+    <CardHeader><CardTitle><h2 class="m-0 text-lg">Import from wiki</h2></CardTitle></CardHeader>
+    <CardContent>
+      <p class="mt-0">For rules that live in a wiki (BookStack, MediaWiki or any site of linked pages). Same gates as a rules link: you confirm the wiki's terms for a new host, the Rights Officer checks the start URL, then every page is fetched politely (robots.txt, one page per 2 seconds or more, RogueBot) and stored as its own source, ranked below publisher text. A refusal (403, 429) or a captcha stops the import; Rogue never gets past a bot wall. Pages fetched in the last 24 hours are skipped unless you tick re-fetch. See docs/WIKI_IMPORT.md.</p>
+      {crawl && (
+        <p role="status">
+          <Badge variant={crawl.status === 'done' ? 'success' : crawl.status === 'running' ? 'secondary' : 'warning'}>Import #{crawl.id}: {crawl.status}</Badge>{' '}
+          <small><a href={crawl.startUrl} rel="noopener nofollow">{crawl.startUrl}</a> · {crawl.mode === 'pages' ? 'selected pages' : 'whole wiki'} · started {crawl.createdAt}, updated {crawl.updatedAt}</small><br />
+          <small>{crawl.progress ?? 'queued'}</small>
+          {crawl.status === 'running' && <> · <a href={`${self}#wiki`}>Reload to update</a> <form method="post" action={`${self}#wiki`} class="inline"><input type="hidden" name="action" value="wiki-stop" /><Button type="submit" size="sm" variant="secondary">Stop import</Button></form></>}
+        </p>
+      )}
+      {discovered && (
+        <form method="post" action={`${self}#wiki`} class="mb-4 grid gap-1.5">
+          <input type="hidden" name="action" value="wiki-import" /><input type="hidden" name="mode" value="pages" />
+          <input type="hidden" name="startUrl" value={v['startUrl'] ?? ''} /><input type="hidden" name="maxPages" value={v['maxPages'] ?? ''} />
+          <input type="hidden" name="language" value={v['language'] ?? 'en'} /><input type="hidden" name="publisher" value={v['publisher'] ?? ''} />
+          {v['force'] === 'yes' && <input type="hidden" name="force" value="yes" />}
+          <fieldset class="grid max-h-96 gap-1 overflow-auto rounded-md border border-border p-2">
+            <legend>Pages found on the start page. List pages (books, chapters, categories) start unticked: they only list other pages.</legend>
+            {discovered.map((d) => <label class="flex items-center gap-2"><input type="checkbox" name="pick" value={d.url} checked={!d.index} class="size-4 accent-primary" /> <span class="break-all">{d.url}</span>{d.index && <small>(list page)</small>}</label>)}
+          </fieldset>
+          <Button type="submit" className="justify-self-start">Import selected pages</Button>
+        </form>
+      )}
+      <form method="post" action={`${self}#wiki`} class="grid max-w-[36rem] gap-1.5">
+        <label>Wiki start URL (https; a whole-wiki import stays on this host and under this path) <Input name="startUrl" type="url" defaultValue={v['startUrl'] ?? ''} required maxLength={400} className={field} /></label>
+        <fieldset class="flex flex-wrap gap-4"><legend>Import</legend>
+          <label class="flex items-center gap-2"><input type="radio" name="mode" value="site" checked={v['mode'] !== 'pages'} class="size-4 accent-primary" /> whole wiki</label>
+          <label class="flex items-center gap-2"><input type="radio" name="mode" value="pages" checked={v['mode'] === 'pages'} class="size-4 accent-primary" /> selected pages</label>
+        </fieldset>
+        <label>Pages (selected pages only: one link per line, same host) <textarea name="pages" rows="5" maxlength="60000" class="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm">{v['pages'] ?? ''}</textarea></label>
+        <div class="flex flex-wrap gap-4">
+          <label class="grid gap-1">Max pages <Input name="maxPages" type="number" min={1} max={WIKI_HARD_MAX_PAGES} defaultValue={v['maxPages'] ?? String(WIKI_DEFAULT_MAX_PAGES)} className="w-28 bg-background" /></label>
+          <label class="grid gap-1">Language <NativeSelect name="language" defaultValue={v['language'] ?? 'en'}>{SOURCE_LANGUAGES.map((l) => <NativeSelectOption value={l}>{l}</NativeSelectOption>)}</NativeSelect></label>
+          <label class="grid gap-1">Wiki owner (optional) <Input name="publisher" defaultValue={v['publisher'] ?? ''} maxLength={80} className="bg-background" /></label>
+        </div>
+        <label class="flex items-center gap-2"><input type="checkbox" name="force" value="yes" class="size-4 accent-primary" /> Re-fetch pages fetched in the last 24 hours</label>
+        <label class="flex items-center gap-2"><input type="checkbox" name="terms" value="yes" class="size-4 accent-primary" /> I read the wiki's terms (required when the host is not approved yet)</label>
+        <div class="flex flex-wrap items-center gap-2">
+          <Button type="submit" name="action" value="wiki-discover" variant="secondary">Discover pages</Button>
+          <Button type="submit" name="action" value="wiki-import">Run rights checks and import</Button>
+        </div>
+        <small>Discover pages reads only the start page and lists its links, so you can untick pages before importing. Nothing is stored until you import.</small>
       </form>
     </CardContent>
   </Card>

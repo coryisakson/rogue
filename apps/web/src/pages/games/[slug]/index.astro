@@ -7,7 +7,7 @@ import { Badge } from '../../../components/ui/badge';
 import { Button, buttonVariants } from '../../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Input } from '../../../components/ui/input';
-import { MAX_THREAD_TURNS, THREAD_WARN_TURN, clientStrings, groupCitations, langTag, pageList, t } from '@rogue/core';
+import { MAX_THREAD_TURNS, THREAD_WARN_TURN, clientStrings, groupCitations, langTag, pageList, splitWikiSources, t } from '@rogue/core';
 const { slug } = Astro.params;
 const game = await getGame(slug!);
 if (!game) return new Response('Not found', { status: 404 });
@@ -16,6 +16,8 @@ const L = Astro.locals.locale;
 // The game page is a chat (Cory 2026-10-16). The fact list lives on /games/<slug>/facts; here we only need companion links and documents.
 const links = await getClaims(slug!, { topic: 'companion' });
 const sources = await gameSources(slug!);
+// A wiki import adds one source per page: they show as one collapsed "Wiki (N pages)" entry.
+const { other: mainSources, wiki: wikiSources } = splitWikiSources(sources);
 // Without JavaScript the ask box is a plain GET form: ?q= renders that one answer here.
 const q = (Astro.url.searchParams.get('q') ?? '').trim();
 const voted = Astro.url.searchParams.get('voted');
@@ -139,7 +141,11 @@ const linkButton = (variant: 'default' | 'secondary' = 'default') => buttonVaria
     </div>
     {sources.length > 0 && <>
       <h2>{t(L, 'game.sourcesTitle')}</h2>
-      <ul>{sources.map((s) => <li><a href={s.url}>{s.title ?? s.url}</a>{s.publisher && ` · ${s.publisher}`} · {t(L, 'common.edition', { edition: s.edition })}{s.language && ` · ${langTag(s.language)}`}{s.availability !== 'available' && ` · ${t(L, 'game.unavailable')}`}</li>)}</ul>
+      <ul>{mainSources.map((s) => <li><a href={s.url}>{s.title ?? s.url}</a>{s.publisher && ` · ${s.publisher}`} · {t(L, 'common.edition', { edition: s.edition })}{s.language && ` · ${langTag(s.language)}`}{s.availability !== 'available' && ` · ${t(L, 'game.unavailable')}`}</li>)}
+        {wikiSources.length > 0 && <li><details><summary>{t(L, 'game.wikiPages', { n: wikiSources.length })}{wikiSources[0]!.publisher && ` · ${wikiSources[0]!.publisher}`}</summary>
+          <ul>{wikiSources.map((s) => <li><a href={s.url}>{s.title ?? s.url}</a>{s.availability !== 'available' && ` · ${t(L, 'game.unavailable')}`}</li>)}</ul>
+        </details></li>}
+      </ul>
     </>}
     <p class="text-muted-foreground"><small>{t(L, 'game.rightsNote')}</small></p>
     <p class="text-muted-foreground"><small><a href={`/games/${slug}/facts`}>{t(L, 'game.factBase')}</a></small></p>

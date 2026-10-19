@@ -81,6 +81,7 @@ export const zh: Record<keyof typeof en, string> = {
   'game.noSourcesTitle': '暂无来源。',
   'game.noSourcesBody': '我们还没有收录这款游戏的官方来源。如果你是出版商，可以',
   'game.contactUs': '联系我们', 'game.noSourcesEnd': '授权一个来源。',
+  'game.wikiPages': 'Wiki（{n} 个页面）',
   'game.sourcesTitle': '来源', 'game.unavailable': '已不可用',
   'game.rightsNote': '我们链接到出版商的文件，只引用简短段落，不托管规则书。规则问答需要免费登录（GitHub、Google 或 Discord）。',
   'game.factBase': '浏览事实库',
