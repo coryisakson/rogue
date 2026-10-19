@@ -45,7 +45,7 @@ export function parseGameRequest(f: Record<string, unknown>): ParsedRequest {
   if (name.length < 2) return { ok: false, error: 'Give the game title (at least 2 characters).' };
   if (!slugify(name)) return { ok: false, error: 'The title needs letters or digits.' };
   const publisher = text(f['publisher'], 80);
-  if (publisher.length < 2) return { ok: false, error: 'Give the publisher. We only use rulebooks from the publisher or rights holder.' };
+  if (publisher.length < 2) return { ok: false, error: 'Give the publisher. We prefer rules from the publisher or rights holder (a wiki counts when it is their official documentation).' };
   const yearRaw = text(f['year'], 4);
   const year = yearRaw ? Number(yearRaw) : null;
   if (year !== null && (!Number.isInteger(year) || year < 1900 || year > 2100)) return { ok: false, error: 'Year must be four digits, or empty.' };
