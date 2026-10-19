@@ -75,7 +75,7 @@ describe('settings validation and display', () => {
     const keys = SETTING_DEFS.map((d) => d.key);
     expect(new Set(keys).size).toBe(keys.length);
     for (const k of keys) if (/API_KEY|TOKEN|WEBHOOK/.test(k)) expect(isSecretSetting(k)).toBe(true);
-    expect(agentModelKey('quality-curator')).toBe('ROGUE_AGENT_MODEL_QUALITY_CURATOR');
+    expect(agentModelKey('faq-curator')).toBe('ROGUE_AGENT_MODEL_FAQ_CURATOR');
   });
 
   it('encrypts secrets round trip; a wrong key fails', () => {
