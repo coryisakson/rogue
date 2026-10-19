@@ -68,7 +68,8 @@ export async function runTermsAgent(rulebookUrl: string, foundOn: string | null)
 /** Run the agent for one request and store the result. */
 export async function termsAgentForRequest(id: number): Promise<TermsCheck | null> {
   const pool = getPool(); if (!pool) return null;
-  const r = (await pool.query('SELECT rulebook_url, found_on FROM game_requests WHERE id=$1', [id])).rows[0];
+  // A wiki-only request (ADR 0006): the terms of the wiki's site are read.
+  const r = (await pool.query('SELECT COALESCE(rulebook_url, wiki_url) rulebook_url, found_on FROM game_requests WHERE id=$1', [id])).rows[0];
   if (!r?.rulebook_url) return null;
   const check = await runTermsAgent(r.rulebook_url, r.found_on ?? null);
   await pool.query('UPDATE game_requests SET terms_check=$2 WHERE id=$1', [id, check]);

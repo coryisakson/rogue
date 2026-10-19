@@ -1,6 +1,6 @@
 import { lookup } from 'node:dns/promises';
 import {
-  RightsGatedFetcher, POLICY_VERSION, USER_AGENT, assessRights, findOptOut, isPrivateAddress, slugify, tdmReserved,
+  RightsGatedFetcher, POLICY_VERSION, USER_AGENT, assessRights, findOptOut, isPrivateAddress, parseWikiImport, slugify, tdmReserved,
   type GameRequestInput, type ProbeFacts, type RightsAssessment,
 } from '@rogue/core';
 import { allSeeds } from './dynamic-sources';
@@ -26,8 +26,8 @@ export async function submitRequest(userId: number, v: GameRequestInput): Promis
   if (open >= MAX_OPEN_PER_USER) return { error: `You have ${MAX_OPEN_PER_USER} requests waiting already. Please wait for a decision.` };
   try {
     const r = await pool.query(
-      'INSERT INTO game_requests(user_id, name, slug, publisher, year, language, rulebook_url, found_on) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
-      [userId, v.name, slug, v.publisher, v.year, v.language, v.rulebookUrl, v.foundOn]);
+      'INSERT INTO game_requests(user_id, name, slug, publisher, year, language, rulebook_url, wiki_url, found_on) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id',
+      [userId, v.name, slug, v.publisher, v.year, v.language, v.rulebookUrl, v.wikiUrl, v.foundOn]);
     const id = Number(r.rows[0].id);
     void runChecks(id); // background: the user does not wait for the network
     return { id };
@@ -74,15 +74,18 @@ export async function probeRulebook(rawUrl: string): Promise<RightsReport> {
   return { ...assessRights(facts, u.host), checkedAt: new Date().toISOString(), policyVersion: POLICY_VERSION, host: u.host };
 }
 
+/** The link the checks run on: the rulebook, or the wiki start page of a wiki-only game (ADR 0006). */
+const checkedUrl = (r: { rulebook_url: string | null; wiki_url?: string | null }): string | null => r.rulebook_url ?? r.wiki_url ?? null;
+
 /** Run (or re-run) the checks for one request and tell the operator when it is ready for a decision. */
 export async function runChecks(id: number): Promise<void> {
   const pool = getPool(); if (!pool) return;
   try {
     const r = (await pool.query("SELECT * FROM game_requests WHERE id=$1 AND status IN ('submitted','checked')", [id])).rows[0];
-    if (!r) return;
-    const report = await probeRulebook(r.rulebook_url);
+    if (!r || !checkedUrl(r)) return;
+    const report = await probeRulebook(checkedUrl(r)!);
     await pool.query("UPDATE game_requests SET report=$2, status='checked' WHERE id=$1", [id, report]);
-    await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['rights-officer', 'game_request_checked', { id, url: r.rulebook_url, verdict: report.verdict, policyVersion: report.policyVersion }]);
+    await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['rights-officer', 'game_request_checked', { id, url: checkedUrl(r), wiki: !r.rulebook_url, verdict: report.verdict, policyVersion: report.policyVersion }]);
     // Terms Agent: reads the PUBLISHER's terms (not the CDN's). Only when rights pass and the terms are clearly fine
     // does the source approve itself (Cory 2026-10-15: admins see exceptions only). The game itself was admin-approved earlier.
     const terms = report.verdict === 'blocked' ? null : await termsAgentForRequest(id).catch(() => null);
@@ -143,14 +146,14 @@ export async function approveRequest(id: number, adminId: number | null, termsCh
     r = (await c.query("SELECT * FROM game_requests WHERE id=$1 AND status='checked' FOR UPDATE", [id])).rows[0];
     if (!r) { await c.query('ROLLBACK'); return { ok: false, error: 'Request is not waiting for a decision.' }; }
     if (r.report?.verdict === 'blocked') { await c.query('ROLLBACK'); return { ok: false, error: 'Rights checks blocked this source; it cannot be approved.' }; }
-    if (r.report?.host !== new URL(r.rulebook_url).host) { await c.query('ROLLBACK'); return { ok: false, error: 'Checks do not match the link; re-run them.' }; }
+    if (!checkedUrl(r) || r.report?.host !== new URL(checkedUrl(r)!).host) { await c.query('ROLLBACK'); return { ok: false, error: 'Checks do not match the link; re-run them.' }; }
     await c.query('INSERT INTO games(slug, name, publisher, year, bgg_id) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (slug) DO NOTHING', [r.slug, r.name, r.publisher, r.year, r.bgg_id ?? null]);
     await c.query('INSERT INTO approved_hosts(host, request_id, approved_by) VALUES ($1,$2,$3) ON CONFLICT (host) DO NOTHING', [r.report.host, id, adminId]);
     await c.query("UPDATE game_requests SET status='approved', decided_by=$2, decided_at=now(), progress='queued' WHERE id=$1", [id, adminId]);
-    await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [actor, 'game_request_approved', { id, slug: r.slug, host: r.report.host, url: r.rulebook_url, termsChecked, termsVerdict: r.terms_check?.verdict ?? null, termsSite: r.terms_check?.site ?? null }]);
+    await c.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [actor, 'game_request_approved', { id, slug: r.slug, host: r.report.host, url: checkedUrl(r), wiki: !r.rulebook_url, termsChecked, termsVerdict: r.terms_check?.verdict ?? null, termsSite: r.terms_check?.site ?? null }]);
     await c.query('COMMIT');
   } catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
-  void runPipeline(id, r.slug);
+  void (r.rulebook_url ? runPipeline(id, r.slug) : runWikiPipeline(id, r.slug, r));
   return { ok: true };
 }
 
@@ -165,26 +168,52 @@ export async function runPipeline(id: number, slug: string): Promise<void> {
     if (!ok) { await setProgress(id, `ingest failed: ${results[0]?.detail ?? 'unknown'}`); await alertOperator(`Game ${slug}: ingest failed (${results[0]?.detail}).`); return; }
     await setProgress(id, `indexing ${ok.pages ?? '?'} pages`);
     const idx = await indexSource(ok.sourceId!);
-    if (agentsEnabled()) {
-      // ADR 0002: the Nanobot Librarian drafts in the background; this pipeline only watches the job.
-      const start = await queueLibrarianJob(slug);
-      if ('error' in start) { await setProgress(id, `Librarian error: ${start.error}`); return; }
-      await setProgress(id, `Librarian agent queued (${idx.chunks} chunks indexed)`);
-      const j = await waitForLibrarianJob(start.jobId, (text) => setProgress(id, text));
-      const published = Number(j?.result['published'] ?? 0);
-      if (j?.status === 'done' || j?.status === 'needs_human') await alertOperator(`Game ${slug} is ready: ${published} cited facts published${j.status === 'needs_human' ? ' (the Librarian asked for a person; see /admin/quality)' : ''}.`);
-      else if (j?.status === 'failed') await alertOperator(`Game ${slug}: Librarian job #${j.id} failed (${j.error ?? 'unknown'}).`);
-      return;
-    }
-    for (let i = 0; i < 60 && librarianStatus()?.running; i++) { await setProgress(id, 'waiting for the Librarian (busy with another game)'); await new Promise((r) => setTimeout(r, 10_000)); }
-    await setProgress(id, `Librarian drafting claims (${idx.chunks} chunks indexed)`);
-    await runLibrarian(slug);
-    const st = librarianStatus();
-    await setProgress(id, st?.error ? `Librarian error: ${st.error}` : `done: ${st?.published ?? 0} cited facts published, ${st?.rejected.length ?? 0} rejected by the quote gates`);
-    await alertOperator(`Game ${slug} is ready: ${st?.published ?? 0} cited facts published.`);
+    await draftClaims(id, slug, `${idx.chunks} chunks indexed`);
   } catch (e) {
     await setProgress(id, `error: ${e instanceof Error ? e.message : 'unknown'}`);
   }
+}
+
+/**
+ * Wiki-only game (no rulebook link, ADR 0006): after approval the host is approved, so the wiki import of the sources page
+ * runs on the whole wiki (scope: start URL host and path prefix, default page cap). The Librarian drafts when it ends.
+ */
+async function runWikiPipeline(id: number, slug: string, r: { wiki_url: string; publisher: string; language: string }): Promise<void> {
+  try {
+    const { crawlWiki, waitForWikiCrawl } = await import('./wiki-crawl');
+    const input = parseWikiImport({ startUrl: r.wiki_url, mode: 'site', publisher: r.publisher, language: r.language });
+    if (!input.ok) { await setProgress(id, `wiki import failed: ${input.error}`); return; }
+    await setProgress(id, 'importing wiki pages');
+    const start = await crawlWiki({ gameSlug: slug, input: input.value, adminId: null, termsChecked: true, requestId: id });
+    if (!start.ok) { await setProgress(id, `wiki import failed: ${start.error}`); await alertOperator(`Game ${slug}: wiki import failed (${start.error}).`); return; }
+    const end = await waitForWikiCrawl(start.id, (text) => setProgress(id, `wiki import: ${text}`));
+    const ingested = Number(end?.counts.ingested ?? 0);
+    if (!ingested) { await setProgress(id, `wiki import ended without pages: ${end?.progress ?? 'unknown'}`); await alertOperator(`Game ${slug}: wiki import stored no pages (${end?.progress ?? 'unknown'}).`); return; }
+    await draftClaims(id, slug, `${ingested} wiki pages indexed`);
+  } catch (e) {
+    await setProgress(id, `error: ${e instanceof Error ? e.message : 'unknown'}`);
+  }
+}
+
+/** The Librarian step of both pipelines: draft cited claims from the indexed text. */
+async function draftClaims(id: number, slug: string, indexed: string): Promise<void> {
+  if (agentsEnabled()) {
+    // ADR 0002: the Nanobot Librarian drafts in the background; this pipeline only watches the job.
+    const start = await queueLibrarianJob(slug);
+    if ('error' in start) { await setProgress(id, `Librarian error: ${start.error}`); return; }
+    await setProgress(id, `Librarian agent queued (${indexed})`);
+    const j = await waitForLibrarianJob(start.jobId, (text) => setProgress(id, text));
+    const published = Number(j?.result['published'] ?? 0);
+    if (j?.status === 'done' || j?.status === 'needs_human') await alertOperator(`Game ${slug} is ready: ${published} cited facts published${j.status === 'needs_human' ? ' (the Librarian asked for a person; see /admin/quality)' : ''}.`);
+    else if (j?.status === 'failed') await alertOperator(`Game ${slug}: Librarian job #${j.id} failed (${j.error ?? 'unknown'}).`);
+    return;
+  }
+  for (let i = 0; i < 60 && librarianStatus()?.running; i++) { await setProgress(id, 'waiting for the Librarian (busy with another game)'); await new Promise((r) => setTimeout(r, 10_000)); }
+  await setProgress(id, `Librarian drafting claims (${indexed})`);
+  await runLibrarian(slug);
+  const st = librarianStatus();
+  await setProgress(id, st?.error ? `Librarian error: ${st.error}` : `done: ${st?.published ?? 0} cited facts published, ${st?.rejected.length ?? 0} rejected by the quote gates`);
+  await alertOperator(`Game ${slug} is ready: ${st?.published ?? 0} cited facts published.`);
 }
 
 export { allSeeds };

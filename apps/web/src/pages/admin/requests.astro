@@ -49,13 +49,15 @@ if (Astro.request.method === 'POST') {
     const cur = (await getPool()!.query('SELECT name FROM game_requests WHERE id=$1', [id])).rows[0];
     const p = parseGameRequest({ name: f.get('name') || cur?.name, publisher: f.get('publisher'), rulebookUrl: f.get('rulebookUrl'), foundOn: f.get('foundOn'), language: 'en' });
     if (!p.ok) msg = p.error;
-    else { const r = await editSource(id, me, p.value); msg = r.ok ? `Request #${id} source changed; rights checks re-run.` : (r.error ?? 'Could not save.'); }
+    else if (!p.value.rulebookUrl) msg = 'Paste the rulebook link.';
+    else { const r = await editSource(id, me, { ...p.value, rulebookUrl: p.value.rulebookUrl }); msg = r.ok ? `Request #${id} source changed; rights checks re-run.` : (r.error ?? 'Could not save.'); }
   }
   else if (action === 'manual') {
     const cur = (await getPool()!.query('SELECT name FROM game_requests WHERE id=$1', [id])).rows[0];
     const p = parseGameRequest({ name: f.get('name') || cur?.name, publisher: f.get('publisher'), rulebookUrl: f.get('rulebookUrl'), foundOn: f.get('foundOn'), language: 'en' });
     if (!p.ok) msg = p.error;
-    else { const r = await completeManual(id, me, p.value); msg = r.ok ? `Request #${id} sent to the rights checks.` : (r.error ?? 'Could not save.'); }
+    else if (!p.value.rulebookUrl) msg = 'Paste the rulebook link.';
+    else { const r = await completeManual(id, me, { ...p.value, rulebookUrl: p.value.rulebookUrl }); msg = r.ok ? `Request #${id} sent to the rights checks.` : (r.error ?? 'Could not save.'); }
   }
   else msg = 'Unknown action.';
 }
@@ -123,7 +125,7 @@ const rejectForm = 'flex flex-wrap items-center gap-2';
                   <div><small>{r.publisher} · {r.year ?? 'year ?'} · {r.language} · slug <code>{r.slug}</code></small></div>
                   {r.bgg_id && <div><small>Picked from the list: <a href={`https://boardgamegeek.com/boardgame/${r.bgg_id}`} rel="noopener nofollow">BGG {r.bgg_id}</a></small></div>}
                   {r.details && <div class="my-1 whitespace-pre-wrap"><b>User's description:</b> {r.details}</div>}
-                  {r.rulebook_url ? <div>Rulebook: <a href={r.rulebook_url} rel="noopener nofollow">{r.rulebook_url}</a>{r.found_on && <> · found on <a href={r.found_on} rel="noopener nofollow">{r.found_on}</a></>}</div> : <div><small>No rulebook link yet.</small></div>}
+                  {r.rulebook_url ? <div>Rulebook: <a href={r.rulebook_url} rel="noopener nofollow">{r.rulebook_url}</a>{r.found_on && <> · found on <a href={r.found_on} rel="noopener nofollow">{r.found_on}</a></>}</div> : r.wiki_url ? <div>Wiki only (imported after approval): <a href={r.wiki_url} rel="noopener nofollow">{r.wiki_url}</a></div> : <div><small>No rulebook link yet.</small></div>}
                   {r.stage && <div><small>Stage: {r.stage}</small></div>}
                   {r.report && <ul>{r.report.findings.map((x: { level: string; text: string }) => <li>{x.level === 'ok' ? '✅' : x.level === 'warn' ? '⚠️' : '⛔'} {x.text}</li>)}</ul>}
                   {r.terms_check && (

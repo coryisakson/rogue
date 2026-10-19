@@ -15,7 +15,7 @@ export async function syncApprovedHosts(): Promise<void> {
 export async function allSeeds(): Promise<SourceSeed[]> {
   const pool = getPool(); if (!pool) return SEEDS;
   await syncApprovedHosts();
-  const rows = (await pool.query("SELECT slug, name, publisher, language, rulebook_url, found_on, to_char(decided_at,'YYYY-MM-DD') AS day FROM game_requests WHERE status='approved'")).rows;
+  const rows = (await pool.query("SELECT slug, name, publisher, language, rulebook_url, found_on, to_char(decided_at,'YYYY-MM-DD') AS day FROM game_requests WHERE status='approved' AND rulebook_url IS NOT NULL")).rows;
   const dynamic: SourceSeed[] = rows.map((r) => ({
     gameSlug: r.slug, url: r.rulebook_url, title: `${r.name} Rulebook`, publisher: r.publisher, language: r.language, kind: 'rulebook',
     editionLabel: `${r.publisher} rulebook (user-submitted, admin-approved ${r.day})`, foundOn: r.found_on ?? r.rulebook_url,

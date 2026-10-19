@@ -4,7 +4,8 @@
  * Principle (AGENTS.md rule 2): the agent proposes, deterministic code decides, a human approves.
  */
 
-export interface GameRequestInput { name: string; publisher: string; year: number | null; language: string; rulebookUrl: string; foundOn: string | null }
+/** `rulebookUrl` or `wikiUrl` (a game whose rules live only in a wiki, ADR 0006): at least one is set; the rulebook wins when both are. */
+export interface GameRequestInput { name: string; publisher: string; year: number | null; language: string; rulebookUrl: string | null; wikiUrl: string | null; foundOn: string | null }
 export type ParsedRequest = { ok: true; value: GameRequestInput } | { ok: false; error: string };
 
 /** URL-safe game id from a title: "Slay the Spire: The Board Game" -> "slay-the-spire-the-board-game". */
@@ -51,18 +52,21 @@ export function parseGameRequest(f: Record<string, unknown>): ParsedRequest {
   const language = text(f['language'] || 'en', 8).toLowerCase();
   if (!/^[a-z]{2,3}(-[a-z0-9]{2,4})?$/.test(language)) return { ok: false, error: 'Language must be a code like en or de.' };
   const links: string[] = [];
-  for (const key of ['rulebookUrl', 'foundOn']) {
+  const label: Record<string, string> = { rulebookUrl: 'Rulebook link', wikiUrl: 'Wiki link', foundOn: 'Page link' };
+  for (const key of ['rulebookUrl', 'wikiUrl', 'foundOn']) {
     const raw = text(f[key], 400);
     if (!raw) { links.push(''); continue; }
     let u: URL;
-    try { u = new URL(raw); } catch { return { ok: false, error: `${key === 'rulebookUrl' ? 'Rulebook link' : 'Page link'} is not a valid web address.` }; }
+    try { u = new URL(raw); } catch { return { ok: false, error: `${label[key]} is not a valid web address.` }; }
     const problem = hostProblem(u);
     if (problem) return { ok: false, error: problem };
     u.hash = '';
     links.push(u.toString());
   }
-  if (!links[0]) return { ok: false, error: 'Paste the link to the publisher\'s rulebook (PDF or web page).' };
-  return { ok: true, value: { name, publisher, year, language, rulebookUrl: links[0], foundOn: links[1] || null } };
+  const [rulebookUrl, wikiUrl, foundOn] = links;
+  if (!rulebookUrl && !wikiUrl) return { ok: false, error: 'Paste the link to the publisher\'s rulebook (PDF or web page), or the start page of the rules wiki.' };
+  // A rulebook link wins: the wiki can still be imported later from the game's sources page.
+  return { ok: true, value: { name, publisher, year, language, rulebookUrl: rulebookUrl || null, wikiUrl: rulebookUrl ? null : wikiUrl || null, foundOn: foundOn || null } };
 }
 
 /** tdmrep.json (W3C TDM Reservation Protocol): is the given path reserved for text and data mining? */

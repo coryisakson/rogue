@@ -68,7 +68,8 @@ const label: Record<string, string> = { submitted: 'being checked', queued: 'in 
             <label class="grid gap-1">Publisher <Input name="publisher" defaultValue={v['publisher'] ?? ''} required maxLength={80} /></label>
             <label class="grid gap-1">Year (optional) <Input name="year" defaultValue={v['year'] ?? ''} inputMode="numeric" maxLength={4} className="w-28" /></label>
             <label class="grid gap-1">Rulebook language <Input name="language" defaultValue={v['language'] ?? 'en'} maxLength={8} className="w-28" /></label>
-            <label class="grid gap-1">Link to the rulebook (https) <Input name="rulebookUrl" defaultValue={v['rulebookUrl'] ?? ''} required maxLength={400} type="url" /></label>
+            <label class="grid gap-1">Link to the rulebook (https) <Input name="rulebookUrl" defaultValue={v['rulebookUrl'] ?? ''} maxLength={400} type="url" /></label>
+            <label class="grid gap-1">No rulebook, only a rules wiki? Its start page (https) <Input name="wikiUrl" defaultValue={v['wikiUrl'] ?? ''} maxLength={400} type="url" /></label>
             <label class="grid gap-1">Publisher page where you found it (optional) <Input name="foundOn" defaultValue={v['foundOn'] ?? ''} maxLength={400} type="url" /></label>
             <p class="mb-0 flex flex-wrap items-center gap-3"><Button type="submit">Send request</Button> <a href="/request-game">Back to search</a></p>
           </form>

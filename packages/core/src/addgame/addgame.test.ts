@@ -30,7 +30,15 @@ describe('hostProblem', () => {
 describe('parseGameRequest', () => {
   it('parses a good request and tidies it', () => {
     const r = parseGameRequest({ ...base, name: '  Azul  ', year: '2017', language: 'EN', foundOn: 'https://planbgames.com/azul#rules' });
-    expect(r).toEqual({ ok: true, value: { name: 'Azul', publisher: 'Plan B Games', year: 2017, language: 'en', rulebookUrl: base.rulebookUrl, foundOn: 'https://planbgames.com/azul' } });
+    expect(r).toEqual({ ok: true, value: { name: 'Azul', publisher: 'Plan B Games', year: 2017, language: 'en', rulebookUrl: base.rulebookUrl, wikiUrl: null, foundOn: 'https://planbgames.com/azul' } });
+  });
+  it('accepts a wiki start URL instead of a rulebook link (wiki-only games)', () => {
+    const r = parseGameRequest({ ...base, rulebookUrl: '', wikiUrl: 'https://wiki.example.org/books/rules#top' });
+    expect(r.ok && r.value).toMatchObject({ rulebookUrl: null, wikiUrl: 'https://wiki.example.org/books/rules' });
+    // Both given: the rulebook wins, the wiki can be imported later from the sources page.
+    const both = parseGameRequest({ ...base, wikiUrl: 'https://wiki.example.org/' });
+    expect(both.ok && both.value).toMatchObject({ rulebookUrl: base.rulebookUrl, wikiUrl: null });
+    expect(parseGameRequest({ ...base, rulebookUrl: '', wikiUrl: 'http://wiki.example.org/' }).ok).toBe(false);
   });
   it('rejects bad input with a readable message', () => {
     for (const bad of [{ name: 'A' }, { publisher: '' }, { year: '17' }, { year: 'abc' }, { language: 'english' }, { rulebookUrl: '' }, { rulebookUrl: 'not a url' }, { rulebookUrl: 'http://x.com/a.pdf' }, { rulebookUrl: 'https://10.0.0.1/a.pdf' }, { foundOn: 'ftp://x.com' }]) {
