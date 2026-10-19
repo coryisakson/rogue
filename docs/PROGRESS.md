@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-19 (Hermes): 0.0.144: ADR 0007 step 2: quality_curate moved to the Reviewer agent (skill), quality-curator retired, sidecar 0.8.0. Not yet compared against old agent on live jobs; ROGUE_AGENT_MODEL_QUALITY_CURATOR setting gone.
 - 2026-10-19 (Hermes): 0.0.143: Reviewer agent (port 8901, skills per job kind, ADR 0007 step 1) with extract_review skill; quality-curator moved to 8906; sidecar 0.7.0; migration 0044. Needs live test: Review unsure pages button on extracts page.
 - 2026-10-19 (Hermes): 0.0.142: admin lists/searches ALL games (+ delete source-less game), wiki import (BookStack/MediaWiki crawl, discover, background job, wikiUrl requests), admin attestation to mark a wiki as publisher (migrations 0042-0043). Needs Cory browser click-through.
 - 2026-10-19 (Hermes): 0.0.141 shipped: Ask prefers excerpts in the question/answer language (fixes DE role names leaking). Live eval Pandemic 9/11 (was 8), StS 10/12 (was 9). Remaining fails are pattern misses (cure count answer correct) and a potion-limit citation warning. Next: Space Base source, ROGUE_OCR_MODE=auto comparison.
