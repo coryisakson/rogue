@@ -30,6 +30,17 @@ describe('chat helpers', () => {
     expect(isAggregateQuestion('What is the hand limit?')).toBe(false);
     expect(isAggregateQuestion('Who goes first?')).toBe(false);
   });
+  it('detects "which/what <set noun>" list questions and leaves single-rule questions alone', () => {
+    expect(isAggregateQuestion('how many roles in Pandemic?')).toBe(true);
+    expect(isAggregateQuestion('which characters in Slay the Spire?')).toBe(true);
+    expect(isAggregateQuestion('What characters can I play?')).toBe(true);
+    expect(isAggregateQuestion('Which starting relics are there?')).toBe(true);
+    expect(isAggregateQuestion('What kinds of cards exist?')).toBe(true);
+    expect(isAggregateQuestion('Welche Charaktere gibt es?')).toBe(true);
+    expect(isAggregateQuestion('Which player goes first?')).toBe(false);
+    expect(isAggregateQuestion('What happens when the infection deck runs out?')).toBe(false);
+    expect(isAggregateQuestion('Can the Medic move twice?')).toBe(false);
+  });
   it('web-page sections are cited as s.N and shown by heading', () => {
     const web = [{ page: 2, text: '7 Role Cards', section: "What's in the box" }, { page: 6, text: 'x' }];
     expect(buildPrompt('q', web)).toContain('(s.2 "What\'s in the box")');

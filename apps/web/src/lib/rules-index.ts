@@ -1,4 +1,4 @@
-import { sectionHeadings, detectPageLabels, applyRanking, chunkText, keywordMatchSql, keywordRankSql, orQuery, parseRanking, qualityWeight, rrf, sourceWeight } from '@rogue/core';
+import { sectionHeadings, detectPageLabels, applyRanking, pickNeighbours, type RetrievalPlan, chunkText, keywordMatchSql, keywordRankSql, orQuery, parseRanking, qualityWeight, rrf, sourceWeight } from '@rogue/core';
 import { agentsEnabled, enqueueJob } from './agent-jobs';
 import { loadSourcePages, pagesToText, scoreSource } from './page-text';
 import { ensureMigrated, getAi, getEmbedder, getPool, getReranker } from './services';
@@ -181,12 +181,20 @@ async function rerank(q: string, ids: string[], byId: Map<string, { snippet: str
   }
 }
 
-/** Excerpts for the chat model: each hit plus its neighbouring chunks (a list often runs across a chunk boundary).
- *  Sent to the model only; the answer shows short capped quotes, never this text. */
-export async function expandWithNeighbors(chunkIds: string[], radius = 1): Promise<{ page: number; text: string; section: string | null; printed: number | null }[]> {
+/** Excerpts for the chat model: each hit plus its neighbouring chunks and the chunks on nearby pages (a list often runs
+ *  across a chunk boundary or onto the facing page). The plan caps how many; hits are kept first. Sent to the model only;
+ *  the answer shows short capped quotes, never this text. */
+export async function expandWithNeighbors(chunkIds: string[], plan: RetrievalPlan): Promise<{ page: number; text: string; section: string | null; printed: number | null }[]> {
   const pool = getPool(); if (!pool || !chunkIds.length) return [];
   const rows = (await pool.query(
-    `SELECT DISTINCT n.source_id, n.ord, n.page, n.locator, n.printed_page, n.text FROM chunks c JOIN chunks n ON n.source_id=c.source_id AND n.ord BETWEEN c.ord-$2 AND c.ord+$2
-     WHERE c.id = ANY($1::bigint[]) ORDER BY n.source_id, n.ord`, [chunkIds, radius])).rows;
-  return rows.map((r) => ({ page: Number(r.page), text: String(r.text), section: (r.locator as string | null) ?? null, printed: r.printed_page == null ? null : Number(r.printed_page) }));
+    `SELECT n.source_id, n.ord, n.page, n.locator, n.printed_page, n.text,
+            MIN(ABS(n.ord - c.ord)) AS chunk_dist, MIN(ABS(n.page - c.page)) AS page_dist
+     FROM chunks c JOIN chunks n ON n.source_id=c.source_id
+       AND (n.ord BETWEEN c.ord-$2 AND c.ord+$2 OR n.page BETWEEN c.page-$3 AND c.page+$3)
+     WHERE c.id = ANY($1::bigint[])
+     GROUP BY n.id, n.source_id, n.ord, n.page, n.locator, n.printed_page, n.text`, [chunkIds, plan.neighbourChunks, plan.neighbourPages])).rows;
+  return pickNeighbours(rows.map((r) => ({
+    sourceId: Number(r.source_id), ord: Number(r.ord), chunkDistance: Number(r.chunk_dist), pageDistance: Number(r.page_dist),
+    item: { page: Number(r.page), text: String(r.text), section: (r.locator as string | null) ?? null, printed: r.printed_page == null ? null : Number(r.printed_page) },
+  })), plan);
 }

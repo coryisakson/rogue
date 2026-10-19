@@ -58,16 +58,21 @@ export function namedSections(answer: string, excerpts: Excerpt[]): string {
 
 /** "How many roles are there", "list all the roles", "which cards...": the answer is spread over several passages and must be assembled. */
 export function isAggregateQuestion(q: string): boolean {
-  return /\b(how many|number of|list|all (of )?the|what are the|which (are|roles|cards|characters|types)|name (all|the)|count)\b/i.test(q)
+  return /\b(how many|number of|list|all (of )?the|what are the|which are|name (all|the)|count|what (kinds|types|sorts) of)\b/i.test(q)
+    // "which characters", "what roles are there", "which starting cards": a plural game-piece noun, optionally after one adjective.
+    || new RegExp(`\\b(which|what) (\\w+ )?(${AGGREGATE_NOUNS})\\b`, 'i').test(q)
     || /\b(wie viele|alle|liste|welche)\b/i.test(q);
 }
+
+/** Plural nouns that name a set of things in a game; "which <noun>" asks for the whole set. */
+const AGGREGATE_NOUNS = 'roles|cards|characters|heroes|classes|types|kinds|actions|phases|components|pieces|tokens|decks|relics|potions|bosses|enemies|monsters|colou?rs|events|abilities|powers';
 
 /** Added to the system prompt for aggregate questions: collect items across excerpts, count them, show the list. */
 export const CHAT_AGGREGATE_ADDENDUM = `
 This is a list or count question. The rulebook may never state the total. The 1-4 sentence limit does not apply to the list itself.
 - Read ALL excerpts and collect every distinct item that matches (for example each named role), without repeating one.
 - If any excerpt states the total outright (for example a components list like "7 Role Cards"), use that number and cross-check it against the names you found; the headings in the excerpts may cover only part of the set.
-- Give the count you found, then the list, citing the page for each item or group like (p.3).
+- Give the count you found, then the list as a numbered list (1., 2., ...) so the count matches the items, citing the page for each item or group like (p.3).
 - State the count definitively ("There are N ...") when the excerpts show the whole list (for example a section that introduces all of them, or a complete set). Use "at least N found in the excerpts" ONLY when the list is visibly cut off or the excerpts clearly skip part of it.
 - Cite ONLY page numbers printed as (p.N) or (s.N) in the excerpts. Excerpt numbers like [3] are not pages. If an item appears on several pages, cite just one or two of those pages.
 - Because of the two-column layout, two neighbouring names can appear joined (for example a heading followed by the next heading). Split them into separate items and never list a joined pair as one item or as two overlapping items.

@@ -1,6 +1,6 @@
 import {
   CHAT_SYSTEM, CHAT_AGGREGATE_ADDENDUM, CHAT_HISTORY_ADDENDUM, DailyCounter, answerLanguageRule, answerMaxTokens, badCitations, buildPrompt, chatRoles,
-  checkChatBudget, citesUrl, historyBlock, isAggregateQuestion, namedSections, normalizeQuestion, rewriteQuestion, t, trimHistory,
+  checkChatBudget, citesUrl, historyBlock, isAggregateQuestion, namedSections, normalizeQuestion, retrievalPlan, rewriteQuestion, t, trimHistory,
   type ChatBudget, type ChatTurn, type Locale,
 } from '@rogue/core';
 import { searchRules, expandWithNeighbors, gameRuleLangs, type RuleHit, type SearchStats } from './rules-index';
@@ -56,17 +56,18 @@ export async function askRules(game: string, question: string, history: ChatTurn
   // Keyed by the standalone question: "and the medic?" means different things in different threads. The answer language is part of the key.
   const key = `${setting('ROGUE_AI_CHAT_MODEL') ?? '-'}|${game}|${userLang ?? '-'}|${standalone.toLowerCase()}`; // model is part of the key so a model change never serves old answers
   const hit = cache.get(key); if (hit) return hit;
-  // List/count questions ("how many roles") need many passages, so look wider and add neighbouring chunks.
+  // List/count questions ("how many roles") need many passages, so look deeper and add neighbouring chunks and pages.
   const wide = isAggregateQuestion(standalone) || Object.values(rw.translations).some(isAggregateQuestion);
+  const plan = retrievalPlan(wide);
   const stats: SearchStats = { embedMs: 0, searchMs: 0, rerankMs: 0, promptTokens: 0, completionTokens: 0 };
   const alt = Object.values(rw.translations);
-  const hits: RuleHit[] = await searchRules(standalone, { game, limit: wide ? 12 : 5, snippet: 600, rerank: true, stats, alt });
+  const hits: RuleHit[] = await searchRules(standalone, { game, limit: plan.limit, snippet: 600, rerank: true, stats, alt });
   Object.assign(timings, { embed: stats.embedMs, search: stats.searchMs, rerank: stats.rerankMs });
   if (!hits.length) return { answer: t(userLang ?? 'en', 'chat.notFound'), sources: [], ms: Date.now() - t0, timings: { ...timings, total: Date.now() - t0 } };
   const ai = getAi(roles.answer);
   if (!ai) throw new Error('AI is not configured');
   let excerpts = hits.map((h) => ({ page: h.page, text: h.snippet, section: h.section, printed: h.printed }));
-  if (wide) { const more = await expandWithNeighbors(hits.map((h) => h.chunk_id), 2); if (more.length) excerpts = more.slice(0, 30); }
+  if (wide) { const more = await expandWithNeighbors(hits.map((h) => h.chunk_id), plan); if (more.length) excerpts = more; }
   const reasoning = aiConfig().aiAnswerReasoning;
   const system = (wide ? CHAT_SYSTEM + CHAT_AGGREGATE_ADDENDUM : CHAT_SYSTEM) + answerLanguageRule(userLang) + (recent.length ? CHAT_HISTORY_ADDENDUM : '');
   const tAnswer = Date.now();
