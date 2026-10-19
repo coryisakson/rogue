@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-19 (Hermes): 0.0.136: list/count Ask retrieval (page neighbours, hit-first cap) + Pandemic roles/StS characters eval questions. Merged; live eval pending.
 - 2026-10-19 (Hermes): Baseline Ask eval on live (OCR=all) Slay the Spire: 7/10 (Oct 16: 8/10; run noise ~1). Auto-vs-all needs a re-ingest with ROGUE_OCR_MODE=auto on one game, not yet done.
 - 2026-10-18 (Hermes): Re-indexed all 18 sources via /api/admin/index-rules: every chunk embedded (Brass 52/52 now). Ask eval auto-vs-all and Space Base fix still pending.
 - 2026-10-18 (Hermes): Proposed Extractor agent design in docs/adr/0005-extractor-agent.md (propose-only page choice/structure, code verifies). Not built; awaits Cory go-ahead and the auto-vs-all eval.
