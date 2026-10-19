@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-19 (Hermes): 0.0.141 shipped: Ask prefers excerpts in the question/answer language (fixes DE role names leaking). Live eval Pandemic 9/11 (was 8), StS 10/12 (was 9). Remaining fails are pattern misses (cure count answer correct) and a potion-limit citation warning. Next: Space Base source, ROGUE_OCR_MODE=auto comparison.
 - 2026-10-19 (Hermes): Live eval on 0.0.140: Pandemic 8/11 (was 7), StS 9/12. Pandemic "which roles" now mixes in DE-edition role names (Krisenmanager, Logistiker); cure-count answer is right but pattern misses. Next: filter Ask excerpts by question language/edition, then Space Base source.
 - 2026-10-19 (Hermes): 0.0.140: stricter Ask system prompt (every sentence must be supported by an excerpt; no names/numbers not written there; partial answers say what is uncovered). Effect unmeasured; run Ask evals next.
 - 2026-10-19 (Hermes): 0.0.139: admin BGG title search fix (www host, query variants, clear errors, add-by-name fallback) and capture can add a new game (inbox + Capture new game form). Needs Cory browser test.
