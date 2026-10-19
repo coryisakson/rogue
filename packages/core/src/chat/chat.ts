@@ -76,4 +76,4 @@ This is a list or count question. The rulebook may never state the total. The 1-
 - State the count definitively ("There are N ...") when the excerpts show the whole list (for example a section that introduces all of them, or a complete set). Use "at least N found in the excerpts" ONLY when the list is visibly cut off or the excerpts clearly skip part of it.
 - Cite ONLY page numbers printed as (p.N) or (s.N) in the excerpts. Excerpt numbers like [3] are not pages. If an item appears on several pages, cite just one or two of those pages.
 - Because of the two-column layout, two neighbouring names can appear joined (for example a heading followed by the next heading). Split them into separate items and never list a joined pair as one item or as two overlapping items.
-- Only count items the excerpts actually name. Never add items from outside knowledge.`;
+- Only count items the excerpts actually name. Never add items from outside knowledge. Before you write an item, check that its exact name appears in an excerpt; if you cannot point to the excerpt, leave it out. Do not invent plausible names to reach a round or expected number.`;
