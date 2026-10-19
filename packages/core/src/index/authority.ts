@@ -5,8 +5,10 @@
  */
 export type DocKind = 'errata' | 'faq' | 'rulebook' | 'quickstart' | 'article' | 'forum_post' | 'wiki' | 'other';
 const KIND_WEIGHT: Record<string, number> = { rulebook: 1.3, errata: 1.15, faq: 1.1, quickstart: 1.0, article: 0.9, forum_post: 0.7, wiki: 0.8, other: 0.85 };
-// A wiki page (packages/core/src/wiki, ADR 0006) is community text split into many small pages: below a publisher's own
-// product page, above a forum post. Its sources.authority is 'community', so it never outranks the publisher's rulebook.
+// A wiki page (packages/core/src/wiki, ADR 0006) is text split into many small pages: below a publisher's own product
+// page, above a forum post. Its sources.authority is 'community' by default; an admin may attest that a wiki is the
+// publisher's official documentation (addgame/authority.ts), then it weighs as publisher text of kind wiki. Either way
+// it stays below the publisher's rulebook, because the kind weight of 'wiki' is lower than 'rulebook'.
 /** sources.authority column: publisher > author/official > community > forum. */
 const AUTHORITY_WEIGHT: Record<string, number> = { publisher: 1.0, author: 1.0, official: 0.97, community: 0.85, forum: 0.75, other: 0.8 };
 

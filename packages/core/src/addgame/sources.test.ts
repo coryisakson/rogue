@@ -6,7 +6,12 @@ const base = { url: 'https://cdn.example.com/azul-faq.pdf#page=2', title: 'Azul 
 describe('game sources: form validation', () => {
   it('accepts a valid form, drops the #fragment and defaults foundOn to null', () => {
     const p = parseSourceInput(base);
-    expect(p).toEqual({ ok: true, value: { url: 'https://cdn.example.com/azul-faq.pdf', title: 'Azul FAQ', publisher: 'Plan B Games', language: 'en', kind: 'faq', foundOn: null } });
+    expect(p).toEqual({ ok: true, value: { url: 'https://cdn.example.com/azul-faq.pdf', title: 'Azul FAQ', publisher: 'Plan B Games', language: 'en', kind: 'faq', foundOn: null, authority: 'publisher' } });
+  });
+  it('takes the admin Authority choice (publisher by default, official or community), nothing else', () => {
+    for (const authority of ['publisher', 'official', 'community', 'Community']) expect(parseSourceInput({ ...base, authority }).ok).toBe(true);
+    expect(parseSourceInput({ ...base, authority: 'community' })).toMatchObject({ ok: true, value: { authority: 'community' } });
+    for (const authority of ['forum', 'author', 'admin']) expect(parseSourceInput({ ...base, authority }).ok).toBe(false);
   });
   it('defaults language to en and kind to rulebook', () => {
     const p = parseSourceInput({ ...base, language: '', kind: '' });
@@ -61,6 +66,9 @@ describe('game sources: seeds', () => {
     const row = { game_slug: 'azul', url: 'https://cdn.example.com/a.pdf', title: 'Azul FAQ', publisher: 'Plan B Games', language: 'en', kind: 'faq', edition_label: label, found_on: null };
     expect(runtimeSeed(row)).toEqual({ gameSlug: 'azul', url: row.url, title: 'Azul FAQ', publisher: 'Plan B Games', language: 'en', kind: 'faq', editionLabel: label, foundOn: row.url });
     expect(runtimeSeed({ ...row, kind: 'weird', found_on: 'https://example.com/p' })).toMatchObject({ kind: 'other', foundOn: 'https://example.com/p' });
+    // The stored authority travels with the seed; none or an unknown value leaves the ingest default (publisher).
+    expect(runtimeSeed({ ...row, authority: 'community' }).authority).toBe('community');
+    expect(runtimeSeed({ ...row, authority: 'forum' }).authority).toBeUndefined();
   });
 });
 

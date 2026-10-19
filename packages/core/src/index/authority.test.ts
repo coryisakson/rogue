@@ -18,6 +18,11 @@ describe('authority', () => {
     expect(sourceWeight('wiki', 'community')).toBeLessThan(sourceWeight('rulebook', 'publisher'));
     expect(sourceWeight('wiki', 'community')).toBeGreaterThan(sourceWeight('forum_post', 'forum'));
   });
+  it('a publisher wiki (admin attestation) ranks above a community wiki, still below the publisher rulebook PDF', () => {
+    expect(sourceWeight('wiki', 'publisher')).toBeGreaterThan(sourceWeight('wiki', 'community'));
+    expect(sourceWeight('rulebook', 'publisher')).toBeGreaterThan(sourceWeight('wiki', 'publisher'));
+    expect(sourceWeight('wiki', 'publisher')).toBeGreaterThan(sourceWeight('forum_post', 'forum'));
+  });
   it('a manual capture ranks below the same source fetched by Rogue, even as publisher', () => {
     expect(sourceWeight('rulebook', 'publisher', 'manual_capture')).toBeLessThan(sourceWeight('rulebook', 'publisher'));
     expect(sourceWeight('rulebook', 'community', 'manual_capture')).toBeLessThan(sourceWeight('rulebook', 'community'));

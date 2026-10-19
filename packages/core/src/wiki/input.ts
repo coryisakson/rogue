@@ -1,3 +1,4 @@
+import { parseWikiAuthority, type WikiAuthority } from '../addgame/authority.js';
 import { SOURCE_LANGUAGES, parseSourceUrl, type SourceLanguage } from '../addgame/sources.js';
 import { clampMaxPages } from './crawl.js';
 import { parseWikiPageList } from './links.js';
@@ -14,6 +15,8 @@ export interface WikiImportInput {
   publisher: string;
   /** Re-fetch pages fetched in the last 24 hours. */
   force: boolean;
+  /** 'community' unless the admin attested "This wiki is the publisher's official documentation" (addgame/authority.ts). */
+  authority: WikiAuthority;
 }
 
 const text = (v: unknown, max: number): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -32,7 +35,9 @@ export function parseWikiImport(f: Record<string, unknown>): { ok: true; value: 
     if (!list.ok) return list;
     urls = list.urls;
   }
-  return { ok: true, value: { startUrl: start.url, mode, urls, maxPages, language: language as SourceLanguage, publisher, force: f['force'] === 'yes' } };
+  const authority = parseWikiAuthority(f);
+  if (!authority.ok) return authority;
+  return { ok: true, value: { startUrl: start.url, mode, urls, maxPages, language: language as SourceLanguage, publisher, force: f['force'] === 'yes', authority: authority.value } };
 }
 
 /** One edition per wiki host: all pages of a wiki are one "document set" of the game. */

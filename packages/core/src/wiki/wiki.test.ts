@@ -178,13 +178,25 @@ describe('wiki page text', () => {
 describe('wiki import form', () => {
   it('parses whole-wiki and selected-pages imports', () => {
     const site = parseWikiImport({ startUrl: `${BS}/books/core-rules#x`, mode: 'site', maxPages: '9999', publisher: '' });
-    expect(site).toEqual({ ok: true, value: { startUrl: `${BS}/books/core-rules`, mode: 'site', urls: [], maxPages: 500, language: 'en', publisher: 'wiki.example-bookstack.org', force: false } });
+    expect(site).toEqual({ ok: true, value: { startUrl: `${BS}/books/core-rules`, mode: 'site', urls: [], maxPages: 500, language: 'en', publisher: 'wiki.example-bookstack.org', force: false, authority: 'community' } });
     const pages = parseWikiImport({ startUrl: `${BS}/`, mode: 'pages', pages: `${BS}/books/a/page/x`, language: 'de', publisher: 'Allies Wiki', force: 'yes' });
     expect(pages.ok && pages.value).toMatchObject({ mode: 'pages', urls: [`${BS}/books/a/page/x`], language: 'de', publisher: 'Allies Wiki', force: true, maxPages: 150 });
     expect(parseWikiImport({ startUrl: 'http://wiki.example.org/' }).ok).toBe(false);
     expect(parseWikiImport({ startUrl: 'https://10.0.0.1/' }).ok).toBe(false);
     expect(parseWikiImport({ startUrl: `${BS}/`, language: 'fr' }).ok).toBe(false);
     expect(parseWikiImport({ startUrl: `${BS}/`, mode: 'pages', pages: 'https://other.example.com/a' }).ok).toBe(false);
+  });
+
+  it('marks a wiki publisher only when the admin ticks the attestation (else community)', () => {
+    const auth = (f: Record<string, unknown>) => { const p = parseWikiImport({ startUrl: BS + '/', ...f }); return p.ok ? p.value.authority : p.error; };
+    expect(auth({})).toBe('community');
+    expect(auth({ publisherWiki: 'yes' })).toBe('publisher');
+    expect(auth({ publisherWiki: '' })).toBe('community');
+    expect(auth({ authority: 'publisher' })).toBe('publisher');
+    expect(auth({ authority: 'community' })).toBe('community');
+    // 'official' is for admin-added links only; a wiki is publisher or community.
+    expect(auth({ authority: 'official' })).toMatch(/publisher, community/);
+    expect(auth({ authority: 'forum' })).toMatch(/publisher, community/);
   });
 
   it('splits wiki pages off a source list', () => {

@@ -3,6 +3,7 @@
  * decision and the seed the ingest path reads. The network calls live in apps/web/src/lib/game-sources.ts.
  * Same principle as the add-game flow: code decides the gates, a human confirms the terms, nothing is fetched before.
  */
+import { parseSourceAuthority, type SourceAuthority } from './authority.js';
 import { hostProblem, slugify } from './index.js';
 
 export const SOURCE_LANGUAGES = ['en', 'de', 'zh', 'es', 'it'] as const;
@@ -10,7 +11,8 @@ export const SOURCE_KINDS = ['rulebook', 'faq', 'errata', 'other'] as const;
 export type SourceLanguage = (typeof SOURCE_LANGUAGES)[number];
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
-export interface SourceInput { url: string; title: string; publisher: string; language: SourceLanguage; kind: SourceKind; foundOn: string | null }
+/** `authority`: the admin's Authority choice (default publisher, as before the choice existed; addgame/authority.ts). */
+export interface SourceInput { url: string; title: string; publisher: string; language: SourceLanguage; kind: SourceKind; foundOn: string | null; authority: SourceAuthority }
 export type ParsedSource = { ok: true; value: SourceInput } | { ok: false; error: string };
 
 const text = (v: unknown, max: number): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -33,7 +35,7 @@ export function parseSourceInput(f: Record<string, unknown>): ParsedSource {
   const title = text(f['title'], 120);
   if (title.length < 2) return { ok: false, error: 'Give the document a title (at least 2 characters).' };
   const publisher = text(f['publisher'], 80);
-  if (publisher.length < 2) return { ok: false, error: 'Give the publisher. We only use documents from the publisher or rights holder.' };
+  if (publisher.length < 2) return { ok: false, error: 'Give the publisher or site owner (the publisher or rights holder is preferred; pick a lower authority for other sites).' };
   const language = text(f['language'] || 'en', 8).toLowerCase();
   if (!(SOURCE_LANGUAGES as readonly string[]).includes(language)) return { ok: false, error: `Language must be one of ${SOURCE_LANGUAGES.join(', ')}.` };
   const kind = text(f['kind'] || 'rulebook', 16).toLowerCase();
@@ -44,7 +46,9 @@ export function parseSourceInput(f: Record<string, unknown>): ParsedSource {
     if (!p.ok) return p;
     foundOn = p.url;
   }
-  return { ok: true, value: { url: url.url, title, publisher, language: language as SourceLanguage, kind: kind as SourceKind, foundOn } };
+  const authority = parseSourceAuthority(f['authority']);
+  if (!authority.ok) return authority;
+  return { ok: true, value: { url: url.url, title, publisher, language: language as SourceLanguage, kind: kind as SourceKind, foundOn, authority: authority.value } };
 }
 
 /**
@@ -63,18 +67,24 @@ export function sourceProbeGate(verdict: 'pass' | 'problem' | 'blocked', probedH
 }
 
 /** The shape apps/web reads as a SourceSeed (kept structural so core does not import the web app). */
-export interface RuntimeSeed { gameSlug: string; url: string; title: string; publisher: string; language: string; kind: SourceKind; editionLabel: string; foundOn: string }
-export interface RuntimeSourceRow { game_slug: string; url: string; title: string; publisher: string; language: string; kind: string; edition_label: string; found_on: string | null }
+export interface RuntimeSeed { gameSlug: string; url: string; title: string; publisher: string; language: string; kind: SourceKind; editionLabel: string; foundOn: string; authority?: SourceAuthority }
+export interface RuntimeSourceRow { game_slug: string; url: string; title: string; publisher: string; language: string; kind: string; edition_label: string; found_on: string | null; authority?: string | null }
 
 /** Edition label for an admin-added document, mirroring the add-game label ("<publisher> rulebook (user-submitted, ...)"). */
 export function runtimeEditionLabel(publisher: string, kind: SourceKind, language: string, day: string): string {
   return `${publisher} ${kind} (${language}, admin-added ${day})`;
 }
 
-/** A runtime_sources row as a seed for allSeeds(); unknown kinds fall back to 'other'. */
+/**
+ * A runtime_sources row as a seed for allSeeds(); unknown kinds fall back to 'other'. The admin's authority choice travels
+ * with the seed (ingest writes it to sources.authority); a row without one (or an unknown value) leaves the ingest default.
+ */
 export function runtimeSeed(r: RuntimeSourceRow): RuntimeSeed {
   const kind = (SOURCE_KINDS as readonly string[]).includes(r.kind) ? (r.kind as SourceKind) : 'other';
-  return { gameSlug: r.game_slug, url: r.url, title: r.title, publisher: r.publisher, language: r.language, kind, editionLabel: r.edition_label, foundOn: r.found_on ?? r.url };
+  const seed: RuntimeSeed = { gameSlug: r.game_slug, url: r.url, title: r.title, publisher: r.publisher, language: r.language, kind, editionLabel: r.edition_label, foundOn: r.found_on ?? r.url };
+  const authority = r.authority ? parseSourceAuthority(r.authority) : null;
+  if (authority?.ok) seed.authority = authority.value;
+  return seed;
 }
 
 /**

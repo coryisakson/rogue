@@ -128,3 +128,4 @@ export function assessRights(f: ProbeFacts, host: string): RightsAssessment {
   return { verdict: blocked ? 'blocked' : problem ? 'problem' : 'pass', findings: out };
 }
 export * from './sources.js';
+export * from './authority.js';
