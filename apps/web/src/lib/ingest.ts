@@ -116,7 +116,10 @@ async function ingestSeedInner(seed: IngestSeed, force: boolean, opts: IngestOpt
     await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', [
       'ingest', 'extract_empty', { url: seed.url, contentType: doc.contentType, pages: extracted.pageCount, ...(extracted.notes ?? {}) },
     ]);
-    return { url: seed.url, ok: false, detail: 'no text extracted (no text layer, OCR gave nothing); nothing stored' };
+    const ocrErrors = (extracted.notes?.ocrErrors as string[] | undefined) ?? [];
+    // Show why OCR gave nothing (e.g. service HTTP 503) so the admin can tell an outage from a blank scan.
+    const why = ocrErrors.length ? ` OCR errors: ${ocrErrors.join('; ')}` : '';
+    return { url: seed.url, ok: false, detail: `no text extracted (no text layer, OCR gave nothing); nothing stored.${why}` };
   }
 
   const privatePath = `private/sources/${doc.sha256}.${adapter?.extension ?? 'html'}`;
