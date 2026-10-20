@@ -1,7 +1,7 @@
 {
   "name": "rogue",
   "private": true,
-  "version": "0.0.149",
+  "version": "0.0.150",
   "type": "module",
   "description": "Rogue: open-source, cited, rights-aware tabletop knowledge platform",
   "engines": { "node": ">=22.22.0" },
