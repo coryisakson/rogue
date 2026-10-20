@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { agentsEnabled, getJob } from '../../../lib/agent-jobs';
-import { describeLibrarianJob, librarianSourceId, librarianStatus, startLibrarian } from '../../../lib/librarian-run';
+import { describeLibrarianJob, librarianSourceId, librarianStatus, runLibrarian, startLibrarian } from '../../../lib/librarian-run';
 import { getPool } from '../../../lib/services';
 
 /**
@@ -12,6 +12,12 @@ export const POST: APIRoute = async ({ url }) => {
   const game = url.searchParams.get('game') ?? '';
   if (!/^[a-z0-9-]+$/.test(game)) return Response.json({ error: 'use ?game=<slug>' }, { status: 400 });
   if (!agentsEnabled() && librarianStatus()?.running) return Response.json({ started: false, status: librarianStatus() }, { status: 409 });
+  // ?mode=local forces the in-process per-page loop (one model call per page), useful when the agent under-drafts.
+  if (url.searchParams.get('mode') === 'local') {
+    if (librarianStatus()?.running) return Response.json({ started: false, status: librarianStatus() }, { status: 409 });
+    void runLibrarian(game);
+    return Response.json({ started: true, mode: 'local' });
+  }
   const r = await startLibrarian(game, Number(url.searchParams.get('source')) || undefined);
   if ('error' in r) return Response.json({ started: false, error: r.error }, { status: 404 });
   return Response.json({ started: true, ...r });
@@ -19,7 +25,7 @@ export const POST: APIRoute = async ({ url }) => {
 
 export const GET: APIRoute = async ({ url }) => {
   const headers = { 'cache-control': 'no-store' };
-  if (!agentsEnabled()) return Response.json(librarianStatus() ?? { running: false }, { headers });
+  if (!agentsEnabled() || url.searchParams.get('mode') === 'local') return Response.json(librarianStatus() ?? { running: false }, { headers });
   let jobId = Number(url.searchParams.get('job') ?? '');
   if (!Number.isInteger(jobId) || jobId < 1) {
     const game = url.searchParams.get('game') ?? '';
