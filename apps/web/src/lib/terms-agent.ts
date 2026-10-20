@@ -96,6 +96,6 @@ export async function applyAgentJudgement(id: number, job: { id: number; status:
   const d = decideTermsWithAgent(code, check.toJudge, answers, job.status !== 'done');
   const next: TermsCheck = { ...check, ...d, agent: { jobId: job.id, status: job.status, answers, judgedAt: new Date().toISOString() } };
   await pool.query('UPDATE game_requests SET terms_check=$2 WHERE id=$1', [id, next]);
-  await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['agent:terms-agent', 'game_request_terms_judged', { id, job: job.id, jobStatus: job.status, verdict: d.verdict, answers: answers.map((a) => `${a.n}:${a.meaning}`) }]);
+  await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['agent:reviewer', 'game_request_terms_judged', { id, job: job.id, jobStatus: job.status, verdict: d.verdict, answers: answers.map((a) => `${a.n}:${a.meaning}`) }]);
   return next;
 }

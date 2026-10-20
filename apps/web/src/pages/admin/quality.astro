@@ -9,7 +9,7 @@ import { Card, CardContent } from '../../components/ui/card';
 await ensureMigrated();
 const pool = getPool();
 const q = async (sql: string) => (pool ? (await pool.query(sql)).rows : []);
-const JOB_LABEL: Record<string, string> = { quality_curate: 'Reviewer (page repair)', scout_variants: 'Scout (text versions)', librarian_draft: 'Librarian', terms_judge: 'Terms Agent' };
+const JOB_LABEL: Record<string, string> = { quality_curate: 'Reviewer (page repair)', scout_variants: 'Scout (text versions)', librarian_draft: 'Librarian', terms_judge: 'Reviewer (terms)', scout_judge: 'Reviewer (source links)', faq_curate: 'Reviewer (FAQ)' };
 const sources = await q(`SELECT s.id, s.title, s.content_type, s.authority, (SELECT d.kind FROM documents d WHERE d.source_id=s.id LIMIT 1) kind, count(*)::int pages,
     count(*) FILTER (WHERE pq.verdict='ok')::int ok, count(*) FILTER (WHERE pq.verdict IN ('suspect','garbled'))::int weak,
     count(*) FILTER (WHERE pq.state='repaired')::int repaired, count(*) FILTER (WHERE pq.state='unusable')::int unusable,
