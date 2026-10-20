@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-19 (Hermes): 0.0.144: derived outputs (setup sheet/player aid version stamp, refresh on source change, sole-source claims superseded; migration 0045) and admin 'Review and update this game' pipeline (0046). Space Base: source 32 text OK (MinerU restarted), source 11 retired. Needs Cory browser test.
 - 2026-10-20 (Hermes): 0.0.146: ingest now shows OCR error text when a PDF yields nothing (Space Base source 32 retry still empty; cause shown on next retry).
 - 2026-10-20 (Hermes): 0.0.145: ADR 0007 step 3: terms_judge, faq_curate, scout_judge now Reviewer skills; terms-agent and faq-curator removed; sidecar 0.9.0. Not yet compared with old agents on live jobs; ROGUE_AGENT_MODEL_* for removed agents gone.
 - 2026-10-19 (Hermes): 0.0.144: ADR 0007 step 2: quality_curate moved to the Reviewer agent (skill), quality-curator retired, sidecar 0.8.0. Not yet compared against old agent on live jobs; ROGUE_AGENT_MODEL_QUALITY_CURATOR setting gone.
