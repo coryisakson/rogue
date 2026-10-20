@@ -18,7 +18,7 @@ Until the first load after a restart (a few ms) and when the database is down, e
   Cohere/Jina style, falling back to the chat-model ranking on any error). A role with its own base URL gets only its own key, never the Router key.
 - **Reasoning**: `ROGUE_AI_ANSWER_REASONING` (default low), `ROGUE_AI_REWRITE_REASONING` (default none). `default` sends nothing.
 - **Judge**: `ROGUE_JUDGE_BASE_URL` / `_MODEL` / `_API_KEY`.
-- **Agents**: `ROGUE_AGENT_MODEL` (default for all) and `ROGUE_AGENT_MODEL_<NAME>` (LIBRARIAN, TERMS_AGENT, SCOUT, QUALITY_CURATOR, FAQ_CURATOR).
+- **Agents**: `ROGUE_AGENT_MODEL` (default for all) and `ROGUE_AGENT_MODEL_<NAME>` (REVIEWER, SCOUT, LIBRARIAN; ADR 0007 retired the others).
 - **OCR**: `ROGUE_OCR_PROVIDER`, `ROGUE_OCR_BASE_URL`, `ROGUE_OCR_API_KEY`. **Search**: `ROGUE_SEARCH_BASE_URL`.
 - **Integrations**: `ROGUE_BGG_TOKEN`, `ROGUE_DISCORD_WEBHOOK_URL`.
 
