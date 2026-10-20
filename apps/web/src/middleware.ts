@@ -4,6 +4,7 @@ import { startBackupScheduler } from './lib/backup-runner';
 import { startRecheckScheduler } from './lib/recheck-scheduler';
 import { startAgentWorker } from './lib/agent-jobs';
 import { startWikiCrawlResume } from './lib/wiki-crawl';
+import { startGameUpdateResume } from './lib/game-update';
 import { adminToken } from './lib/admin-token';
 import { cookieValue, userFromRequest } from './lib/auth';
 import { isAdmin } from './lib/admin';
@@ -22,6 +23,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   startRecheckScheduler();
   startAgentWorker();
   startWikiCrawlResume();
+  startGameUpdateResume();
   const { pathname } = new URL(ctx.request.url);
 
   if (!isPublicPath(pathname)) {

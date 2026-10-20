@@ -1,0 +1,59 @@
+---
+// "Review and update" on /admin/games/<slug>/sources (HANDOFF 0e, docs/DERIVED_OUTPUTS.md). POST goes to /admin/game-update,
+// which starts the background run (lib/game-update.ts) or stops it, and redirects back with ?update=<code>. Reload to update.
+import { GAME_UPDATE_STEPS, GAME_UPDATE_STEP_LABELS } from '@rogue/core';
+import { gameUpdateStatus } from '../lib/game-update';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+interface Props { slug: string }
+const { slug } = Astro.props;
+const last = await gameUpdateStatus(slug);
+const running = last?.status === 'running';
+const MESSAGES: Record<string, string> = {
+  started: 'Update started. Reload this page to follow it.', stopped: 'Update stopped.', notrunning: 'No update was running.',
+  running: 'An update is already running for this game.', nosteps: 'Pick at least one step.', err: 'Could not start the update (see the server log).',
+};
+const code = Astro.url.searchParams.get('update') ?? '';
+const msg = MESSAGES[code] ?? null;
+const variant = (s: string) => (s === 'ok' || s === 'done' ? 'secondary' : s === 'failed' ? 'danger' : s === 'running' ? 'warning' : 'outline');
+---
+<Card className="mt-3 text-base" id="game-update">
+  <CardHeader><CardTitle><h2 class="m-0 text-lg">Review and update</h2></CardTitle></CardHeader>
+  <CardContent>
+    {msg && <p class="mt-0" role="status"><Badge variant={code === 'err' || code === 'nosteps' ? 'danger' : 'secondary'} className="h-auto whitespace-normal">{msg}</Badge></p>}
+    <p class="mt-0">One background run that rechecks the sources (not more than once a day, never past a bot wall), re-ingests sources without text, has the Extractor review unsure PDF pages, runs the Librarian on sources with no drafted facts, supersedes facts of retired sources and rebuilds the setup sheet and player aid. Agent steps are skipped when the agents are off.</p>
+    {last && (
+      <div class="mb-3">
+        <p class="m-0"><small>Last run #{last.id}: <Badge variant={variant(last.status)}>{last.status}</Badge> started {last.startedAt}{last.finishedAt && <>, finished {last.finishedAt}</>}{last.redraft && <> · redraft</>}</small></p>
+        {last.progress && <p class="m-0"><small>{last.progress}</small></p>}
+        <ul class="m-0 pl-5">
+          {last.steps.map((s) => <li><small>{GAME_UPDATE_STEP_LABELS[s.step]}: <Badge variant={variant(s.status)}>{s.status}</Badge>{s.line && <> {s.line}</>}</small></li>)}
+        </ul>
+      </div>
+    )}
+    {running ? (
+      <form method="post" action="/admin/game-update">
+        <input type="hidden" name="game" value={slug} /><input type="hidden" name="action" value="stop" />
+        <Button type="submit" variant="destructive">Stop the update</Button>
+      </form>
+    ) : (
+      <>
+        <form method="post" action="/admin/game-update" class="mb-2">
+          <input type="hidden" name="game" value={slug} /><input type="hidden" name="steps" value="all" />
+          <label class="flex items-center gap-2"><input type="checkbox" name="redraft" value="yes" class="size-4 accent-primary" /> Redraft: also run the Librarian on sources that already have drafted facts</label>
+          <Button type="submit" className="mt-2">Review and update everything</Button>
+        </form>
+        <details>
+          <summary>Run single steps</summary>
+          <form method="post" action="/admin/game-update" class="mt-2">
+            <input type="hidden" name="game" value={slug} />
+            {GAME_UPDATE_STEPS.map((s) => <label class="flex items-center gap-2"><input type="checkbox" name="steps" value={s} class="size-4 accent-primary" /> {GAME_UPDATE_STEP_LABELS[s]}</label>)}
+            <label class="flex items-center gap-2"><input type="checkbox" name="redraft" value="yes" class="size-4 accent-primary" /> Redraft (Librarian step only)</label>
+            <Button type="submit" variant="outline" className="mt-2">Run selected steps</Button>
+          </form>
+        </details>
+      </>
+    )}
+  </CardContent>
+</Card>

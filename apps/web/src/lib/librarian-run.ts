@@ -28,12 +28,12 @@ export async function startLibrarian(gameSlug: string, sourceId?: number): Promi
   return queueLibrarianJob(gameSlug, sourceId);
 }
 
-/** The given source id if it is an available rulebook of this game, else null. */
+/** The given source id if it is an available rulebook (or wiki page, "Review and update" drafts those too) of this game, else null. */
 async function gameRulebookSource(gameSlug: string, sourceId: number): Promise<number | null> {
   const pool = getPool(); if (!pool) return null;
   await ensureMigrated();
   const r = await pool.query(`SELECT s.id FROM documents d JOIN sources s ON s.id=d.source_id JOIN editions e ON e.id=d.edition_id JOIN games g ON g.id=e.game_id
-    WHERE g.slug=$1 AND s.id=$2 AND d.kind='rulebook' AND s.text_path IS NOT NULL AND s.availability='available' LIMIT 1`, [gameSlug, sourceId]);
+    WHERE g.slug=$1 AND s.id=$2 AND d.kind IN ('rulebook','wiki') AND s.text_path IS NOT NULL AND s.availability='available' LIMIT 1`, [gameSlug, sourceId]);
   return r.rows[0] ? Number(r.rows[0].id) : null;
 }
 
