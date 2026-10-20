@@ -24,28 +24,36 @@ def test_specs_and_tools():
     assert specs["reviewer"]["port"] == 8901
     assert "quality-curator" not in specs  # retired; quality_curate is a reviewer skill (ADR 0007 step 2)
     assert specs["scout"]["port"] == 8902
-    assert specs["scout"]["tools"] == ["get_job", "preview_url", "propose_text_variant", "propose_source", "finish_job"]
+    assert specs["scout"]["tools"] == ["get_job", "preview_url", "propose_text_variant", "finish_job"]  # scout_variants only
     assert specs["librarian"]["port"] == 8903
     assert specs["librarian"]["tools"] == ["get_job", "get_page_text", "propose_claim", "finish_job"]
-    assert specs["terms-agent"]["port"] == 8904
-    assert specs["terms-agent"]["tools"] == ["get_job", "judge_sentences", "finish_job"]
-    assert specs["faq-curator"]["port"] == 8905
-    assert specs["faq-curator"]["tools"] == ["get_job", "list_faq_candidates", "propose_canonical", "finish_job"]
+    # Retired in ADR 0007 step 3; terms_judge and faq_curate are reviewer skills.
+    assert "terms-agent" not in specs and "faq-curator" not in specs
+    assert sorted(specs) == ["librarian", "reviewer", "scout"]
     assert len({s["port"] for s in specs.values()}) == len(specs)
 
 
 def test_reviewer_skills():
     """Skills are sections of one instruction file; tools are the union of the skills' tools (ADR 0007)."""
     spec = next(s for s in g.load_specs(AGENTS) if s["name"] == "reviewer")
-    assert spec["skills"] == ["extract_review", "quality_curate"]
+    skills = ["extract_review", "faq_curate", "quality_curate", "scout_judge", "terms_judge"]
+    assert spec["skills"] == skills
     assert spec["tools"] == ["get_job", "finish_job", "get_page", "propose_page_choice",
-        "get_page_text", "reocr_page", "propose_page_repair", "mark_page_unusable"]
+        "list_faq_candidates", "propose_canonical",
+        "get_page_text", "reocr_page", "propose_page_repair", "mark_page_unusable",
+        "preview_url", "propose_source", "judge_sentences"]
+    assert "propose_text_variant" not in spec["tools"]  # stays with the scout (scout_variants)
     body = spec["body"]
     assert body.startswith("# Reviewer") and "follow only the section" in body
-    assert "## Skill: extract_review" in body and "## Skill: quality_curate" in body
-    assert body.index("## Skill: extract_review") < body.index("## Skill: quality_curate")
-    assert "propose_page_repair" in body.split("## Skill: quality_curate")[1]
-    assert "skill: extract_review" not in body and "skill: quality_curate" not in body  # skill frontmatter is not part of the instructions
+    heads = [body.index(f"## Skill: {k}") for k in skills]
+    assert heads == sorted(heads)
+    section = lambda k: body.split(f"## Skill: {k}")[1].split("## Skill: ")[0]
+    assert "propose_page_repair" in section("quality_curate")
+    assert "judge_sentences" in section("terms_judge") and "forbids" in section("terms_judge")
+    assert "propose_canonical" in section("faq_curate") and "source_qnorms" in section("faq_curate")
+    assert "propose_source" in section("scout_judge") and "bot wall" in section("scout_judge")
+    for k in skills:
+        assert f"skill: {k}" not in body  # skill frontmatter is not part of the instructions
     other = next(s for s in g.load_specs(AGENTS) if s["name"] == "scout")
     assert other["skills"] == []
 

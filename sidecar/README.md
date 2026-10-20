@@ -17,20 +17,22 @@ Agents see only the MCP server `rogue` at `${ROGUE_MCP_URL}/<agent>` (stateless 
   finish_job): choose text layer, OCR or a merge for unsure PDF pages; `acceptPageChoice` (core) rejects invented words or numbers.
   `quality_curate` (get_job, get_page_text, reocr_page, propose_page_repair, mark_page_unusable, finish_job): repair OCR damage on weak
   pages; `acceptRepair` (core) rejects changed numbers or drifting wording. Moved from the retired quality-curator agent (ADR 0007 step 2).
-- scout (8902): get_job, preview_url, propose_text_variant, propose_source, finish_job. Two job kinds: `scout_variants` (one PDF source:
-  propose a text version; overlap and host gates in code) and `scout_judge` (one game request, `agent_jobs.request_id`: propose which
-  publisher-page links are the official rulebook/faq/errata). `judgeSourcePick` decides each proposal (listed or same publisher site,
-  robots, approved host, else needs_human); picks land in `agent_jobs.result.picks` and the request's scout report. Nothing is ingested.
+  Step 3 moved three more kinds from retired agents (terms-agent, faq-curator) and the scout:
+  `terms_judge` (get_job, judge_sentences, finish_job; one game request, `agent_jobs.request_id`): only for terms the code judged
+  'unclear' because of bot/AI sentences; the skill labels each sentence forbids/allows/unrelated/unsure and code (`decideTermsWithAgent`)
+  sets the verdict when the job ends. Never changes a clear or restricted code verdict.
+  `faq_curate` (get_job, list_faq_candidates, propose_canonical, finish_job; one game, `agent_jobs.game_slug`; on demand via
+  `POST /api/admin/faq-curate?game=<slug>`): merges duplicate well-rated player questions into `faq_canonical` entries; `judgeCanonical`
+  (core) requires the game's own non-hidden questions, citations from their sources and no new numbers. A finished job with entries
+  replaces the game's older ones; without entries the public FAQ shows the rating tally.
+  `scout_judge` (get_job, preview_url, propose_source, finish_job; one game request): propose which publisher-page links are the official
+  rulebook/faq/errata. `judgeSourcePick` decides each proposal (listed or same publisher site, robots, approved host, else needs_human);
+  picks land in `agent_jobs.result.picks` and the request's scout report. Nothing is ingested.
+- scout (8902): get_job, preview_url, propose_text_variant, finish_job. Job kind `scout_variants` only (one PDF source: propose a text
+  version; overlap and host gates in code). Kept because variant search still needs it (ADR 0007: only for badly scanned sources).
 - librarian (8903): get_job, get_page_text, propose_claim, finish_job. Job kind `librarian_draft` (one rulebook source). propose_claim runs
   the same gates as the in-process Librarian (verbatim quote, duplicate quote, verifier model) and publishes with a citation; counts
   drafted/published/rejected and lastPage in `agent_jobs.result`. Budget: 400 tool iterations, API timeout 10800s, toolTimeout 180s.
-- terms-agent (8904): get_job, judge_sentences, finish_job. Job kind `terms_judge` (one game request, `agent_jobs.request_id`). Only
-  for terms the code judged 'unclear' because of bot/AI sentences; the agent labels each sentence forbids/allows/unrelated/unsure and
-  code (`decideTermsWithAgent`) sets the verdict when the job ends. Never changes a clear or restricted code verdict.
-- faq-curator (8905): get_job, list_faq_candidates, propose_canonical, finish_job. Job kind `faq_curate` (one game, `agent_jobs.game_slug`;
-  on demand via `POST /api/admin/faq-curate?game=<slug>`). Merges duplicate well-rated player questions into `faq_canonical` entries;
-  `judgeCanonical` (core) requires the game's own non-hidden questions, citations from their sources and no new numbers. A finished
-  job with entries replaces the game's older ones; without entries the public FAQ shows the rating tally.
 
 Web app calls `POST http://127.0.0.1:<port>/v1/chat/completions` with `Authorization: Bearer <api key>`, body `{messages:[{role:'user',content}], session_id:'job-<id>'}` (no `model`). `/health` is open. API timeout 1500s, MCP toolTimeout 60s, unless the spec raises them (the app waits `JOB_MINUTES` per job kind).
 
