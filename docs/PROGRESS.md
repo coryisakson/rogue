@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-20 (Hermes, stall check): Space Base source 32 re-ingested after MinerU came back (32 pages, 61.7k chars), indexed 96/96 chunks, search returns rulebook text; Librarian job 100 running. Next: check facts/sheets, auto-vs-all OCR eval, Reviewer vs old agents.
 - 2026-10-19 (Hermes): 0.0.144: derived outputs (setup sheet/player aid version stamp, refresh on source change, sole-source claims superseded; migration 0045) and admin 'Review and update this game' pipeline (0046). Space Base: source 32 text OK (MinerU restarted), source 11 retired. Needs Cory browser test.
 - 2026-10-20 (Hermes): 0.0.146: ingest now shows OCR error text when a PDF yields nothing (Space Base source 32 retry still empty; cause shown on next retry).
 - 2026-10-20 (Hermes): 0.0.145: ADR 0007 step 3: terms_judge, faq_curate, scout_judge now Reviewer skills; terms-agent and faq-curator removed; sidecar 0.9.0. Not yet compared with old agents on live jobs; ROGUE_AGENT_MODEL_* for removed agents gone.
