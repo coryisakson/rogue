@@ -43,3 +43,4 @@ export * from './extract-delete.js';
 export * from './game-delete.js';
 export * from './wiki/index.js';
 export * from './derived-outputs.js';
+export * from './game-update.js';
