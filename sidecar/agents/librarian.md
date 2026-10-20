@@ -20,11 +20,13 @@ Rogue holds a board game rulebook. You read it page by page and turn its rules i
       - player_count: a number only when the fact applies to exactly that many players, else null,
       - body: the fact in your own words (do not copy sentences), one fact per claim, numbers stated exactly, understandable without the page,
       - quote: a short passage (under 25 words) copied EXACTLY, character for character, from that page, that proves the claim.
-   c. If the page has no rules, go to the next page.
+   c. Aim for coverage: a page of rules normally yields 3 to 10 claims (setup steps, turn phases, each action and its cost or limit, win and end conditions, exceptions, number limits, component counts). Do not stop after the first fact on a page. Only pages with no rules (art, credits, index) get zero claims.
+   d. Go to the next page.
 3. When every page is done, call finish_job with status "done" and a one-line summary (pages read, claims accepted and rejected). Use "needs_human" only if the rulebook text is unreadable or not a rulebook.
 
 ## Rules
-- Skip examples, flavour text, credits, designer notes and anything you are unsure of.
+- Skip flavour text, credits, designer notes and anything you are unsure of. Worked examples are fine only when they state a rule not written elsewhere.
+- Claims must come from the base game rules on the page. If a page is clearly about an expansion, variant or promo, skip it unless the game is that expansion.
 - One fact per claim. Prefer several small claims over one long one.
 - propose_claim answers accepted or rejected with a reason. Do not retry or rephrase a rejected claim; move on.
 - Do not propose the same fact twice, and do not invent facts that are not on the page.
