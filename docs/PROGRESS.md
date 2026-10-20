@@ -1,4 +1,5 @@
 # Progress log (newest first). One dated line per meaningful change.
+- 2026-10-20 (Hermes, stall check): Ran Librarian mode=local on Space Base source 32 (32 pages): 206 drafted, 177 published, 29 rejected by gates, vs 5 from the agent. Per-page local mode fixes yield. Next: spot-check claim quality, make local the default, then auto-vs-all OCR eval.
 - 2026-10-20 (Hermes, stall check): 0.0.149: POST /api/admin/librarian?game=X&mode=local runs the per-page in-process Librarian (one model call per page) as alternative to the under-drafting agent. Next: run it on Space Base and compare yield.
 - 2026-10-20 (Hermes, stall check): 0.0.148 deployed, healthz ok. Librarian re-run job 101 on Space Base source 32 still drafted only 5 (1 published, 4 rejected) in 72s: prompt change did not lift yield; likely small-model limit. Next: try stronger Librarian model via ROGUE_AGENT_MODEL_* or per-page forced loop.
 - 2026-10-20 (Hermes, stall check): 0.0.148 + sidecar 0.9.1: Librarian prompt asks for 3-10 claims per rules page and skips expansion-only pages (job 100 drafted only 5 for 29 pages). Needs re-run on Space Base source 32 after deploy to compare.
