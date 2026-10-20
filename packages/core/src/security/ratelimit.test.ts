@@ -19,6 +19,10 @@ describe('security', () => {
     expect(isPublicPath('/admin/game-delete')).toBe(true);
     for (const p of ['/admin/game-delete/', '/admin/game-delete/x', '/admin/game-deletes']) expect(isPublicPath(p)).toBe(false);
   });
+  it('the one-pager/aid rebuild handler is public (it guards itself), nothing below it', () => {
+    expect(isPublicPath('/admin/outputs-rebuild')).toBe(true);
+    for (const p of ['/admin/outputs-rebuild/', '/admin/outputs-rebuild/x', '/admin/outputs-rebuilds']) expect(isPublicPath(p)).toBe(false);
+  });
   it('only front-end paths are public', () => {
     for (const p of ['/', '/about', '/accessibility', '/games', '/games/pandemic', '/games/pandemic/setup', '/games/pandemic/aid','/games/pandemic/facts','/admin/extracts','/healthz', '/_astro/x.js', '/admin', '/admin/backups', '/admin/run', '/admin/claims', '/admin/review', '/admin/requests', '/admin/sources', '/admin/sources/', '/admin/settings', '/admin/faq','/admin/faq-decide', '/admin/quality', '/admin/quality-decide', '/admin/source-delete', '/admin/games', '/admin/games/', '/admin/games/pandemic', '/admin/games/slay-the-spire/', '/agent/mcp/scout', '/agent/mcp/quality-curator', '/games/pandemic/faq', '/request-game', '/api/ask', '/account/language', '/account/collection', '/account/collection/upload', '/mcp', '/mcp/server-card', '/docs/mcp', '/favicon.ico', '/icon.svg', '/icon.png', '/icon-256.png', '/apple-touch-icon.png', '/favicon-32.png']) expect(isPublicPath(p)).toBe(true);
     for (const p of ['/mcp/', '/mcp/x', '/mcp/../api/games', '/docs', '/docs/other', '/api/games', '/api/search', '/api/rules/search', '/api/admin/ingest', '/admin/other', '/admin/sources/x', '/admin/source-delete/', '/admin/source-delete/x', '/admin/source-deletes', '/admin/games/a/b', '/admin/games/../../api', '/admin/games/Pandemic', '/admin/gamesx', '/admin/settings/x', '/admin/sources/../../api', '/agent/mcp', '/agent/mcp/a/b', '/agent/other', '/admin/backups/x', '/api/ai-ping', '/readyz', '/games/pandemic/../../api', '/games/a/b/c', '/api/games/pandemic/claims', '/api/ask/x', '/api/asks']) expect(isPublicPath(p)).toBe(false);

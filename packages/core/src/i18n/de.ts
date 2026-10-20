@@ -198,6 +198,7 @@ export const de: Record<keyof typeof en, string> = {
   'aid.omittedOne': '{n} weitere Regel nicht gezeigt; siehe Regelheft.', 'aid.omittedMany': '{n} weitere Regeln nicht gezeigt; siehe Regelheft.',
   'aid.foot': 'KI-Zusammenfassung des Regelhefts des Verlags, jede Zeile belegt; maßgeblich ist das Regelheft. Nicht mit dem Verlag verbunden. Rogue · Open Source.',
   'aid.none': 'Für dieses Spiel gibt es noch keine belegten Zug-Fakten.',
+  'outputs.stamp': 'v{n} · {date} · {k} Quellen', 'outputs.updating': 'Wird aktualisiert: eine neue Quelle ist noch nicht eingearbeitet.',
 
   'faq.title': '{game}: FAQ', 'faq.h1': '{game}: häufig gestellte Fragen', 'faq.askOwn': 'Eigene Frage stellen',
   'faq.note': 'Fragen an den Regelassistenten, die die meisten Abstimmenden hilfreich fanden. Die Antworten schreibt eine KI aus dem Regelheft des Verlags; sie können falsch sein, prüfe die genannte Seite.',

@@ -208,6 +208,7 @@ export const en = {
   'aid.omittedOne': '{n} more rule not shown; see the rulebook.', 'aid.omittedMany': '{n} more rules not shown; see the rulebook.',
   'aid.foot': "AI summary of the publisher's rulebook, each line cited; the rulebook is authoritative. Not affiliated with the publisher. Rogue · open source.",
   'aid.none': 'No cited turn facts for this game yet.',
+  'outputs.stamp': 'v{n} · {date} · {k} sources', 'outputs.updating': 'Being updated: a new source is not in this sheet yet.',
 
   // FAQ page
   'faq.title': '{game} FAQ', 'faq.h1': '{game}: frequently asked questions', 'faq.askOwn': 'Ask your own question',

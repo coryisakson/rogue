@@ -198,6 +198,7 @@ export const zh: Record<keyof typeof en, string> = {
   'aid.omittedOne': '还有 {n} 条规则未显示；请查阅规则书。', 'aid.omittedMany': '还有 {n} 条规则未显示；请查阅规则书。',
   'aid.foot': '出版商规则书的 AI 摘要，每行都注明出处；以规则书为准。与出版商无关联。Rogue · 开源。',
   'aid.none': '这款游戏还没有有出处的回合事实。',
+  'outputs.stamp': 'v{n} · {date} · {k} 个来源', 'outputs.updating': '正在更新：新来源尚未纳入。',
 
   'faq.title': '{game} 常见问题', 'faq.h1': '{game}：常见问题', 'faq.askOwn': '提出你自己的问题',
   'faq.note': '玩家向规则助手提出、多数投票者认为有帮助的问题。回答由 AI 根据出版商规则书撰写，可能有误；请核对所引页码。',

@@ -198,6 +198,7 @@ export const it: Record<keyof typeof en, string> = {
   'aid.omittedOne': '{n} altra regola non mostrata; vedi il regolamento.', 'aid.omittedMany': '{n} altre regole non mostrate; vedi il regolamento.',
   'aid.foot': 'Riassunto IA del regolamento dell’editore, ogni riga con fonte; fa fede il regolamento. Non affiliato all’editore. Rogue · open source.',
   'aid.none': 'Per questo gioco non ci sono ancora fatti sul turno con fonte.',
+  'outputs.stamp': 'v{n} · {date} · {k} fonti', 'outputs.updating': 'In aggiornamento: una nuova fonte non è ancora inclusa.',
 
   'faq.title': 'FAQ di {game}', 'faq.h1': '{game}: domande frequenti', 'faq.askOwn': 'Fai la tua domanda',
   'faq.note': 'Domande poste dai giocatori all’assistente delle regole che la maggior parte dei votanti ha trovato utili. Le risposte sono scritte dall’IA dal regolamento dell’editore e possono essere sbagliate; controlla la pagina citata.',
