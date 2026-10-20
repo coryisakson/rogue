@@ -56,7 +56,7 @@ describe('settings validation and display', () => {
     expect(validateSetting('ROGUE_AI_BASE_URL', 'not a url').ok).toBe(false);
     expect(validateSetting('ROGUE_AI_CHAT_MODEL', 'Olares/gemma4:e4b')).toEqual({ ok: true, value: 'Olares/gemma4:e4b' });
     expect(validateSetting('ROGUE_AI_CHAT_MODEL', 'bad model').ok).toBe(false);
-    expect(validateSetting(agentModelKey('terms-agent'), 'claude-sonnet-5-5').ok).toBe(true);
+    expect(validateSetting(agentModelKey('reviewer'), 'claude-sonnet-5-5').ok).toBe(true);
     expect(validateSetting('ROGUE_AI_ANSWER_REASONING', 'high').ok).toBe(false);
     expect(validateSetting('ROGUE_OCR_PROVIDER', 'mineru').ok).toBe(true);
     expect(validateSetting('ROGUE_DISCORD_WEBHOOK_URL', 'http://x').ok).toBe(false);
@@ -75,7 +75,10 @@ describe('settings validation and display', () => {
     const keys = SETTING_DEFS.map((d) => d.key);
     expect(new Set(keys).size).toBe(keys.length);
     for (const k of keys) if (/API_KEY|TOKEN|WEBHOOK/.test(k)) expect(isSecretSetting(k)).toBe(true);
-    expect(agentModelKey('faq-curator')).toBe('ROGUE_AGENT_MODEL_FAQ_CURATOR');
+    expect(agentModelKey('reviewer')).toBe('ROGUE_AGENT_MODEL_REVIEWER');
+    // Retired agents (ADR 0007 step 3) have no model setting any more.
+    for (const k of ['ROGUE_AGENT_MODEL_TERMS_AGENT', 'ROGUE_AGENT_MODEL_FAQ_CURATOR', 'ROGUE_AGENT_MODEL_QUALITY_CURATOR']) expect(keys).not.toContain(k);
+    expect(keys).toContain('ROGUE_AGENT_MODEL_SCOUT');
   });
 
   it('encrypts secrets round trip; a wrong key fails', () => {

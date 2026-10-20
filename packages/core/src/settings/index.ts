@@ -34,7 +34,7 @@ const model = (key: string, label: string, defaultNote: string, help?: string): 
 const secret = (key: string, label: string, defaultNote: string, help?: string): SettingDef => ({ key, label, kind: 'secret', defaultNote, ...(help ? { help } : {}) });
 const reasoning = (key: string, label: string, defaultNote: string): SettingDef => ({ key, label, kind: 'reasoning', defaultNote });
 
-/** Agent name -> setting key suffix, e.g. terms-agent -> ROGUE_AGENT_MODEL_TERMS_AGENT. */
+/** Agent name -> setting key suffix, e.g. reviewer -> ROGUE_AGENT_MODEL_REVIEWER. */
 export const agentModelKey = (name: AgentName): string => `ROGUE_AGENT_MODEL_${name.toUpperCase().replace(/-/g, '_')}`;
 
 /** A role's own endpoint: model + optional base URL/key. Without its own base URL it uses the Router and the Router key. */

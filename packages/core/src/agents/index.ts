@@ -5,18 +5,19 @@ import { createHmac } from 'node:crypto';
  * sidecar); every secret is derived from it per agent name, so nothing agent-specific is stored and a leaked token only works
  * for one agent. Agents call Rogue's MCP endpoint with header `x-rogue-agent: <name>:<token>`.
  */
-export const AGENT_NAMES = ['reviewer', 'scout', 'librarian', 'terms-agent', 'faq-curator'] as const;
+export const AGENT_NAMES = ['reviewer', 'scout', 'librarian'] as const;
 export type AgentName = (typeof AGENT_NAMES)[number];
 /**
- * ADR 0007: the Reviewer took over port 8901 and gains one skill per short review job kind. Step 2 moved quality_curate onto it,
- * so the Quality Curator and its temporary port 8906 are gone.
+ * ADR 0007: the Reviewer took over port 8901 and gains one skill per short review job kind. Step 2 moved quality_curate onto it
+ * (Quality Curator and port 8906 gone); step 3 moved terms_judge, faq_curate and scout_judge (Terms Agent 8904 and FAQ Curator
+ * 8905 gone). The Scout stays only for scout_variants (text versions of badly scanned PDFs).
  */
-export const AGENT_PORTS: Record<AgentName, number> = { reviewer: 8901, scout: 8902, librarian: 8903, 'terms-agent': 8904, 'faq-curator': 8905 };
+export const AGENT_PORTS: Record<AgentName, number> = { reviewer: 8901, scout: 8902, librarian: 8903 };
 
 /** Kinds of agent job (agent_jobs.kind) and the one agent allowed to work on each. terms_judge and scout_judge work on a game request, faq_curate on a game, the rest on a source. */
 export const JOB_KINDS = ['quality_curate', 'scout_variants', 'librarian_draft', 'terms_judge', 'scout_judge', 'faq_curate', 'extract_review'] as const;
 export type JobKind = (typeof JOB_KINDS)[number];
-export const JOB_AGENT: Record<JobKind, AgentName> = { quality_curate: 'reviewer', scout_variants: 'scout', librarian_draft: 'librarian', terms_judge: 'terms-agent', scout_judge: 'scout', faq_curate: 'faq-curator', extract_review: 'reviewer' };
+export const JOB_AGENT: Record<JobKind, AgentName> = { quality_curate: 'reviewer', scout_variants: 'scout', librarian_draft: 'librarian', terms_judge: 'reviewer', scout_judge: 'reviewer', faq_curate: 'reviewer', extract_review: 'reviewer' };
 /**
  * The tools a job of each kind may call (ADR 0007). An agent with several skills sees all its tools over MCP, but a tool
  * refuses unless the running job's kind lists it, so one skill can never use another skill's write tools.

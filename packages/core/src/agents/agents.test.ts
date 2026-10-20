@@ -10,7 +10,19 @@ describe('reviewer skills (ADR 0007)', () => {
     expect(Object.values(AGENT_PORTS)).not.toContain(8906);
     expect(jobSkill('extract_review')).toBe('extract_review');
     expect(jobSkill('quality_curate')).toBe('quality_curate');
-    expect(jobSkill('scout_judge')).toBeNull();
+    expect(jobSkill('scout_variants')).toBeNull();
+  });
+  it('runs terms_judge, faq_curate and scout_judge on the reviewer (step 3); terms agent and faq curator are retired', () => {
+    for (const k of ['terms_judge', 'faq_curate', 'scout_judge'] as const) { expect(JOB_AGENT[k]).toBe('reviewer'); expect(jobSkill(k)).toBe(k); }
+    expect(AGENT_NAMES as readonly string[]).not.toContain('terms-agent');
+    expect(AGENT_NAMES as readonly string[]).not.toContain('faq-curator');
+    expect(Object.values(AGENT_PORTS)).not.toContain(8904);
+    expect(Object.values(AGENT_PORTS)).not.toContain(8905);
+    expect(verifyAgentHeader(`terms-agent:${agentToken('k', 'terms-agent')}`, 'k')).toBeNull();
+    expect(verifyAgentHeader(`faq-curator:${agentToken('k', 'faq-curator')}`, 'k')).toBeNull();
+    // The scout keeps only text-variant search.
+    expect(JOB_AGENT.scout_variants).toBe('scout');
+    expect(Object.values(JOB_AGENT).filter((a) => a === 'scout')).toHaveLength(1);
   });
   it('lists a tool subset for every kind, always with get_job and finish_job', () => {
     for (const k of JOB_KINDS) { expect(JOB_TOOLS[k]).toContain('get_job'); expect(JOB_TOOLS[k]).toContain('finish_job'); }
@@ -30,6 +42,22 @@ describe('reviewer skills (ADR 0007)', () => {
     expect(agentMayActOn('reviewer', job, 'propose_page_choice')).toBe(false);
     expect(agentMayActOn('quality-curator', job, 'get_job')).toBe(false);
     expect(agentMayActOn('reviewer', { kind: 'extract_review', status: 'running' }, 'reocr_page')).toBe(false);
+  });
+  it('keeps terms_judge, faq_curate and scout_judge to their own tools', () => {
+    const terms = { kind: 'terms_judge', status: 'running' };
+    for (const t of ['get_job', 'judge_sentences', 'finish_job']) expect(agentMayActOn('reviewer', terms, t)).toBe(true);
+    for (const t of ['propose_canonical', 'propose_source', 'preview_url', 'propose_page_repair']) expect(agentMayActOn('reviewer', terms, t)).toBe(false);
+    const faq = { kind: 'faq_curate', status: 'running' };
+    for (const t of ['get_job', 'list_faq_candidates', 'propose_canonical', 'finish_job']) expect(agentMayActOn('reviewer', faq, t)).toBe(true);
+    for (const t of ['judge_sentences', 'propose_source', 'get_page_text']) expect(agentMayActOn('reviewer', faq, t)).toBe(false);
+    const judge = { kind: 'scout_judge', status: 'running' };
+    for (const t of ['get_job', 'preview_url', 'propose_source', 'finish_job']) expect(agentMayActOn('reviewer', judge, t)).toBe(true);
+    for (const t of ['propose_text_variant', 'judge_sentences', 'propose_canonical']) expect(agentMayActOn('reviewer', judge, t)).toBe(false);
+    expect(agentMayActOn('scout', judge, 'propose_source')).toBe(false);
+    expect(agentMayActOn('terms-agent', terms, 'get_job')).toBe(false);
+    expect(agentMayActOn('faq-curator', faq, 'get_job')).toBe(false);
+    expect(agentMayActOn('reviewer', { kind: 'scout_variants', status: 'running' }, 'preview_url')).toBe(false);
+    expect(agentMayActOn('reviewer', { ...judge, status: 'queued' }, 'get_job')).toBe(false);
   });
 });
 
@@ -71,31 +99,13 @@ describe('agent jobs', () => {
     expect(agentMayActOn('librarian', { kind: 'unknown', status: 'running' })).toBe(false);
     expect(agentMayActOn('librarian', null)).toBe(false);
   });
-  it('gives terms_judge jobs only to the terms agent', () => {
-    expect(JOB_AGENT.terms_judge).toBe('terms-agent');
-    expect(AGENT_PORTS['terms-agent']).toBe(8904);
-    expect(verifyAgentHeader(`terms-agent:${agentToken('k', 'terms-agent')}`, 'k')).toBe('terms-agent');
-    expect(agentMayActOn('terms-agent', { kind: 'terms_judge', status: 'running' })).toBe(true);
-    expect(agentMayActOn('scout', { kind: 'terms_judge', status: 'running' })).toBe(false);
-    expect(agentMayActOn('terms-agent', { kind: 'scout_variants', status: 'running' })).toBe(false);
-  });
-  it('gives scout_judge jobs only to the scout, with a time budget', () => {
-    expect(JOB_KINDS).toContain('scout_judge');
-    expect(JOB_AGENT.scout_judge).toBe('scout');
+  it('gives scout_variants jobs only to the scout, with a time budget', () => {
     expect(JOB_MINUTES.scout_judge).toBe(25);
-    expect(agentMayActOn('scout', { kind: 'scout_judge', status: 'running' })).toBe(true);
-    expect(agentMayActOn('scout', { kind: 'scout_judge', status: 'queued' })).toBe(false);
-    expect(agentMayActOn('terms-agent', { kind: 'scout_judge', status: 'running' })).toBe(false);
-  });
-  it('gives faq_curate jobs only to the faq-curator, on its own port', () => {
-    expect(JOB_KINDS).toContain('faq_curate');
-    expect(JOB_AGENT.faq_curate).toBe('faq-curator');
+    expect(JOB_MINUTES.terms_judge).toBe(25);
     expect(JOB_MINUTES.faq_curate).toBe(25);
-    expect(AGENT_PORTS['faq-curator']).toBe(8905);
-    expect(verifyAgentHeader(`faq-curator:${agentToken('k', 'faq-curator')}`, 'k')).toBe('faq-curator');
-    expect(agentMayActOn('faq-curator', { kind: 'faq_curate', status: 'running' })).toBe(true);
-    expect(agentMayActOn('faq-curator', { kind: 'faq_curate', status: 'queued' })).toBe(false);
-    expect(agentMayActOn('faq-curator', { kind: 'scout_judge', status: 'running' })).toBe(false);
+    expect(agentMayActOn('scout', { kind: 'scout_variants', status: 'running' })).toBe(true);
+    expect(agentMayActOn('scout', { kind: 'terms_judge', status: 'running' })).toBe(false);
     expect(agentMayActOn('scout', { kind: 'faq_curate', status: 'running' })).toBe(false);
+    expect(agentMayActOn('reviewer', { kind: 'scout_variants', status: 'running' })).toBe(false);
   });
 });
