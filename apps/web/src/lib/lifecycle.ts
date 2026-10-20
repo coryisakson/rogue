@@ -1,4 +1,5 @@
 import { FetchDenied, FetchHttpError, RightsGatedFetcher } from '@rogue/core';
+import { sourceChanged } from './derived-outputs';
 import { ensureMigrated, getPool, storage } from './services';
 import { syncApprovedHosts } from './dynamic-sources';
 import { ALLOWED_HOSTS } from './source-seeds';
@@ -36,10 +37,12 @@ export async function recheckSource(sourceId: number): Promise<RecheckResult> {
       `UPDATE claims SET status='needs_review' WHERE status='published' AND id IN (SELECT claim_id FROM citations c JOIN documents d ON d.id=c.document_id WHERE d.source_id=$1)`,
       [sourceId],
     );
+    await sourceChanged(sourceId, 'source_changed');
     return done('changed', `new hash ${doc.sha256.slice(0, 12)}; ${n.rowCount} claims moved to needs_review`);
   } catch (e) {
     if (e instanceof FetchHttpError && e.gone) {
       await pool.query("UPDATE sources SET last_checked_at=now(), availability='unavailable', unavailable_since=COALESCE(unavailable_since, now()) WHERE id=$1", [sourceId]);
+      await sourceChanged(sourceId, 'source_unavailable');
       return done('unavailable', `HTTP ${e.status}: source no longer available`);
     }
     if (e instanceof FetchDenied) return done('denied', e.message);

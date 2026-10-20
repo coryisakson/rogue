@@ -204,12 +204,24 @@ async function afterJob(kind: JobKind, jobId: number): Promise<void> {
     await replaceCanonicalFaq(jobId);
     return;
   }
+  if (kind === 'librarian_draft') {
+    // New claims (or none): the one-pager and player aid of the game get a fresh stamp (ADR 0008).
+    const j = (await pool.query('SELECT source_id FROM agent_jobs WHERE id=$1', [jobId])).rows[0];
+    if (!j?.source_id) return;
+    const { gamesOfSource, refreshDerivedOutputs } = await import('./derived-outputs'); // derived-outputs imports this module
+    for (const slug of await gamesOfSource(Number(j.source_id))) await refreshDerivedOutputs(slug, 'librarian');
+    return;
+  }
   if (kind !== 'quality_curate' && kind !== 'extract_review') return;
   const j = (await pool.query('SELECT source_id, result FROM agent_jobs WHERE id=$1', [jobId])).rows[0];
   if (!j || !(Number(j.result?.changedPages) > 0)) return;
   if (kind === 'extract_review') await scoreSource(Number(j.source_id)).catch(() => null);
   const { indexSource } = await import('./rules-index');
   await indexSource(Number(j.source_id));
+  if (kind === 'extract_review') {
+    const { sourceChanged } = await import('./derived-outputs');
+    await sourceChanged(Number(j.source_id), 'extract_review');
+  }
 }
 
 /**

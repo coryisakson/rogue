@@ -3,6 +3,7 @@ import {
   type GameMatch, type SourceInput,
 } from '@rogue/core';
 import { probeRulebook, type RightsReport } from './add-game';
+import { sourcesChanged, supersedeSoleSourceClaims } from './derived-outputs';
 import { allSeeds, syncApprovedHosts } from './dynamic-sources';
 import { resumeQueue } from './intake';
 import { ingestSeed } from './ingest';
@@ -118,6 +119,9 @@ export async function addGameSource(slug: string, v: SourceInput, adminId: numbe
     if ((e as { code?: string }).code === '23505') return { ok: false, error: 'That link was just added by someone else.', report };
     throw e;
   } finally { c.release(); }
+  // The retired source no longer backs the one-pager and player aid: its sole-source claims are superseded (ADR 0008).
+  if (replacesSourceId !== null) await supersedeSoleSourceClaims(replacesSourceId, `admin:${adminId}`).catch((e) => console.warn('[outputs] supersede failed:', (e as Error).message));
+  void sourcesChanged(slug, replacesSourceId === null ? 'source_added' : 'source_replaced');
   void runSourcePipeline(id);
   return { ok: true, id, report };
 }
@@ -140,11 +144,12 @@ async function runSourcePipeline(id: number): Promise<void> {
     if (!res.ok || !res.sourceId) { await setProgress(id, `ingest failed: ${res.detail}`); return; }
     await setProgress(id, `indexing ${res.pages ?? '?'} pages`);
     const idx = await indexSource(res.sourceId);
-    if (seed.kind !== 'rulebook') { await setProgress(id, `done: ${idx.chunks} chunks indexed (the Librarian drafts from rulebooks only)`); return; }
+    if (seed.kind !== 'rulebook') { await setProgress(id, `done: ${idx.chunks} chunks indexed (the Librarian drafts from rulebooks only)`); await sourcesChanged(seed.gameSlug, 'source_ingested'); return; }
     const lib = await startLibrarian(seed.gameSlug, res.sourceId);
     await setProgress(id, 'error' in lib ? `indexed ${idx.chunks} chunks; Librarian not started: ${lib.error}`
       : lib.mode === 'agent' ? `indexed ${idx.chunks} chunks; Librarian job #${lib.jobId} queued` : `indexed ${idx.chunks} chunks; Librarian running in-process`);
     await audit('game-sources', 'game_source_ingested', { runtimeSourceId: id, sourceId: res.sourceId, chunks: idx.chunks, librarian: lib });
+    await sourcesChanged(seed.gameSlug, 'source_ingested');
   } catch (e) {
     await setProgress(id, `error: ${e instanceof Error ? e.message : 'unknown'}`);
   }
@@ -167,6 +172,7 @@ export async function reingestSource(slug: string, sourceId: number, adminId: nu
     reingestProgress.set(sourceId, 'fetching wiki page');
     void reingestWikiPage(slug, sourceId)
       .then((r) => reingestProgress.set(sourceId, r.ok ? `done: ${r.chunks ?? 0} chunks indexed` : `ingest failed: ${r.detail}`))
+      .then(() => sourcesChanged(slug, 'source_reingested'))
       .catch((e) => reingestProgress.set(sourceId, `error: ${e instanceof Error ? e.message : 'unknown'}`));
     return { ok: true };
   }
@@ -181,6 +187,7 @@ export async function reingestSource(slug: string, sourceId: number, adminId: nu
       reingestProgress.set(sourceId, `indexing ${res.pages ?? '?'} pages`);
       const idx = await indexSource(res.sourceId);
       reingestProgress.set(sourceId, `done: ${idx.chunks} chunks indexed`);
+      await sourcesChanged(slug, 'source_reingested');
     } catch (e) { reingestProgress.set(sourceId, `error: ${e instanceof Error ? e.message : 'unknown'}`); }
   })();
   return { ok: true };

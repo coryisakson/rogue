@@ -5,6 +5,7 @@ import {
 } from '@rogue/core';
 import { probeRulebook, type RightsReport } from './add-game';
 import { syncApprovedHosts } from './dynamic-sources';
+import { sourcesChanged } from './derived-outputs';
 import { gatedFetch, ingestSeed, type IngestOptions, type IngestSeed } from './ingest';
 import { indexSource } from './rules-index';
 import { ensureMigrated, getPool, storage } from './services';
@@ -222,11 +223,13 @@ async function runCrawl(id: number): Promise<void> {
   active.add(id);
   const pool = getPool();
   const imported: string[] = [];
+  let slug: string | null = null;
   let final: { status: 'done' | 'stopped' | 'failed'; reason?: string; url?: string } = { status: 'done' };
   try {
     if (!pool) return;
     const row = (await pool.query("SELECT game_slug, start_url, mode, publisher, language, force, plan, counts, authority FROM wiki_crawls WHERE id=$1 AND status='running'", [id])).rows[0];
     if (!row) return;
+    slug = String(row.game_slug);
     if (!isCrawlPlan(row.plan)) { final = { status: 'failed', reason: 'stored crawl plan is unreadable' }; return; }
     const plan: CrawlPlan = row.plan;
     const ingestOpts = wikiIngest(row.authority === 'publisher' ? 'publisher' : 'community');
@@ -285,6 +288,8 @@ async function runCrawl(id: number): Promise<void> {
       await audit('wiki-crawl', 'wiki_crawl_finished', { crawlId: id, status: 'failed', reason: final.reason ?? null, urls: imported.slice(0, 500) });
     }
     active.delete(id);
+    // A wiki import (done, stopped or failed) may have added pages: refresh the one-pager/aid stamp (ADR 0008).
+    if (slug) await sourcesChanged(slug, `wiki_import_${final.status}`);
   }
 }
 

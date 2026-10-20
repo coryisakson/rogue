@@ -3,6 +3,7 @@ import {
   CAPTURE_MAX_CHARS, CAPTURE_MAX_FILE_BYTES, CAPTURE_METHOD, captureEditionLabel, captureFileType, checkCapturedText, htmlAdapter,
   splitCapturedText, type CaptureError, type CaptureForm,
 } from '@rogue/core';
+import { sourcesChanged } from './derived-outputs';
 import { pdfAdapter } from './pdf-adapter';
 import { indexSource } from './rules-index';
 import { ensureMigrated, getPool, storage } from './services';
@@ -130,7 +131,7 @@ export async function captureSource(form: CaptureForm, captured: CapturedText, a
     const others = (await pool.query('SELECT 1 FROM sources WHERE text_path=$1', [old.text_path])).rowCount;
     if (!others) await storage.delete(old.text_path).catch(() => false);
   }
-  void indexCapture(sourceId);
+  void indexCapture(sourceId).then(() => sourcesChanged(form.game, 'source_captured'));
   return { ok: true, sourceId, chars, pages: captured.pages, recapture: !!old };
 }
 

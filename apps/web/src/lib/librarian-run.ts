@@ -121,4 +121,7 @@ export async function runLibrarian(gameSlug: string): Promise<void> {
     await pool.query('INSERT INTO audit_log(actor, action, detail) VALUES ($1,$2,$3)', ['librarian', 'draft_claims', { game: gameSlug, drafted: status.drafted, published: status.published, rejected: status.rejected.length }]);
   } catch (e) { status.error = (e as Error).message; }
   finally { status!.running = false; status!.finishedAt = new Date().toISOString(); }
+  // Fresh stamp for the one-pager and player aid (ADR 0008); lazy: derived-outputs imports this module.
+  const { refreshDerivedOutputs } = await import('./derived-outputs');
+  await refreshDerivedOutputs(gameSlug, 'librarian');
 }

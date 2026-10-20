@@ -1,5 +1,6 @@
 import { planClaimRejections, type ClaimCitation } from '@rogue/core';
 import { forgetAnswersCiting } from './chat';
+import { gamesOfSource, sourcesChanged } from './derived-outputs';
 import { ensureMigrated, getPool, storage } from './services';
 import type pg from 'pg';
 
@@ -65,6 +66,7 @@ export async function sourceDeletePreview(sourceId: number): Promise<SourceDelet
 export async function deleteSource(sourceId: number, actor: string, reason: string, allowReingest = false): Promise<SourceDeleteResult | null> {
   const pool = getPool(); if (!pool) throw new Error('database not configured');
   await ensureMigrated();
+  const games = await gamesOfSource(sourceId); // read before the documents go
   const c = await pool.connect();
   let out: SourceDeleteResult;
   let paths: string[];
@@ -117,5 +119,6 @@ export async function deleteSource(sourceId: number, actor: string, reason: stri
   // Files cannot roll back, so they go only after the commit. A missing file is fine.
   for (const path of paths) await storage.delete(path).catch(() => false);
   forgetAnswersCiting(out.url);
+  for (const slug of games) void sourcesChanged(slug, 'source_deleted');
   return out;
 }
