@@ -1,0 +1,22 @@
+---
+// "Rebuild one-pager and player aid" on /admin/games/<slug>/sources (ADR 0008). POST goes to /admin/outputs-rebuild, which
+// recomputes the basis (lib/derived-outputs.ts), bumps the version if it changed, and redirects back with ?outputs=<version>.
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+interface Props { slug: string }
+const { slug } = Astro.props;
+const done = Astro.url.searchParams.get('outputs');
+const msg = done === 'err' ? 'Rebuild failed (see the server log).' : done && /^[0-9]{1,9}$/.test(done) ? `Rebuilt: setup sheet and player aid are now v${done}.` : null;
+---
+<Card className="mt-3 text-base" id="outputs-rebuild">
+  <CardHeader><CardTitle><h2 class="m-0 text-lg">Setup sheet and player aid</h2></CardTitle></CardHeader>
+  <CardContent>
+    {msg && <p class="mt-0" role="status"><Badge variant={done === 'err' ? 'danger' : 'secondary'} className="h-auto whitespace-normal">{msg}</Badge></p>}
+    <p class="mt-0">Both are built from this game's published facts. They refresh by themselves when a source changes; this re-checks now and queues the Librarian for a new rulebook it has not read. The version goes up only when sources or facts changed.</p>
+    <form method="post" action="/admin/outputs-rebuild">
+      <input type="hidden" name="game" value={slug} />
+      <Button type="submit" variant="outline">Rebuild one-pager and player aid</Button>
+    </form>
+  </CardContent>
+</Card>

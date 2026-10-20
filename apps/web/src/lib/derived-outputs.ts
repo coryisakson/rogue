@@ -145,16 +145,16 @@ export async function supersedeSoleSourceClaims(sourceId: number, actor: string)
  * extract review). Makes sure the Librarian is queued for each new rulebook it has not run on (agents sidecar only; the
  * in-process fallback drafts the first rulebook when an admin starts it), then refreshes the stamp. Never throws.
  */
-export async function sourcesChanged(slug: string, reason: string): Promise<void> {
+export async function sourcesChanged(slug: string, reason: string): Promise<OutputStamp | null> {
   try {
-    const pool = getPool(); if (!pool) return;
+    const pool = getPool(); if (!pool) return null;
     await ensureMigrated();
     if (agentsEnabled()) {
       // queueLibrarianJob returns the open job when one is already queued or running, so repeated hooks do not stack jobs.
       for (const id of (await pendingSources(pool, slug)).rulebooks) await queueLibrarianJob(slug, id);
     }
   } catch (e) { console.warn('[outputs] librarian queue failed:', (e as Error).message); }
-  await refreshDerivedOutputs(slug, reason);
+  return refreshDerivedOutputs(slug, reason);
 }
 
 /** sourcesChanged for every game of a source (recheck, extract review, delete only know the source id). */

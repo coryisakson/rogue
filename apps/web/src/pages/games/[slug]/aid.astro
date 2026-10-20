@@ -1,8 +1,9 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import { getGame, getClaims } from '../../../lib/kb';
+import { outputStamp, outputsBeingUpdated } from '../../../lib/derived-outputs';
 import { buttonVariants } from '../../../components/ui/button';
-import { buildAid, CARD_SIZES, nUp, resolveCardSize, t } from '@rogue/core';
+import { buildAid, CARD_SIZES, nUp, resolveCardSize, stampParams, t } from '@rogue/core';
 const L = Astro.locals.locale;
 const { slug } = Astro.params;
 const game = await getGame(slug!);
@@ -12,6 +13,9 @@ const size = resolveCardSize(Astro.url.searchParams.get('size'), game.card_size)
 const aid = buildAid(claims, size.key, t(L, 'aid.cardTitle', { game: game.name }));
 const shown = new Set(aid.sections.flatMap((s) => s.lines.map((l) => l.id)));
 if (!shown.size) return new Response(t(L, 'aid.none'), { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+// Version stamp (ADR 0008) and the "being updated" gate: a new source not drafted yet is said, never hidden; printing still works.
+const stamp = await outputStamp(slug!);
+const updating = await outputsBeingUpdated(slug!);
 // Only sources behind lines on the card: no claim without its source.
 const srcs = [...new Map(claims.filter((c) => shown.has(c.id)).map((c) => [c.source_url, c])).values()];
 // The cut-out sheet only makes sense for card stock sizes; page sizes print one per sheet.
@@ -69,8 +73,9 @@ const tool = (on: boolean) => buttonVariants({ variant: on ? 'default' : 'outlin
           <ul>{sec.lines.map((l) => <li>{l.text}{l.page && <sup> [{l.page}]</sup>}</li>)}</ul>
         </>))}
         <div class="foot">
+          {updating && <><em>{t(L, 'outputs.updating')}</em> </>}
           {aid.omitted > 0 && <>{t(L, aid.omitted === 1 ? 'aid.omittedOne' : 'aid.omittedMany', { n: aid.omitted })} </>}
-          {t(L, 'common.sources')} {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. {t(L, 'aid.foot')}
+          {t(L, 'common.sources')} {srcs.map((s) => `${s.source_title} (${s.publisher})`).join('; ')}. {t(L, 'aid.foot')}{stamp && <> <span class="stamp">{t(L, 'outputs.stamp', stampParams(stamp))}</span></>}
         </div>
       </div>
     ))}

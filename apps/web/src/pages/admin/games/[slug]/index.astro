@@ -5,6 +5,7 @@ import GameManageBar from '../../../../components/GameManageBar.astro';
 import { isAdmin } from '../../../../lib/admin';
 import { HUB_AUDIT_ACTIONS, hubAudit, hubGame, hubPageScores, hubRequests, hubSources, type HubAudit } from '../../../../lib/admin-games';
 import { factsCount } from '../../../../lib/game-sources';
+import { outputsStatus } from '../../../../lib/derived-outputs';
 import { Badge } from '../../../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
@@ -15,7 +16,7 @@ const slug = String(Astro.params.slug ?? '');
 if (!/^[a-z0-9-]{1,80}$/.test(slug)) return new Response('Not found', { status: 404 });
 const game = await hubGame(slug);
 if (!game) return new Response('Not found', { status: 404 });
-const [requests, sources, facts] = await Promise.all([hubRequests(slug), hubSources(slug), factsCount(slug)]);
+const [requests, sources, facts, outputs] = await Promise.all([hubRequests(slug), hubSources(slug), factsCount(slug), outputsStatus(slug)]);
 const [audit, scores] = await Promise.all([hubAudit(slug, sources.map((s) => s.url)), hubPageScores(sources.map((s) => s.id))]);
 const base = `/admin/games/${encodeURIComponent(slug)}`;
 const viewer = (id: number, page?: number) => `${base}/extracts?source=${id}${page ? `&page=${page}` : ''}`;
@@ -54,6 +55,12 @@ const anyQuality = quality.some((x) => x.q.pages > 0 || x.problems.length > 0 ||
 <Admin title={game.name}>
   <GameManageBar slug={slug} current="overview" />
   <p><small>{game.publisher ?? 'publisher unknown'} · {game.year ?? 'year ?'} · slug <code>{slug}</code>{game.bggId && <> · <a href={`https://boardgamegeek.com/boardgame/${game.bggId}`} rel="noopener nofollow">BGG {game.bggId}</a></>} · {sources.length} sources · {facts} published facts</small></p>
+  {/* Derived outputs (ADR 0008), read-only: rebuild is on the Sources subpage. */}
+  <p role="status"><small>Setup sheet / player aid: {outputs
+    ? <>v{outputs.version}, built {outputs.builtAt.slice(0, 16).replace('T', ' ')}, based on {outputs.sources} sources, {outputs.claims} claims
+        {outputs.stale && <> <Badge variant="warning">STALE</Badge> (now {outputs.nowSources} sources, {outputs.nowClaims} claims)</>}
+        {outputs.pending > 0 && <> <Badge variant="secondary">being updated: {outputs.pending} new source{outputs.pending === 1 ? '' : 's'} not drafted yet</Badge></>}</>
+    : 'not built yet (stamped on first view)'}</small></p>
 
   <Card className="mb-3 text-base">
     <CardHeader><CardTitle><h2 class="m-0 text-lg">Text quality</h2></CardTitle></CardHeader>

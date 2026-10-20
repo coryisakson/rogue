@@ -4,6 +4,7 @@ import { CAPTURE_ERRORS, DEFAULT_SOURCE_AUTHORITY, PUBLISHER_WIKI_FIELD, SOURCE_
 import CaptureForm from '../../../../components/CaptureForm.astro';
 import GameManageBar from '../../../../components/GameManageBar.astro';
 import GameDeleteCard from '../../../../components/GameDeleteCard.astro';
+import OutputsRebuildCard from '../../../../components/OutputsRebuildCard.astro';
 import { isAdmin } from '../../../../lib/admin';
 import { baseUrl } from '../../../../lib/auth';
 import { addGameSource, factsCount, gameSources, listGames, pendingRuntimeSources, reingestSource, reingestStatus } from '../../../../lib/game-sources';
@@ -280,5 +281,6 @@ const publisherWiki = v[PUBLISHER_WIKI_FIELD] === 'yes';
       <CaptureForm from="sources" game={slug} hostError={captureErr === 'host'} newError={['newgame', 'bggid', 'year'].includes(captureErr ?? '')} />
     </CardContent>
   </Card>
+  <OutputsRebuildCard slug={slug} />
   {sources.length === 0 && <GameDeleteCard slug={slug} name={game.name} />}
 </Admin>
